@@ -1,2 +1,2 @@
-# ray-events
+# ray_events
 Ray eventing
