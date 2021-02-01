@@ -1,5 +1,5 @@
-# ray_events
-Ray eventing
+# Ray events
+Simple ray eventing.
 
 To install, clone the repository.
 
