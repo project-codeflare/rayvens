@@ -1,12 +1,19 @@
 import ray
 
 @ray.remote
-class Counter(object):
-    def __init__(self):
-        self.n = 0
+class EventTopic(object):
+    def __init__(self, name):
+        self.name = name
+        self.subscribers = []
 
-    def increment(self):
-        self.n += 1
+    def subscribe(self, subscriberFunction):
+        self.subscribers.append(subscriberFunction)
 
-    def read(self):
-        return self.n
+    def publish(self, *args, **kwargs):
+        for subscriberFunction in self.subscribers:
+            subscriberFunction(*args, **kwargs)
+
+    def describe(self):
+        print("Topic name: ", self.name)
+        print("Number of subscribers: ", len(self.subscribers))
+

@@ -15,6 +15,5 @@ setup(
     author_email='gheorghe-teod.bercea@ibm.com',
     url='https://github.ibm.com/Gheorghe-Teod-Bercea/ray_events',
     license=license,
-    # packages=find_packages(exclude=('tests', 'docs'))
-    packages=find_packages()
+    packages=find_packages(exclude=('examples'))
 )
