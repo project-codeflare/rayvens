@@ -1,13 +1,13 @@
 # Ray events
-Simple ray eventing.
+Simple ray eventing using existin Ray API.
 
-To install, clone the repository.
+To install, first clone the repository, then:
 
 ```
 cd ray_events
 ```
 
-Then run:
+and invoke:
 
 ```
 pip3 install -e . -v
@@ -17,6 +17,5 @@ Run python on examples scripts as normal to run them:
 
 ```
 cd examples
-python3 basic_pubsub.py
-python3 arg_pubsub.py
+python3 <example-name>.py
 ```
