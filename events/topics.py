@@ -14,6 +14,6 @@ class EventTopic(object):
             subscriberFunction(*args, **kwargs)
 
     def describe(self):
-        print("Topic name: ", self.name)
-        print("Number of subscribers: ", len(self.subscribers))
+        print("Topic name:", self.name)
+        print("Number of subscribers:", len(self.subscribers))
 
