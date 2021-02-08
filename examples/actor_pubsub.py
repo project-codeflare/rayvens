@@ -36,7 +36,7 @@ newEnglishActor = EnglishSubscriber.remote()
 newFrenchActor = FrenchSubscriber.remote()
 newRomanianActor = RomanianSubscriber.remote()
 
-# Add another subscriber this time with an argument.
+# Add subscribers.
 newTopicHandle.subscribe.remote(newEnglishActor.greet)
 newTopicHandle.subscribe.remote(newFrenchActor.greeting)
 newTopicHandle.subscribe.remote(newRomanianActor.sayhi)

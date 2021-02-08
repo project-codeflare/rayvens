@@ -13,10 +13,12 @@ def subscribeFrenchWithName(name="default"):
 def subscribeRomanianWithName(name="default"):
     print("Buna", name, "!")
 
+print("Start greetings!")
+
 # Create a topic as an actor.
 newTopicHandle = topics.EventTopic.remote("newTopic")
 
-# Add another subscriber this time with an argument.
+# Add subscribers.
 newTopicHandle.subscribe.remote(subscribeEnglishWithName)
 newTopicHandle.subscribe.remote(subscribeFrenchWithName)
 newTopicHandle.subscribe.remote(subscribeRomanianWithName)

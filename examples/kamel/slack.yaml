@@ -1,0 +1,8 @@
+# camel-k: property=camel.component.slack.webhookUrl={{env:SLACK_WEBHOOK}}
+
+- from:
+    uri: "platform-http:/toslack"
+    steps:
+        - to: "slack:#kar-output"
+        - log:
+            message: "${body}"
