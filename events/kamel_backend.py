@@ -1,6 +1,7 @@
 import ray
 import subprocess
 from events import invocation
+from events import topics
 import requests
 
 # Default value for Quarkus HTTP server.
@@ -27,11 +28,11 @@ class KamelSinkHandler:
 
     async def __call__(self, request):
         body = await request.body()
-        if not isinstance(body, ExternalEvent.__class__):
+        if not isinstance(body, ExternalEvent):
             return {"message": "Failure"}
 
         answerFromSink = requests.post(quarkusHTTPServer+body.getRoute(), data=body.getData())
-        print("KamelSinkHandler: Answer from sink:", answerFromSink.text)
+        # print("KamelSinkHandler: Answer from sink:", answerFromSink.text)
         return {"message": "Success"}
 
 class KamelBackend:
@@ -45,13 +46,13 @@ class KamelBackend:
 
     def createProxyEndpoint(self, endpointName, route):
         self.endpointToRoute[endpointName] = route
+
+        # Create endpoint with method as POST.
+        self.client.create_endpoint(endpointName, backend=self.backendName, route=route, methods=["POST"])
     
     def postToProxyEndpoint(self, endpointName, data):
         # Retrieve route.
         route = self.endpointToRoute[endpointName]
-
-        # Create endpoint with method as POST.
-        self.client.create_endpoint(endpointName, backend=self.backendName, route=route, methods=["POST"])
 
         # Internal data format.
         externalEvent = ExternalEvent(route, data)
@@ -64,3 +65,13 @@ class KamelBackend:
     def removeProxyEndpoint(self, endpointName):
         self.client.delete_endpoint(endpointName)
         self.endpointToRoute.pop(endpointName)
+
+# Method which send post request to external Camel-K sink.
+
+@ray.remote
+class SinkSubscriber(object):
+    def __init__(self, route):
+        self.route = route
+
+    def sendToSink(self, data):
+        requests.post(quarkusHTTPServer+self.route, data=data)

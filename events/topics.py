@@ -12,7 +12,7 @@ class EventTopic(object):
     def publish(self, *args, **kwargs):
         for subscriberFunction in self.subscribers:
             subscriberFunction(*args, **kwargs)
-    
+
     def publishToRemote(self, *args, **kwargs):
         for subscriberFunction in self.subscribers:
             subscriberFunction.remote(*args, **kwargs)
