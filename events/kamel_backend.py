@@ -41,7 +41,7 @@ class KamelBackend:
     def __init__(self, client):
         self.client = client
         # Create it as a normal backend.
-        self.backend = client.create_backend(self.backendName, KamelSinkHandler)
+        client.create_backend(self.backendName, KamelSinkHandler)
         self.endpointToRoute = {}
 
     def createProxyEndpoint(self, endpointName, route):

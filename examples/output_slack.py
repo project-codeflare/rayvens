@@ -3,6 +3,7 @@ from events import kamel_backend
 from events import topics
 from ray import serve
 import requests
+import time
 
 ray.init(num_cpus=4)
 client = serve.start()
@@ -58,6 +59,11 @@ slackSinkActor = kamel_backend.SinkSubscriber.remote(sinkEndpointRoute)
 sinkTopic.subscribe.remote(slackSinkActor.sendToSink)
 
 # Publish with argument.
-# Note: this doesn't wory as expected. Lack of message queues?
-for i in range(10):
-    sinkTopic.publishToRemote.remote(data + " Order number: %s" % i)
+sinkTopic.publishToRemote.remote(data)
+
+# Does not work as expected. Sending repeated requests required a queue which
+# a plain actor does not have.
+# for i in range(10):
+#     # Since no queues are in place use the timer to stagger requests.
+#     time.sleep(1)
+#     sinkTopic.publishToRemote.remote(data + " Order number: %s" % i)

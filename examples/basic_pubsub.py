@@ -18,4 +18,5 @@ newTopicHandle.subscribe.remote(subscribeResponse)
 newTopicHandle.describe.remote()
 
 # Publish with no arguments.
-newTopicHandle.publish.remote()
+for i in range(10):
+  newTopicHandle.publish.remote()

@@ -31,4 +31,5 @@ newTopicHandle.describe.remote()
 newTopicHandle.publishToRemote.remote()
 
 # Publish with argument.
-newTopicHandle.publishToRemote.remote("Doru")
+for i in range(10):
+    newTopicHandle.publishToRemote.remote("Doru %s" % i)
