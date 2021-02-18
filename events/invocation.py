@@ -15,6 +15,7 @@ class KamelInvocationActor:
         if shell:
             execCommand = "exec " + " ".join(command)
 
+        # TODO: Does this work for Windows? Linux?
         self.process = subprocess.Popen(execCommand,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -28,6 +29,8 @@ class KamelInvocationActor:
             output = self.process.stdout.readline().decode("utf-8")
 
             # Log progress of kamel subprocess
+            # TODO: better logging. Merge logs?
+            # TODO: We only show logs for start-up, can we show logs during runtime?
             print("[Kamel subprocess]", output.strip())
             returnCode = self.process.poll()
             if returnCode is not None:
@@ -36,6 +39,8 @@ class KamelInvocationActor:
             # Some form of completion signal is received.
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.
+            # TODO: brittle, check process completion by checking if it has started
+            # listening on the host:port.
             if "Installed features:" in output:
                 break
 

@@ -11,9 +11,16 @@ ray.init(num_cpus=4)
 sinkEndpointRoute = "/toslack"
 data = "Test Slack output!"
 
+# TODO: Can we pass multiple yamls?
+# TODO: Cloud version of this. Also handle kamel install.
+# TODO: Explore running Ray on Cloud Engine with local head node and remote worker nodes.
+# TODO: Can we auto-gen the yaml for these very simple sources and sinks.
+
 # First we need to construct the kamel process which is going launch the actual kamel sink.
 # Input is a list of tokens comprising the command.
 command = ["kamel", "local", "run", "kamel/slack.yaml"]
+
+# TODO: Explore merging topics and invocation actors. Listen on a topic and attach an external source/sink to it.
 kamelInvocation = invocation.KamelInvocationActor.remote(command)
 
 # Wait for kamel command to finish launching the integration.

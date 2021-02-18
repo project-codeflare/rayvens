@@ -5,6 +5,7 @@ from events import topics
 import requests
 
 # Default value for Quarkus HTTP server.
+# TODO: multiple sinks will require multiple ports.
 quarkusHTTPServer = "http://0.0.0.0:8080"
 
 # Can we create a Ray backend which has an external endpoint that has a handle in Ray?

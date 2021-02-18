@@ -67,3 +67,12 @@ sinkTopic.publishToRemote.remote(data)
 #     # Since no queues are in place use the timer to stagger requests.
 #     time.sleep(1)
 #     sinkTopic.publishToRemote.remote(data + " Order number: %s" % i)
+
+# TODO:
+# Option 4: Use a detached actor for handling sources/sinks.
+
+# TODO:
+# What happened to a detached actor once the Ray runtime exits?
+
+# TODO:
+# Can two different Ray applications use the same detached actor?
