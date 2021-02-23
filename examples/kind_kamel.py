@@ -26,12 +26,8 @@ kamel.kamelInstall(
         insecureRegistry=True)
 
 #
-# Use kamel run to create the slack sink using the kamel operator.
+# TODO: Use kamel run to create the slack sink using the kamel operator.
 #
-
-print("start wait")
-time.sleep(20)
-print("end wait")
 
 #
 # Uinstall the kamel operator from the cluster.

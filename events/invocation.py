@@ -6,8 +6,11 @@ import sys
 import io
 from events import utils
 from events import kamel_utils
+from events import kubernetes_utils
 
+#
 # Wrap invocation as actor. This is an invocation for kamel local run.
+#
 @ray.remote
 class KamelInvocationActor:
     subprocessName = "Kamel"
@@ -49,7 +52,7 @@ class KamelInvocationActor:
         # Check if kamel instance launched correctly.
         instantiationFailed = False
         while True:
-            # Log progress of kamel subprocess
+            # Log progress of kamel subprocess.
             # TODO: better logging. Merge logs?
             # TODO: We only show logs for start-up, can we show logs during runtime?
             output = utils.printLogFromSubProcess(self.subprocessName, self.process)
@@ -93,11 +96,68 @@ class KamelInvocationActor:
         utils.printLog(self.subprocessName, logMessage)
         return success
 
+    def getSubcommandType(self):
+        return self.subcommandType
+
     def kill(self):
         # Magic formula for terminating all processes in the group including
         # any subprocesses that the kamel command might have created.
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
 
-# Wrap invocation as actor. This is an invocation for kamel run.
-# This requires the existence of a Kubernetes based cloud in which the Camel-K
-# operator can be installed.
+#
+# Handle calls to Kubernetes kubectl.
+#
+@ray.remote
+class KubectlInvocationActor:
+    subprocessName = "Kubectl"
+
+    def __init__(self, commandOptions, existingPods):
+        # If list is porvided, join it.
+        if isinstance(commandOptions, list):
+            commandOptions = " ".join(commandOptions)
+
+        # Initialize state.
+        self.existingPods = existingPods
+        self.subcommandType = kubernetes_utils.getKubectlCommandType(commandOptions)
+        self.isRunning = False
+        self.fullPodName = ""
+
+        # Create the kubectl command.
+        execCommand = " ".join(["exec", "kubectl", commandOptions])
+
+        # Launch kamel command in a new process.
+        self.process = subprocess.Popen(execCommand,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            preexec_fn=os.setsid)
+
+    def podIsInRunningState(self, podName):
+        while True:
+            # Process output line by line until we find the pod we are looking for.
+            # There should only be one new pod.
+            output = utils.printLogFromSubProcess(self.subprocessName, self.process)
+            if self.fullPodName == "":
+                self.fullPodName = kubernetes_utils.extractPodFullName(output, podName, self.existingPods)
+
+                if self.fullPodName != "" and kubernetes_utils.getKubectlCommandEndCondition(self.subcommandType) in output:
+                    self.isRunning = True
+                    break
+            # Return if command has exited.
+            returnCode = self.process.poll()
+            if returnCode is not None:
+                break
+
+        logMessage = "Pod with name `%s` is now Running." % podName
+        if not self.isRunning:
+            logMessage = "Pod with name `%s` failed to start."  % podName
+
+        return self.isRunning
+
+    def getPodFullName(self):
+        return self.fullPodName
+
+    def kill(self):
+        # Terminating all processes in the group including any subprocesses
+        # that the kubectl command might have created.
+        os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
