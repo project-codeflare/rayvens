@@ -109,16 +109,15 @@ class KamelInvocationActor:
 class KubectlInvocationActor:
     subprocessName = "Kubectl"
 
-    def __init__(self, commandOptions, existingPods):
+    def __init__(self, commandOptions):
         # If list is porvided, join it.
         if isinstance(commandOptions, list):
             commandOptions = " ".join(commandOptions)
 
         # Initialize state.
-        self.existingPods = existingPods
         self.subcommandType = kubernetes_utils.getKubectlCommandType(commandOptions)
         self.isRunning = False
-        self.fullPodName = ""
+        self.podName = ""
 
         # Create the kubectl command.
         execCommand = " ".join(["exec", "kubectl", commandOptions])
@@ -130,19 +129,19 @@ class KubectlInvocationActor:
             shell=True,
             preexec_fn=os.setsid)
 
-    def podIsInRunningState(self, podName):
+    def podIsInRunningState(self, integrationName):
         while True:
             # Process output line by line until we find the pod we are looking for.
             # There should only be one new pod.
             output = utils.printLogFromSubProcess(self.subprocessName, self.process)
-            if self.fullPodName == "":
-                self.fullPodName = kubernetes_utils.extractPodFullName(output, podName, self.existingPods)
+            if self.podName == "":
+                self.podName = kubernetes_utils.extractPodFullName(output, integrationName)
 
-            if kubernetes_utils.isInRunningState(output, self.fullPodName):
+            if kubernetes_utils.isInRunningState(output, self.podName):
                 self.isRunning = True
                 break
 
-            if kubernetes_utils.isInErrorState(output, self.fullPodName):
+            if kubernetes_utils.isInErrorState(output, self.podName):
                break
 
             # Return if command has exited.
@@ -150,15 +149,15 @@ class KubectlInvocationActor:
             if returnCode is not None:
                 break
 
-        logMessage = "Pod with name `%s` is now Running." % self.fullPodName
+        logMessage = "Pod with name `%s` is now Running." % self.podName
         if not self.isRunning:
-            logMessage = "Pod with name `%s` failed to start."  % self.fullPodName
+            logMessage = "Pod with name `%s` failed to start."  % self.podName
         utils.printLog(self.subprocessName, logMessage)
 
         return self.isRunning
 
     def getPodFullName(self):
-        return self.fullPodName
+        return self.podName
 
     def kill(self):
         # Terminating all processes in the group including any subprocesses

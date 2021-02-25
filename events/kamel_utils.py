@@ -80,6 +80,10 @@ def createsKubectlService(subcommandType):
         or subcommandType == KamelCommand.RUN
     return createsService
 
+# Command types which lead to the creation of a kubectl service.
+def deletesKubectlService(subcommandType):
+    return subcommandType == KamelCommand.DELETE
+
 def isUinstallCommand(subcommandType):
     return subcommandType == KamelCommand.UNINSTALL
 
@@ -108,25 +112,32 @@ def invokeOngoingCmd(command):
     pass
 
 # Helper for returning kamel commands such as kamel install.
-def invokeReturningCmd(command, podBaseName):
-    kamelInvocation = invocation.KamelInvocationActor.remote(command, podBaseName)
+def invokeReturningCmd(command, integrationName):
+    kamelInvocation = invocation.KamelInvocationActor.remote(command, integrationName)
 
     # Wait for the kamel command to be invoked and retrieve status.
     success = ray.get(kamelInvocation.isReturningKamelReady.remote())
+
+    # If command was no successful then exit early.
+    if not success:
+        return None
 
     # If the command starts a service then check when the command has
     # reached running state.
     subcommandType = ray.get(kamelInvocation.getSubcommandType.remote())
     if createsKubectlService(subcommandType):
         # When pod is in running state add it to the list of existing pods.
-        podIsRunning, fullPodName = kubernetes.getPodRunningStatus(podBaseName)
+        podIsRunning, podName = kubernetes.getPodRunningStatus(integrationName)
         if podIsRunning:
-            print("Pod is running correctly. The full name of the pod is:", fullPodName)
-            kubernetes.addActivePod(kamelInvocation, fullPodName)
+            print("Pod is running correctly. The full name of the pod is:", podName)
+            kubernetes.addActivePod(kamelInvocation, integrationName, podName)
         else:
             print("Pod did not run correctly.")
 
-    if success:
-       return kamelInvocation
+    if deletesKubectlService(subcommandType):
+        kubernetes.deleteActivePod(kubernetes.getInvocationFromIntegrationName(integrationName))
 
-    return None
+    if isUinstallCommand(subcommandType):
+        kubernetes.deleteActivePod(kubernetes.getInvocationFromIntegrationName(integrationName))
+
+    return kamelInvocation

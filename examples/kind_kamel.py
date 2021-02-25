@@ -5,7 +5,6 @@ from events import kamel_backend
 from events import kamel
 
 from events import kubernetes
-from events import kubernetes_utils
 
 import time
 
@@ -31,7 +30,7 @@ installInvocation = kamel.install(
 #
 # TODO: Use kamel run to create the slack sink using the kamel operator.
 #
-print("Length of active pod list after install: ", len(kubernetes_utils.activePods))
+print("Length of active pod list after install: ", kubernetes.getNumActivePods())
 print("Name of install pod is", kubernetes.getPodName(installInvocation))
 
 integrationFiles = ["kamel/slack.yaml"]
@@ -40,14 +39,16 @@ integrationFiles = ["kamel/slack.yaml"]
 # modified by kamel to replace underscores with dashes.
 runInvocation = kamel.run(integrationFiles, "my-simple-integration")
 
-print("Length of active pod list after kamel run: ", len(kubernetes_utils.activePods))
+print("Length of active pod list after kamel run: ", kubernetes.getNumActivePods())
 print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 
-kamel.delete(runInvocation, "my-simple-integration")
+time.sleep(10)
+
+kamel.delete(runInvocation)
 
 #
 # Uinstall the kamel operator from the cluster.
 #
 
 kamel.uninstall(installInvocation)
-print("Length of active pod list after uninstall: ", len(kubernetes_utils.activePods))
+print("Length of active pod list after uninstall: ", kubernetes.getNumActivePods())

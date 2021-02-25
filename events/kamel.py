@@ -1,5 +1,5 @@
 from events import kamel_utils
-from events import kubernetes_utils
+from events import kubernetes
 
 # Method to install kamel in a cluster.
 # The cluster needs to be already started. An operator image, and a registry
@@ -43,10 +43,7 @@ def install(kamelImage, publishRegistry,
 
 # Invoke kamel uninstall.
 def uninstall(installInvocation):
-    invocation = kamel_utils.invokeReturningCmd(["uninstall"], "")
-    if invocation is not None:
-        del kubernetes_utils.activePods[installInvocation]
-    return invocation
+    return kamel_utils.invokeReturningCmd(["uninstall"], "camel-k-operator")
 
 # Kamel run invocation.
 def run(integrationFiles, integrationName):
@@ -60,16 +57,15 @@ def run(integrationFiles, integrationName):
     return kamel_utils.invokeReturningCmd(command, integrationName)
 
 # Kamel delete invocation.
-def delete(runningIntegrationInvocation, integrationName):
-    command = ["delete"]
+def delete(runningIntegrationInvocation):
+    # Fetch integration name.
+    integrationName = kubernetes.getIntegrationName(runningIntegrationInvocation)
 
-    # Entity name.
+    # Compose command with integration name.
+    command = ["delete"]
     command.append(integrationName)
 
-    invocation = kamel_utils.invokeReturningCmd(command, integrationName)
-    if invocation is not None:
-        del kubernetes_utils.activePods[runningIntegrationInvocation]
-    return invocation
+    return kamel_utils.invokeReturningCmd(command, integrationName)
 
 # Invoke kamel local run on a given list of integration files.
 # TODO: Explore merging topics and invocation actors. Listen on a topic and attach an external source/sink to it.
