@@ -4,7 +4,7 @@ from enum import Enum
 from events import invocation
 
 # List that holds the list of active pods.
-activePods = []
+activePods = {}
 
 class KubectlCommand(Enum):
     GET_PODS     = 1
@@ -20,12 +20,6 @@ def getKubectlCommandString(commandType):
         return "get pods"
     else:
         raise RuntimeError('unsupported kubectl subcommand')
-
-def getKubectlCommandEndCondition(subcommandType):
-    if subcommandType == KubectlCommand.GET_PODS:
-        return "Running"
-    else:
-        raise RuntimeError('unsupported kubectl subcommand: %s' % getKubectlCommandString(subcommandType))
 
 def extractPodFullName(line, podBaseName, existingPods):
     # Check if line contins pod name.
@@ -44,6 +38,28 @@ def extractPodFullName(line, podBaseName, existingPods):
             return ""
 
     return wordList[1]
+
+def isInState(line, fullPodName, stateList):
+    if fullPodName == "" or line == "":
+        return False
+
+    # Split line into tokens.
+    wordList = line.split()
+    # If line is too short to be a valid pod line then exit.
+    if len(wordList) < 4:
+        return False
+
+    if wordList[1] == fullPodName:
+        for state in stateList:
+            if state == wordList[3]:
+                return True
+    return False
+
+def isInRunningState(line, fullPodName):
+    return isInState(line, fullPodName, ["Running"])
+
+def isInErrorState(line, fullPodName):
+    return isInState(line, fullPodName, ["Error", "CrashLoopBackOff"])
 
 # Helper for invoking a long running kubectl command.
 def getPodStatusCmd(command, podName):

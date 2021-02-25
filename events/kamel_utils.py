@@ -3,6 +3,7 @@ import events.utils
 from enum import Enum
 from events import invocation
 from events import kubernetes
+from events import kubernetes_utils
 
 class KamelCommand(Enum):
     INSTALL     = 1
@@ -10,6 +11,7 @@ class KamelCommand(Enum):
     RUN         = 3
     LOCAL_BUILD = 4
     LOCAL_RUN   = 5
+    DELETE      = 6
     UNINSTALL   = 100
 
 def getKamelCommandType(command):
@@ -25,6 +27,8 @@ def getKamelCommandType(command):
         return KamelCommand.LOCAL_RUN
     elif command.startswith("uninstall"):
         return KamelCommand.UNINSTALL
+    elif command.startswith("delete"):
+        return KamelCommand.DELETE
     else:
         raise RuntimeError('unsupported kamel subcommand: %s' % command)
 
@@ -41,10 +45,12 @@ def getKamelCommandString(commandType):
         return "local run"
     elif commandType == KamelCommand.UNINSTALL:
         return "uninstall"
+    elif commandType == KamelCommand.DELETE:
+        return "delete"
     else:
         raise RuntimeError('unsupported kamel subcommand')
 
-def getKamelCommandEndCondition(subcommandType):
+def getKamelCommandEndCondition(subcommandType, baseName):
     if subcommandType == KamelCommand.INSTALL:
         return "Camel K installed in namespace"
     elif subcommandType == KamelCommand.BUILD:
@@ -57,6 +63,8 @@ def getKamelCommandEndCondition(subcommandType):
         return "Installed features:"
     elif subcommandType == KamelCommand.UNINSTALL:
         return "Camel K Service Accounts removed from namespace"
+    elif subcommandType == KamelCommand.DELETE:
+        return "Integration %s deleted" % baseName
     else:
         raise RuntimeError('unsupported kamel subcommand: %s' % getKamelCommandString(subcommandType))
 
@@ -68,16 +76,17 @@ def isLocalCommand(subcommandType):
 
 # Command types which lead to the creation of a kubectl service.
 def createsKubectlService(subcommandType):
-    # TODO: extend this to include kamel run, for now only kamel install is supported.
-    # createsService = subcommandType == KamelCommand.INSTALL \
-    #     or subcommandType == KamelCommand.RUN
-    createsService = subcommandType == KamelCommand.INSTALL
+    createsService = subcommandType == KamelCommand.INSTALL \
+        or subcommandType == KamelCommand.RUN
     return createsService
+
+def isUinstallCommand(subcommandType):
+    return subcommandType == KamelCommand.UNINSTALL
 
 # Helper for ongoing local commands like kamel local run.
 def invokeLocalOngoingCmd(command):
     # Invoke command using the Kamel invocation actor.
-    kamelInvocation = invocation.KamelInvocationActor.remote()
+    kamelInvocation = invocation.KamelInvocationActor.remote(command)
 
     # Wait for kamel command to finish launching the integration.
     kamelIsReady = ray.get(kamelInvocation.isLocalOngoingKamelReady.remote())
@@ -87,7 +96,10 @@ def invokeLocalOngoingCmd(command):
 
     # Invocation object is required later for stopping the integration.
     # TODO: find a better way to do invocation object management.
-    return kamelInvocation
+    if kamelIsReady:
+        return kamelInvocation
+
+    return None
 
 # Helper for non-local ongoing commands like kamel run.
 # TODO: kubectl must be used to interact with the output of the process.
@@ -96,8 +108,8 @@ def invokeOngoingCmd(command):
     pass
 
 # Helper for returning kamel commands such as kamel install.
-def invokeReturningCmd(command):
-    kamelInvocation = invocation.KamelInvocationActor.remote(command)
+def invokeReturningCmd(command, podBaseName):
+    kamelInvocation = invocation.KamelInvocationActor.remote(command, podBaseName)
 
     # Wait for the kamel command to be invoked and retrieve status.
     success = ray.get(kamelInvocation.isReturningKamelReady.remote())
@@ -107,9 +119,14 @@ def invokeReturningCmd(command):
     subcommandType = ray.get(kamelInvocation.getSubcommandType.remote())
     if createsKubectlService(subcommandType):
         # When pod is in running state add it to the list of existing pods.
-        # TODO: for kamel run, the pod base name is the name of the file
-        podIsRunning, fullPodName = kubernetes.getPodRunningStatus("camel-k-operator")
+        podIsRunning, fullPodName = kubernetes.getPodRunningStatus(podBaseName)
         if podIsRunning:
             print("Pod is running correctly. The full name of the pod is:", fullPodName)
+            kubernetes.addActivePod(kamelInvocation, fullPodName)
         else:
             print("Pod did not run correctly.")
+
+    if success:
+       return kamelInvocation
+
+    return None

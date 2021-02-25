@@ -20,7 +20,7 @@ data = "This Slack sink has been created by Ray."
 # First we need to construct the kamel process which is going launch the actual kamel sink.
 # Input is a list of tokens comprising the command.
 command = ["kamel/slack.yaml"]
-kamelInvocation = kamel.kamelLocalRun(command)
+kamelInvocation = kamel.localRun(command)
 
 # === Start doing some work ===
 

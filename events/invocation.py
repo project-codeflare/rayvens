@@ -15,7 +15,7 @@ from events import kubernetes_utils
 class KamelInvocationActor:
     subprocessName = "Kamel"
 
-    def __init__(self, commandOptions):
+    def __init__(self, commandOptions, baseName=""):
         # If list is porvided, join it.
         if isinstance(commandOptions, list):
             commandOptions = " ".join(commandOptions)
@@ -36,9 +36,7 @@ class KamelInvocationActor:
             raise RuntimeError('kubectl executable not found in PATH for non-local kamel command')
 
         # Get end condition or fail if command type is not supported.
-        self.endCondition = kamel_utils.getKamelCommandEndCondition(self.subcommandType)
-        if self.endCondition == "":
-            raise RuntimeError('kamel subcommand %s not supported yet', kamel_utils.getKamelCommandString(self.subcommandType))
+        self.endCondition = kamel_utils.getKamelCommandEndCondition(self.subcommandType, baseName)
 
         # TODO: Does this work for Windows? Linux? Cloud?
         # Launch kamel command in a new process.
@@ -140,17 +138,22 @@ class KubectlInvocationActor:
             if self.fullPodName == "":
                 self.fullPodName = kubernetes_utils.extractPodFullName(output, podName, self.existingPods)
 
-                if self.fullPodName != "" and kubernetes_utils.getKubectlCommandEndCondition(self.subcommandType) in output:
-                    self.isRunning = True
-                    break
+            if kubernetes_utils.isInRunningState(output, self.fullPodName):
+                self.isRunning = True
+                break
+
+            if kubernetes_utils.isInErrorState(output, self.fullPodName):
+               break
+
             # Return if command has exited.
             returnCode = self.process.poll()
             if returnCode is not None:
                 break
 
-        logMessage = "Pod with name `%s` is now Running." % podName
+        logMessage = "Pod with name `%s` is now Running." % self.fullPodName
         if not self.isRunning:
-            logMessage = "Pod with name `%s` failed to start."  % podName
+            logMessage = "Pod with name `%s` failed to start."  % self.fullPodName
+        utils.printLog(self.subprocessName, logMessage)
 
         return self.isRunning
 

@@ -1,9 +1,10 @@
 from events import kamel_utils
+from events import kubernetes_utils
 
 # Method to install kamel in a cluster.
 # The cluster needs to be already started. An operator image, and a registry
 # that Camel-K can use to publish newly created images to are needed.
-def kamelInstall(kamelImage, publishRegistry,
+def install(kamelImage, publishRegistry,
         localCluster=False, usingKind=False,
         insecureRegistry=False):
     # Enforce local cluster, for now.
@@ -38,14 +39,40 @@ def kamelInstall(kamelImage, publishRegistry,
     # Force installation.
     command.append("--force")
 
-    kamel_utils.invokeReturningCmd(command)
+    return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
 
-# Invoke kamel uninstall, no arguments are required.
-def kamelUninstall():
-    kamel_utils.invokeReturningCmd(["uninstall"])
+# Invoke kamel uninstall.
+def uninstall(installInvocation):
+    invocation = kamel_utils.invokeReturningCmd(["uninstall"], "")
+    if invocation is not None:
+        del kubernetes_utils.activePods[installInvocation]
+    return invocation
+
+# Kamel run invocation.
+def run(integrationFiles, integrationName):
+    command = ["run"]
+
+    # Integration name.
+    command.append("--name")
+    command.append(integrationName)
+
+    command.append(" ".join(integrationFiles))
+    return kamel_utils.invokeReturningCmd(command, integrationName)
+
+# Kamel delete invocation.
+def delete(runningIntegrationInvocation, integrationName):
+    command = ["delete"]
+
+    # Entity name.
+    command.append(integrationName)
+
+    invocation = kamel_utils.invokeReturningCmd(command, integrationName)
+    if invocation is not None:
+        del kubernetes_utils.activePods[runningIntegrationInvocation]
+    return invocation
 
 # Invoke kamel local run on a given list of integration files.
 # TODO: Explore merging topics and invocation actors. Listen on a topic and attach an external source/sink to it.
-def kamelLocalRun(integrationFiles):
+def localRun(integrationFiles):
     command = ["local", "run", " ".join(integrationFiles)]
     return kamel_utils.invokeLocalOngoingCmd(command)
