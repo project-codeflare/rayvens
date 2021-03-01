@@ -1,5 +1,6 @@
 from events import kamel_utils
 from events import kubernetes
+import os
 
 # Method to install kamel in a cluster.
 # The cluster needs to be already started. An operator image, and a registry
@@ -46,12 +47,18 @@ def uninstall(installInvocation):
     return kamel_utils.invokeReturningCmd(["uninstall"], "camel-k-operator")
 
 # Kamel run invocation.
-def run(integrationFiles, integrationName):
+def run(integrationFiles, integrationName, envVars):
     command = ["run"]
 
     # Integration name.
     command.append("--name")
     command.append(integrationName)
+
+    for envVar in envVars:
+        if envVar not in os.environ:
+            raise RuntimeError("Variable %s not set in current environment" % envVar)
+        command.append("--env")
+        command.append("%s=${%s}" % (envVar, envVar))
 
     command.append(" ".join(integrationFiles))
     return kamel_utils.invokeReturningCmd(command, integrationName)

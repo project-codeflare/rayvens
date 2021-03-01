@@ -2,11 +2,13 @@ import ray
 import subprocess
 from events import invocation
 from events import topics
+from events import utils
 import requests
 
 # Default value for Quarkus HTTP server.
 # TODO: multiple sinks will require multiple ports.
-quarkusHTTPServer = "http://0.0.0.0:8080"
+quarkusHTTPServerLocal = "http://0.0.0.0:8080"
+quarkusHTTPServerLocalCluster = "http://localhost:%s" % utils.externalizedClusterPort
 
 # Can we create a Ray backend which has an external endpoint that has a handle in Ray?
 # i.e. have a proxy endpoint that Ray code can use and will forward traffic to the
@@ -24,25 +26,28 @@ class ExternalEvent:
         return self.data
 
 class KamelSinkHandler:
-    def __init__(self):
-        pass
+    def __init__(self, quarkusHTTPServer):
+        self.quarkusHTTPServer = quarkusHTTPServer
 
     async def __call__(self, request):
         body = await request.body()
         if not isinstance(body, ExternalEvent):
             return {"message": "Failure"}
 
-        answerFromSink = requests.post(quarkusHTTPServer+body.getRoute(), data=body.getData())
+        answerFromSink = requests.post(self.quarkusHTTPServer+body.getRoute(), data=body.getData())
         # print("KamelSinkHandler: Answer from sink:", answerFromSink.text)
         return {"message": "Success"}
 
 class KamelBackend:
     backendName = "kamel_backend"
 
-    def __init__(self, client):
+    def __init__(self, client, mixedLocalCluster=False):
         self.client = client
         # Create it as a normal backend.
-        client.create_backend(self.backendName, KamelSinkHandler)
+        if mixedLocalCluster:
+            client.create_backend(self.backendName, KamelSinkHandler, quarkusHTTPServerLocalCluster)
+        else:
+            client.create_backend(self.backendName, KamelSinkHandler, quarkusHTTPServerLocal)
         self.endpointToRoute = {}
 
     def createProxyEndpoint(self, endpointName, route):
@@ -75,4 +80,4 @@ class SinkSubscriber(object):
         self.route = route
 
     def sendToSink(self, data):
-        requests.post(quarkusHTTPServer+self.route, data=data)
+        requests.post(quarkusHTTPServerLocal+self.route, data=data)

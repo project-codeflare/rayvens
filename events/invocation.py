@@ -109,7 +109,7 @@ class KamelInvocationActor:
 class KubectlInvocationActor:
     subprocessName = "Kubectl"
 
-    def __init__(self, commandOptions):
+    def __init__(self, commandOptions, k8sName=""):
         # If list is porvided, join it.
         if isinstance(commandOptions, list):
             commandOptions = " ".join(commandOptions)
@@ -117,7 +117,11 @@ class KubectlInvocationActor:
         # Initialize state.
         self.subcommandType = kubernetes_utils.getKubectlCommandType(commandOptions)
         self.isRunning = False
+        # TODO: rename this, this can be either a pod or a service or a deployment name.
         self.podName = ""
+
+        # Get end condition or fail if command type is not supported.
+        self.endCondition = kubernetes_utils.getKubectlCommandEndCondition(self.subcommandType, k8sName)
 
         # Create the kubectl command.
         execCommand = " ".join(["exec", "kubectl", commandOptions])
@@ -128,6 +132,30 @@ class KubectlInvocationActor:
             stderr=subprocess.PIPE,
             shell=True,
             preexec_fn=os.setsid)
+
+    def executeKubectlCmd(self, serviceName):
+        success = False
+        while True:
+            output = utils.printLogFromSubProcess(self.subprocessName, self.process)
+            if self.subcommandType == kubernetes_utils.KubectlCommand.GET_SERVICES:
+                if kubernetes_utils.serviceNameMatches(output, serviceName):
+                    success = True
+                    break
+            elif self.endCondition in output:
+                success = True
+                break
+
+            returnCode = self.process.poll()
+            if returnCode is not None:
+                break
+
+        subcommand = kubernetes_utils.getKubectlCommandString(self.subcommandType)
+        logMessage = "Kubectl %s command finished successfully." % subcommand
+        if not success:
+            logMessage = "Kubectl %s command failed." % subcommand
+        utils.printLog(self.subprocessName, logMessage)
+
+        return success
 
     def podIsInRunningState(self, integrationName):
         while True:

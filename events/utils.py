@@ -1,3 +1,12 @@
+# Port externalized by the cluster.
+# TODO: randomize this port as part of the supported list of ports.
+externalizedClusterPort = "31093"
+
+# Port used by the Quarkus Runtime to listen to HTTP requests.
+# TODO: this value is just the default and can be customized in case
+# several services are listening to events.
+quarkusListenerPort = "8080"
+
 # Check if the executable exists in PATH. This method should work
 # in Windows, Linux and MacOS. Python >= 3.3 required.
 def executableIsAvailable(executableName):

@@ -28,27 +28,61 @@ installInvocation = kamel.install(
         insecureRegistry=True)
 
 #
-# TODO: Use kamel run to create the slack sink using the kamel operator.
+# Use kamel run to create the slack sink using the kamel operator.
 #
 print("Length of active pod list after install: ", kubernetes.getNumActivePods())
 print("Name of install pod is", kubernetes.getPodName(installInvocation))
 
 integrationFiles = ["kamel/slack.yaml"]
 
+# List of environment variables to be used from current environment.
+envVars = ["SLACK_WEBHOOK"]
+
 # Note: careful with the names, for pod names, the integration name will be
 # modified by kamel to replace underscores with dashes.
-runInvocation = kamel.run(integrationFiles, "my-simple-integration")
+runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
+
+#
+# Create service through which we can communicate with the kamel sink.
+# The port of the service must be one of the ports externalized by the cluster.
+# This is only required when the communication with the sink happen from
+# outside the cluster.
+#
+serviceName = "kind-external-connector"
+kubernetes.createExternalServiceForKamel(serviceName, "my-simple-integration")
 
 print("Length of active pod list after kamel run: ", kubernetes.getNumActivePods())
 print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 
-time.sleep(10)
+#
+# Start doing some work
+#
 
+# Create a Kamel Backend and endpoint.
+sinkBackend = kamel_backend.KamelBackend(client, mixedLocalCluster=True)
+sinkBackend.createProxyEndpoint("output_to_cluster_slack_sink", sinkEndpointRoute)
+
+# Use endpoint to send data to the Ray Slack Sink.
+answerAsStr = ""
+for i in range(10):
+    answerAsStr = sinkBackend.postToProxyEndpoint("output_to_cluster_slack_sink", data + " Order number: %s" % i)
+print(answerAsStr)
+
+# Close proxy endpoint.
+sinkBackend.removeProxyEndpoint("output_to_cluster_slack_sink")
+
+#
+# Stop kubectl service for externalizing the sink listener.
+#
+kubernetes.deleteService(serviceName)
+
+#
+# Stop kamel sink.
+#
 kamel.delete(runInvocation)
 
 #
 # Uinstall the kamel operator from the cluster.
 #
-
 kamel.uninstall(installInvocation)
 print("Length of active pod list after uninstall: ", kubernetes.getNumActivePods())

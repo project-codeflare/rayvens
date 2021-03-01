@@ -17,56 +17,53 @@ class KamelCommand(Enum):
 def getKamelCommandType(command):
     if command.startswith("install"):
         return KamelCommand.INSTALL
-    elif command.startswith("build"):
+    if command.startswith("build"):
         return KamelCommand.BUILD
-    elif command.startswith("run"):
+    if command.startswith("run"):
         return KamelCommand.RUN
-    elif command.startswith("local build"):
+    if command.startswith("local build"):
         return KamelCommand.LOCAL_BUILD
-    elif command.startswith("local run"):
+    if command.startswith("local run"):
         return KamelCommand.LOCAL_RUN
-    elif command.startswith("uninstall"):
+    if command.startswith("uninstall"):
         return KamelCommand.UNINSTALL
-    elif command.startswith("delete"):
+    if command.startswith("delete"):
         return KamelCommand.DELETE
-    else:
-        raise RuntimeError('unsupported kamel subcommand: %s' % command)
+    raise RuntimeError('unsupported kamel subcommand: %s' % command)
 
 def getKamelCommandString(commandType):
     if commandType == KamelCommand.INSTALL:
         return "install"
-    elif commandType == KamelCommand.BUILD:
+    if commandType == KamelCommand.BUILD:
         return "build"
-    elif commandType == KamelCommand.RUN:
+    if commandType == KamelCommand.RUN:
         return "run"
-    elif commandType == KamelCommand.LOCAL_BUILD:
+    if commandType == KamelCommand.LOCAL_BUILD:
         return "local build"
-    elif commandType == KamelCommand.LOCAL_RUN:
+    if commandType == KamelCommand.LOCAL_RUN:
         return "local run"
-    elif commandType == KamelCommand.UNINSTALL:
+    if commandType == KamelCommand.UNINSTALL:
         return "uninstall"
-    elif commandType == KamelCommand.DELETE:
+    if commandType == KamelCommand.DELETE:
         return "delete"
-    else:
-        raise RuntimeError('unsupported kamel subcommand')
+    raise RuntimeError('unsupported kamel subcommand')
 
 def getKamelCommandEndCondition(subcommandType, baseName):
     if subcommandType == KamelCommand.INSTALL:
         return "Camel K installed in namespace"
-    elif subcommandType == KamelCommand.BUILD:
+    if subcommandType == KamelCommand.BUILD:
         return ""
-    elif subcommandType == KamelCommand.RUN:
+    if subcommandType == KamelCommand.RUN:
         return ""
-    elif subcommandType == KamelCommand.LOCAL_BUILD:
+    if subcommandType == KamelCommand.LOCAL_BUILD:
         return ""
-    elif subcommandType == KamelCommand.LOCAL_RUN:
+    if subcommandType == KamelCommand.LOCAL_RUN:
         return "Installed features:"
-    elif subcommandType == KamelCommand.UNINSTALL:
+    if subcommandType == KamelCommand.UNINSTALL:
         return "Camel K Service Accounts removed from namespace"
-    elif subcommandType == KamelCommand.DELETE:
+    if subcommandType == KamelCommand.DELETE:
         return "Integration %s deleted" % baseName
-    else:
-        raise RuntimeError('unsupported kamel subcommand: %s' % getKamelCommandString(subcommandType))
+    raise RuntimeError('unsupported kamel subcommand: %s' % getKamelCommandString(subcommandType))
 
 # Command types which are local.
 def isLocalCommand(subcommandType):
