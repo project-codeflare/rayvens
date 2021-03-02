@@ -7,25 +7,25 @@ import time
 ray.init()
 client = serve.start()
 
+# a topic to receive events from camel
 source = events.Topic.remote('source')
+
+# a topic to send events to camel
 sink = events.Topic.remote('sink')
 
+# an edge from source to sink
 source.subscribe.remote(sink.publish.remote)
 
+# configure and run camel sink
 events.post(sink, 'slack',
             f"slack:#kar-output?webhookUrl={os.environ['SLACK_WEBHOOK']}")
 
+# configure and run camel source
 events.poll(client, source, 'http',
             'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo')
 
-# logger
+# log events
+source.subscribe.remote(lambda data: print('LOG:', data))
 
-
-@ray.remote
-def log(data):
-    print('LOG:', data)
-
-
-source.subscribe.remote(log.remote)
-
+# run for a while
 time.sleep(60)
