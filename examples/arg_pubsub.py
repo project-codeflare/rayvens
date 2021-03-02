@@ -1,17 +1,21 @@
+from events import topics
 import ray
 ray.init()
 
 # Import events.
-from events import topics
+
 
 def subscribeEnglishWithName(name="default"):
     print("Hello", name, "!")
 
+
 def subscribeFrenchWithName(name="default"):
     print("Bonjour", name, "!")
 
+
 def subscribeRomanianWithName(name="default"):
     print("Buna", name, "!")
+
 
 print("Start greetings!")
 

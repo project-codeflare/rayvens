@@ -14,6 +14,7 @@ quarkusHTTPServerLocalCluster = "http://localhost:%s" % utils.externalizedCluste
 # i.e. have a proxy endpoint that Ray code can use and will forward traffic to the
 # external endpoint which is not managed by Ray.
 
+
 class ExternalEvent:
     def __init__(self, route, data):
         self.route = route
@@ -25,6 +26,7 @@ class ExternalEvent:
     def getData(self):
         return self.data
 
+
 class KamelSinkHandler:
     def __init__(self, quarkusHTTPServer):
         self.quarkusHTTPServer = quarkusHTTPServer
@@ -34,9 +36,11 @@ class KamelSinkHandler:
         if not isinstance(body, ExternalEvent):
             return {"message": "Failure"}
 
-        answerFromSink = requests.post(self.quarkusHTTPServer+body.getRoute(), data=body.getData())
+        answerFromSink = requests.post(
+            self.quarkusHTTPServer+body.getRoute(), data=body.getData())
         # print("KamelSinkHandler: Answer from sink:", answerFromSink.text)
         return {"message": "Success"}
+
 
 class KamelBackend:
     backendName = "kamel_backend"
@@ -45,17 +49,20 @@ class KamelBackend:
         self.client = client
         # Create it as a normal backend.
         if mixedLocalCluster:
-            client.create_backend(self.backendName, KamelSinkHandler, quarkusHTTPServerLocalCluster)
+            client.create_backend(
+                self.backendName, KamelSinkHandler, quarkusHTTPServerLocalCluster)
         else:
-            client.create_backend(self.backendName, KamelSinkHandler, quarkusHTTPServerLocal)
+            client.create_backend(
+                self.backendName, KamelSinkHandler, quarkusHTTPServerLocal)
         self.endpointToRoute = {}
 
     def createProxyEndpoint(self, endpointName, route):
         self.endpointToRoute[endpointName] = route
 
         # Create endpoint with method as POST.
-        self.client.create_endpoint(endpointName, backend=self.backendName, route=route, methods=["POST"])
-    
+        self.client.create_endpoint(
+            endpointName, backend=self.backendName, route=route, methods=["POST"])
+
     def postToProxyEndpoint(self, endpointName, data):
         # Retrieve route.
         route = self.endpointToRoute[endpointName]
@@ -64,15 +71,17 @@ class KamelBackend:
         externalEvent = ExternalEvent(route, data)
 
         # Send request to backend.
-        answerAsStr = ray.get(self.client.get_handle(endpointName).remote(externalEvent))
+        answerAsStr = ray.get(self.client.get_handle(
+            endpointName).remote(externalEvent))
 
         return answerAsStr
-    
+
     def removeProxyEndpoint(self, endpointName):
         self.client.delete_endpoint(endpointName)
         self.endpointToRoute.pop(endpointName)
 
 # Method which send post request to external Camel-K sink.
+
 
 @ray.remote
 class SinkSubscriber(object):

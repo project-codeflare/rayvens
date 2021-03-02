@@ -1,8 +1,9 @@
+from events import topics
 import ray
 ray.init()
 
 # Import events.
-from events import topics
+
 
 @ray.remote
 class EnglishSubscriber(object):
@@ -12,6 +13,7 @@ class EnglishSubscriber(object):
     def greet(self, name="default"):
         print(self.greeting, name, "!")
 
+
 @ray.remote
 class FrenchSubscriber(object):
     def __init__(self):
@@ -20,6 +22,7 @@ class FrenchSubscriber(object):
     def greeting(self, name="default"):
         print(self.greeting, name, "!")
 
+
 @ray.remote
 class RomanianSubscriber(object):
     def __init__(self):
@@ -27,6 +30,7 @@ class RomanianSubscriber(object):
 
     def sayhi(self, name="default"):
         print(self.greeting, name, "!")
+
 
 # Create a topic as an actor.
 newTopicHandle = topics.EventTopic.remote("newTopic")

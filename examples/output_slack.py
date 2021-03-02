@@ -14,7 +14,8 @@ sinkEndpointRoute = "/toslack"
 data = "First attempt: this is the body of the request!"
 
 client.create_backend("kamel_slack_backend", kamel_backend.KamelSinkHandler)
-client.create_endpoint("output_to_slack", backend="kamel_slack_backend", route=sinkEndpointRoute, methods=["POST"])
+client.create_endpoint("output_to_slack", backend="kamel_slack_backend",
+                       route=sinkEndpointRoute, methods=["POST"])
 
 externalEvent = kamel_backend.ExternalEvent(sinkEndpointRoute, data)
 
@@ -22,7 +23,8 @@ externalEvent = kamel_backend.ExternalEvent(sinkEndpointRoute, data)
 # answerAsStr = requests.post("http://127.0.0.1:8000/toslack", data="First attempt: this is the body of the request!").text
 
 # Using Ray's endpoint API:
-answerAsStr = ray.get(client.get_handle("output_to_slack").remote(externalEvent))
+answerAsStr = ray.get(client.get_handle(
+    "output_to_slack").remote(externalEvent))
 print(answerAsStr)
 
 client.delete_endpoint("output_to_slack")
@@ -40,7 +42,8 @@ sinkBackend.createProxyEndpoint("output_to_slack", sinkEndpointRoute)
 
 answerAsStr = ""
 for i in range(10):
-    answerAsStr = sinkBackend.postToProxyEndpoint("output_to_slack", data + " Order number: %s" % i)
+    answerAsStr = sinkBackend.postToProxyEndpoint(
+        "output_to_slack", data + " Order number: %s" % i)
 print(answerAsStr)
 
 sinkBackend.removeProxyEndpoint("output_to_slack")

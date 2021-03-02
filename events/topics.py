@@ -1,5 +1,6 @@
 import ray
 
+
 @ray.remote
 class EventTopic(object):
     def __init__(self, name):
@@ -20,4 +21,3 @@ class EventTopic(object):
     def describe(self):
         print("Topic name:", self.name)
         print("Number of subscribers:", len(self.subscribers))
-

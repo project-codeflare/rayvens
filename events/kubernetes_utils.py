@@ -3,12 +3,14 @@ import events.utils
 from enum import Enum
 from events import invocation
 
+
 class KubectlCommand(Enum):
-    GET_PODS        = 1
-    GET_SERVICES    = 2
+    GET_PODS = 1
+    GET_SERVICES = 2
     GET_DEPLOYMENTS = 3
-    APPLY           = 4
-    DELETE_SERVICE  = 5
+    APPLY = 4
+    DELETE_SERVICE = 5
+
 
 def getKubectlCommandType(command):
     if command.startswith("get pods"):
@@ -23,6 +25,7 @@ def getKubectlCommandType(command):
         return KubectlCommand.DELETE_SERVICE
     raise RuntimeError('unsupported kubectl subcommand: %s' % command)
 
+
 def getKubectlCommandString(commandType):
     if commandType == KubectlCommand.GET_PODS:
         return "get pods"
@@ -36,6 +39,7 @@ def getKubectlCommandString(commandType):
         return "delete service"
     raise RuntimeError('unsupported kubectl subcommand')
 
+
 def getKubectlCommandEndCondition(subcommandType, serviceName):
     if subcommandType == KubectlCommand.GET_PODS:
         return ""
@@ -47,7 +51,9 @@ def getKubectlCommandEndCondition(subcommandType, serviceName):
         return "%s created" % serviceName
     if subcommandType == KubectlCommand.DELETE_SERVICE:
         return "service \"%s\" deleted" % serviceName
-    raise RuntimeError('unsupported kubectl subcommand: %s' % getKubectlCommandString(subcommandType))
+    raise RuntimeError('unsupported kubectl subcommand: %s' %
+                       getKubectlCommandString(subcommandType))
+
 
 def extractPodFullName(line, podBaseName):
     # Check if line contins pod name.
@@ -62,6 +68,7 @@ def extractPodFullName(line, podBaseName):
 
     return wordList[1]
 
+
 def serviceNameMatches(line, serviceName):
     # Check if line contins pod name.
     if not serviceName in line:
@@ -74,6 +81,7 @@ def serviceNameMatches(line, serviceName):
         return False
 
     return wordList[0] == serviceName
+
 
 def isInState(line, fullPodName, stateList):
     if fullPodName == "" or line == "":
@@ -91,19 +99,24 @@ def isInState(line, fullPodName, stateList):
                 return True
     return False
 
+
 def isInRunningState(line, fullPodName):
     return isInState(line, fullPodName, ["Running"])
+
 
 def isInErrorState(line, fullPodName):
     return isInState(line, fullPodName, ["Error", "CrashLoopBackOff"])
 
 # Helper for invoking a long running kubectl command.
+
+
 def getPodStatusCmd(command, integrationName):
     # Invoke command using the Kubectl invocation actor.
     kubectlInvocation = invocation.KubectlInvocationActor.remote(command)
 
     # Wait for kubectl command to finish checking the integration.
-    podIsRunning = ray.get(kubectlInvocation.podIsInRunningState.remote(integrationName))
+    podIsRunning = ray.get(
+        kubectlInvocation.podIsInRunningState.remote(integrationName))
     podName = ray.get(kubectlInvocation.getPodFullName.remote())
 
     # Stop kubectl command.
@@ -113,9 +126,12 @@ def getPodStatusCmd(command, integrationName):
     return podIsRunning, podName
 
 # Helper for starting a service. Command returns immediately.
+
+
 def executeReturningKubectlCmd(command, serviceName):
     # Invoke command using the Kubectl invocation actor.
-    kubectlInvocation = invocation.KubectlInvocationActor.remote(command, serviceName)
+    kubectlInvocation = invocation.KubectlInvocationActor.remote(
+        command, serviceName)
 
     # Wait for kubectl command to return.
     outcome = ray.get(kubectlInvocation.executeKubectlCmd.remote(serviceName))
@@ -124,9 +140,12 @@ def executeReturningKubectlCmd(command, serviceName):
     return outcome
 
 # Helper for check that a service exists.
+
+
 def executeOngoingKubectlCmd(command, serviceName):
     # Invoke command using the Kubectl invocation actor.
-    kubectlInvocation = invocation.KubectlInvocationActor.remote(command, serviceName)
+    kubectlInvocation = invocation.KubectlInvocationActor.remote(
+        command, serviceName)
 
     # Wait for kamel command to finish launching the integration.
     outcome = ray.get(kubectlInvocation.executeKubectlCmd.remote(serviceName))

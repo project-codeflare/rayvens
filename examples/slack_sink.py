@@ -31,7 +31,8 @@ sinkBackend.createProxyEndpoint("output_to_ray_slack_sink", sinkEndpointRoute)
 # Use endpoint to send data to the Ray Slack Sink.
 answerAsStr = ""
 for i in range(10):
-    answerAsStr = sinkBackend.postToProxyEndpoint("output_to_ray_slack_sink", data + " Order number: %s" % i)
+    answerAsStr = sinkBackend.postToProxyEndpoint(
+        "output_to_ray_slack_sink", data + " Order number: %s" % i)
 print(answerAsStr)
 
 # Close proxy endpoint.

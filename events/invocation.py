@@ -11,6 +11,8 @@ from events import kubernetes_utils
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.
 #
+
+
 @ray.remote
 class KamelInvocationActor:
     subprocessName = "Kamel"
@@ -33,18 +35,20 @@ class KamelInvocationActor:
         # Fail if this is not a local command and kubectl is not found.
         if not kamel_utils.isLocalCommand(self.subcommandType) and \
            not utils.executableIsAvailable("kubectl"):
-            raise RuntimeError('kubectl executable not found in PATH for non-local kamel command')
+            raise RuntimeError(
+                'kubectl executable not found in PATH for non-local kamel command')
 
         # Get end condition or fail if command type is not supported.
-        self.endCondition = kamel_utils.getKamelCommandEndCondition(self.subcommandType, baseName)
+        self.endCondition = kamel_utils.getKamelCommandEndCondition(
+            self.subcommandType, baseName)
 
         # TODO: Does this work for Windows? Linux? Cloud?
         # Launch kamel command in a new process.
         self.process = subprocess.Popen(execCommand,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True,
-            preexec_fn=os.setsid)
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        shell=True,
+                                        preexec_fn=os.setsid)
 
     def isLocalOngoingKamelReady(self):
         # Check if kamel instance launched correctly.
@@ -53,7 +57,8 @@ class KamelInvocationActor:
             # Log progress of kamel subprocess.
             # TODO: better logging. Merge logs?
             # TODO: We only show logs for start-up, can we show logs during runtime?
-            output = utils.printLogFromSubProcess(self.subprocessName, self.process)
+            output = utils.printLogFromSubProcess(
+                self.subprocessName, self.process)
 
             returnCode = self.process.poll()
             if returnCode is not None:
@@ -90,7 +95,7 @@ class KamelInvocationActor:
         subcommand = kamel_utils.getKamelCommandString(self.subcommandType)
         logMessage = "Kamel `%s` command finished successfully." % subcommand
         if not success:
-            logMessage = "Kamel `%s` command failed."  % subcommand
+            logMessage = "Kamel `%s` command failed." % subcommand
         utils.printLog(self.subprocessName, logMessage)
         return success
 
@@ -105,6 +110,8 @@ class KamelInvocationActor:
 #
 # Handle calls to Kubernetes kubectl.
 #
+
+
 @ray.remote
 class KubectlInvocationActor:
     subprocessName = "Kubectl"
@@ -115,28 +122,31 @@ class KubectlInvocationActor:
             commandOptions = " ".join(commandOptions)
 
         # Initialize state.
-        self.subcommandType = kubernetes_utils.getKubectlCommandType(commandOptions)
+        self.subcommandType = kubernetes_utils.getKubectlCommandType(
+            commandOptions)
         self.isRunning = False
         # TODO: rename this, this can be either a pod or a service or a deployment name.
         self.podName = ""
 
         # Get end condition or fail if command type is not supported.
-        self.endCondition = kubernetes_utils.getKubectlCommandEndCondition(self.subcommandType, k8sName)
+        self.endCondition = kubernetes_utils.getKubectlCommandEndCondition(
+            self.subcommandType, k8sName)
 
         # Create the kubectl command.
         execCommand = " ".join(["exec", "kubectl", commandOptions])
 
         # Launch kamel command in a new process.
         self.process = subprocess.Popen(execCommand,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True,
-            preexec_fn=os.setsid)
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        shell=True,
+                                        preexec_fn=os.setsid)
 
     def executeKubectlCmd(self, serviceName):
         success = False
         while True:
-            output = utils.printLogFromSubProcess(self.subprocessName, self.process)
+            output = utils.printLogFromSubProcess(
+                self.subprocessName, self.process)
             if self.subcommandType == kubernetes_utils.KubectlCommand.GET_SERVICES:
                 if kubernetes_utils.serviceNameMatches(output, serviceName):
                     success = True
@@ -149,7 +159,8 @@ class KubectlInvocationActor:
             if returnCode is not None:
                 break
 
-        subcommand = kubernetes_utils.getKubectlCommandString(self.subcommandType)
+        subcommand = kubernetes_utils.getKubectlCommandString(
+            self.subcommandType)
         logMessage = "Kubectl %s command finished successfully." % subcommand
         if not success:
             logMessage = "Kubectl %s command failed." % subcommand
@@ -161,16 +172,18 @@ class KubectlInvocationActor:
         while True:
             # Process output line by line until we find the pod we are looking for.
             # There should only be one new pod.
-            output = utils.printLogFromSubProcess(self.subprocessName, self.process)
+            output = utils.printLogFromSubProcess(
+                self.subprocessName, self.process)
             if self.podName == "":
-                self.podName = kubernetes_utils.extractPodFullName(output, integrationName)
+                self.podName = kubernetes_utils.extractPodFullName(
+                    output, integrationName)
 
             if kubernetes_utils.isInRunningState(output, self.podName):
                 self.isRunning = True
                 break
 
             if kubernetes_utils.isInErrorState(output, self.podName):
-               break
+                break
 
             # Return if command has exited.
             returnCode = self.process.poll()
@@ -179,7 +192,7 @@ class KubectlInvocationActor:
 
         logMessage = "Pod with name `%s` is now Running." % self.podName
         if not self.isRunning:
-            logMessage = "Pod with name `%s` failed to start."  % self.podName
+            logMessage = "Pod with name `%s` failed to start." % self.podName
         utils.printLog(self.subprocessName, logMessage)
 
         return self.isRunning

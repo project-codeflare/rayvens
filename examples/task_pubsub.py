@@ -1,20 +1,24 @@
+from events import topics
 import ray
 ray.init()
 
 # Import events.
-from events import topics
+
 
 @ray.remote
 def subscribeEnglishWithName(name="default"):
     print("Hello", name, "!")
 
+
 @ray.remote
 def subscribeFrenchWithName(name="default"):
     print("Bonjour", name, "!")
 
+
 @ray.remote
 def subscribeRomanianWithName(name="default"):
     print("Buna", name, "!")
+
 
 # Create a topic as an actor.
 newTopicHandle = topics.EventTopic.remote("newTopic")

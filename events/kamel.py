@@ -5,9 +5,11 @@ import os
 # Method to install kamel in a cluster.
 # The cluster needs to be already started. An operator image, and a registry
 # that Camel-K can use to publish newly created images to are needed.
+
+
 def install(kamelImage, publishRegistry,
-        localCluster=False, usingKind=False,
-        insecureRegistry=False):
+            localCluster=False, usingKind=False,
+            insecureRegistry=False):
     # Enforce local cluster, for now.
     # TODO: make this work in an actual cluster.
     if not localCluster:
@@ -43,10 +45,14 @@ def install(kamelImage, publishRegistry,
     return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
 
 # Invoke kamel uninstall.
+
+
 def uninstall(installInvocation):
     return kamel_utils.invokeReturningCmd(["uninstall"], "camel-k-operator")
 
 # Kamel run invocation.
+
+
 def run(integrationFiles, integrationName, envVars):
     command = ["run"]
 
@@ -56,7 +62,8 @@ def run(integrationFiles, integrationName, envVars):
 
     for envVar in envVars:
         if envVar not in os.environ:
-            raise RuntimeError("Variable %s not set in current environment" % envVar)
+            raise RuntimeError(
+                "Variable %s not set in current environment" % envVar)
         command.append("--env")
         command.append("%s=${%s}" % (envVar, envVar))
 
@@ -64,9 +71,12 @@ def run(integrationFiles, integrationName, envVars):
     return kamel_utils.invokeReturningCmd(command, integrationName)
 
 # Kamel delete invocation.
+
+
 def delete(runningIntegrationInvocation):
     # Fetch integration name.
-    integrationName = kubernetes.getIntegrationName(runningIntegrationInvocation)
+    integrationName = kubernetes.getIntegrationName(
+        runningIntegrationInvocation)
 
     # Compose command with integration name.
     command = ["delete"]
@@ -76,6 +86,8 @@ def delete(runningIntegrationInvocation):
 
 # Invoke kamel local run on a given list of integration files.
 # TODO: Explore merging topics and invocation actors. Listen on a topic and attach an external source/sink to it.
+
+
 def localRun(integrationFiles):
     command = ["local", "run", " ".join(integrationFiles)]
     return kamel_utils.invokeLocalOngoingCmd(command)

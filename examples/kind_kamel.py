@@ -21,11 +21,11 @@ data = "Use the kamel operator in a kind cluster to print this to a kamel Slack 
 kamelImage = "localhost:5000/apache/camel-k:1.3.1"
 publishRegistry = "registry:5000"
 installInvocation = kamel.install(
-        kamelImage,
-        publishRegistry,
-        localCluster=True,
-        usingKind=True,
-        insecureRegistry=True)
+    kamelImage,
+    publishRegistry,
+    localCluster=True,
+    usingKind=True,
+    insecureRegistry=True)
 
 #
 # Use kamel run to create the slack sink using the kamel operator.
@@ -51,7 +51,8 @@ runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
 serviceName = "kind-external-connector"
 kubernetes.createExternalServiceForKamel(serviceName, "my-simple-integration")
 
-print("Length of active pod list after kamel run: ", kubernetes.getNumActivePods())
+print("Length of active pod list after kamel run: ",
+      kubernetes.getNumActivePods())
 print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 
 #
@@ -60,12 +61,14 @@ print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 
 # Create a Kamel Backend and endpoint.
 sinkBackend = kamel_backend.KamelBackend(client, mixedLocalCluster=True)
-sinkBackend.createProxyEndpoint("output_to_cluster_slack_sink", sinkEndpointRoute)
+sinkBackend.createProxyEndpoint(
+    "output_to_cluster_slack_sink", sinkEndpointRoute)
 
 # Use endpoint to send data to the Ray Slack Sink.
 answerAsStr = ""
 for i in range(10):
-    answerAsStr = sinkBackend.postToProxyEndpoint("output_to_cluster_slack_sink", data + " Order number: %s" % i)
+    answerAsStr = sinkBackend.postToProxyEndpoint(
+        "output_to_cluster_slack_sink", data + " Order number: %s" % i)
 print(answerAsStr)
 
 # Close proxy endpoint.
@@ -85,4 +88,5 @@ kamel.delete(runInvocation)
 # Uinstall the kamel operator from the cluster.
 #
 kamel.uninstall(installInvocation)
-print("Length of active pod list after uninstall: ", kubernetes.getNumActivePods())
+print("Length of active pod list after uninstall: ",
+      kubernetes.getNumActivePods())
