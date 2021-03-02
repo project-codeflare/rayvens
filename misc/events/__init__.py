@@ -24,6 +24,12 @@ class Topic:
     def _register(self, name, integration):
         self.integrations.append({'name': name, 'integration': integration})
 
+    def _disconnect(self):
+        self.subscribers = []
+        integrations = self.integrations
+        self.integrations = []
+        return integrations
+
 
 def post(topic, name, to):
     integration = kamel.Integration(name, [
@@ -42,3 +48,9 @@ def poll(client, topic, name, url, period=3000, prefix='/events'):
     integration = kamel.Integration(name, [{'from': {'uri': f'timer:tick?period={period}', 'steps': [
         {'to': url}, {'to': f'{me()}{prefix}/{name}'}]}}])
     topic._register.remote(name, integration)
+
+
+def disconnect(topic):
+    integrations = ray.get(topic._disconnect.remote())
+    for i in integrations:
+        i['integration'].cancel()

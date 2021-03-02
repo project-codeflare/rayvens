@@ -7,6 +7,7 @@ import time
 ray.init()
 client = serve.start()
 
+
 # a topic to receive events from camel
 source = events.Topic.remote('source')
 
@@ -28,4 +29,11 @@ events.poll(client, source, 'http',
 source.subscribe.remote(lambda data: print('LOG:', data))
 
 # run for a while
-time.sleep(60)
+time.sleep(20)
+
+# terminate camel integrations and disconnect subscribers
+events.disconnect(source)
+events.disconnect(sink)
+
+# wait for a while
+time.sleep(20)
