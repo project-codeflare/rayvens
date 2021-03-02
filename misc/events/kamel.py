@@ -31,4 +31,7 @@ class Integration:
         return 'http://localhost:8080'
 
     def cancel(self):
-        os.killpg(os.getpgid(self.pid), signal.SIGTERM)
+        try:
+            os.killpg(os.getpgid(self.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
