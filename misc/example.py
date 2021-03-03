@@ -15,7 +15,7 @@ import time
 
 # process command line arguments
 if len(sys.argv) < 2:
-    print(f'{sys.argv[0]} <slack_webhook>')
+    print(f'usage: {sys.argv[0]} <slack_webhook>')
     sys.exit(1)
 slack_webhook = sys.argv[1]
 
