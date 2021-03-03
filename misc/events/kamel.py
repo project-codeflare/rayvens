@@ -17,18 +17,25 @@ atexit.register(_atexit)
 
 
 class Integration:
-    def __init__(self, name, integration):
+    def __init__(self, name, in_cluster, integration):
         self.name = name
+        self.in_cluster = in_cluster
         filename = f'{name}.yaml'
         with open(filename, 'w') as f:
             yaml.dump(integration, f)
-        process = subprocess.Popen(
-            ['kamel', 'local', 'run', filename], start_new_session=True)
+        if in_cluster:
+            command = ['/home/ray/kamel', 'run', '--dev', filename]
+        else:
+            command = ['kamel', 'local', 'run', filename]
+        process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
         _integrations.append(self)
 
     def url(self):
-        return 'http://localhost:8080'
+        if self.in_cluster:
+            return f'http://{self.name}.ray.svc.cluster.local:80'
+        else:
+            return 'http://localhost:8080'
 
     def cancel(self):
         try:
