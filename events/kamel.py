@@ -1,93 +1,44 @@
-from events import kamel_utils
-from events import kubernetes
+import atexit
 import os
+import signal
+import requests
+import subprocess
+import yaml
 
-# Method to install kamel in a cluster.
-# The cluster needs to be already started. An operator image, and a registry
-# that Camel-K can use to publish newly created images to are needed.
-
-
-def install(kamelImage, publishRegistry,
-            localCluster=False, usingKind=False,
-            insecureRegistry=False):
-    # Enforce local cluster, for now.
-    # TODO: make this work in an actual cluster.
-    if not localCluster:
-        raise RuntimeError('only local clusters are supported')
-
-    # If running a local cluster (i.e. cluster running on local machine)
-    # then only the kind cluster is supported.
-    # TODO: enable this for other cluster types.
-    if localCluster and not usingKind:
-        raise RuntimeError('locally, only kind cluster is supported')
-
-    command = ["install"]
-
-    # Add kamel operator image.
-    command.append("--operator-image")
-    command.append(kamelImage)
-
-    # Add registry that kamel can use for image publication.
-    command.append("--registry")
-
-    # Kind cluster starts with a registry.
-    if usingKind:
-        command.append(publishRegistry)
-
-    # Local registry used to publish newly constructed images is insecure.
-    # TODO: support secure registries.
-    if (insecureRegistry):
-        command.append("--registry-insecure")
-
-    # Force installation.
-    command.append("--force")
-
-    return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
-
-# Invoke kamel uninstall.
+_integrations = []
 
 
-def uninstall(installInvocation):
-    return kamel_utils.invokeReturningCmd(["uninstall"], "camel-k-operator")
-
-# Kamel run invocation.
-
-
-def run(integrationFiles, integrationName, envVars):
-    command = ["run"]
-
-    # Integration name.
-    command.append("--name")
-    command.append(integrationName)
-
-    for envVar in envVars:
-        if envVar not in os.environ:
-            raise RuntimeError(
-                "Variable %s not set in current environment" % envVar)
-        command.append("--env")
-        command.append("%s=${%s}" % (envVar, envVar))
-
-    command.append(" ".join(integrationFiles))
-    return kamel_utils.invokeReturningCmd(command, integrationName)
-
-# Kamel delete invocation.
+def _atexit():
+    for i in _integrations:
+        i.cancel()
 
 
-def delete(runningIntegrationInvocation):
-    # Fetch integration name.
-    integrationName = kubernetes.getIntegrationName(
-        runningIntegrationInvocation)
-
-    # Compose command with integration name.
-    command = ["delete"]
-    command.append(integrationName)
-
-    return kamel_utils.invokeReturningCmd(command, integrationName)
-
-# Invoke kamel local run on a given list of integration files.
-# TODO: Explore merging topics and invocation actors. Listen on a topic and attach an external source/sink to it.
+atexit.register(_atexit)
 
 
-def localRun(integrationFiles):
-    command = ["local", "run", " ".join(integrationFiles)]
-    return kamel_utils.invokeLocalOngoingCmd(command)
+class Integration:
+    def __init__(self, name, in_cluster, integration):
+        self.name = name
+        self.in_cluster = in_cluster
+        filename = f'{name}.yaml'
+        with open(filename, 'w') as f:
+            yaml.dump(integration, f)
+        if in_cluster:
+            command = ['/home/ray/events/kamel', 'run', '--dev', filename]
+        else:
+            command = ['kamel', 'local', 'run', filename]
+        process = subprocess.Popen(command, start_new_session=True)
+        self.pid = process.pid
+        _integrations.append(self)
+
+    def url(self):
+        if self.in_cluster:
+            return f'http://{self.name}.ray.svc.cluster.local:80'
+        else:
+            return 'http://localhost:8080'
+
+    def cancel(self):
+        try:
+            os.killpg(os.getpgid(self.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
