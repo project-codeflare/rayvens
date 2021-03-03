@@ -2,6 +2,19 @@ from events import kamel
 import ray
 import requests
 
+in_cluster = False
+client = None
+
+
+def setInCluster():
+    global in_cluster
+    in_cluster = True
+
+
+def setClient(c):
+    global client
+    client = c
+
 
 @ray.remote
 class Topic:
@@ -27,7 +40,7 @@ class Topic:
         return integrations
 
 
-def post(in_cluster, topic, name, to):
+def addSink(name, topic, to):
     integration = kamel.Integration(name, in_cluster, [
         {'from': {'uri': f'platform-http:/{name}', 'steps': [{'to': to}]}}])
     topic.subscribe.remote(lambda data: requests.post(
@@ -35,7 +48,7 @@ def post(in_cluster, topic, name, to):
     topic._register.remote(name, integration)
 
 
-def poll(in_cluster, client, topic, name, url, period=3000, prefix='/events'):
+def addSource(name, topic, url, period=3000, prefix='/events'):
     async def publish(data):
         topic.publish.remote(await data.body())
     client.create_backend(name, publish, config={'num_replicas': 1})
@@ -50,7 +63,7 @@ def poll(in_cluster, client, topic, name, url, period=3000, prefix='/events'):
     topic._register.remote(name, integration)
 
 
-def disconnect(topic):
+def disconnectAll(topic):
     integrations = ray.get(topic._disconnect.remote())
     for i in integrations:
         i['integration'].cancel()
