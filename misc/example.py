@@ -19,6 +19,7 @@ except ConnectionError:
     ray.init()
     in_cluster = False
 
+# start ray serve
 client = serve.start(http_options={'host': '0.0.0.0',
                                    'location': 'EveryNode'})
 
