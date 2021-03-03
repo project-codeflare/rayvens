@@ -24,7 +24,8 @@ class Integration:
         with open(filename, 'w') as f:
             yaml.dump(integration, f)
         if in_cluster:
-            command = ['/home/ray/events/kamel', 'run', '--dev', filename]
+            command = ['/home/ray/events/linux-x86_64/kamel',
+                       'run', '--dev', filename]
         else:
             command = ['kamel', 'local', 'run', filename]
         process = subprocess.Popen(command, start_new_session=True)
