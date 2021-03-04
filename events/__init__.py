@@ -54,7 +54,7 @@ def addSource(name, topic, url, period=3000, prefix='/events'):
     if namespace != None:
         with open('/etc/podinfo/labels', 'r') as f:
             for line in f:
-                k, v = line.partition("=")[::2]
+                k, v = line.partition('=')[::2]
                 if k == 'component':
                     endpoint = f'http://{v[1:-2]}.{namespace}.svc.cluster.local:8000'
                     break

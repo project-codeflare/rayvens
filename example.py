@@ -21,7 +21,7 @@ slack_webhook = sys.argv[1]
 
 # initialize ray
 try:
-    ray.init(address="auto")
+    ray.init(address='auto')
 except ConnectionError:
     ray.init()
 
