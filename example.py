@@ -22,7 +22,6 @@ slack_webhook = sys.argv[1]
 # initialize ray
 try:
     ray.init(address="auto")
-    events.setInCluster()  # tell events framework that app is running in-cluster
 except ConnectionError:
     ray.init()
 

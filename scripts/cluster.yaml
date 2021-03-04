@@ -103,6 +103,12 @@ available_node_types:
                     - name: dshm
                       emptyDir:
                           medium: Memory
+                    - name: podinfo
+                      downwardAPI:
+                          items:
+                              - path: "labels"
+                                fieldRef:
+                                    fieldPath: metadata.labels
                 containers:
                     - name: ray-node
                       imagePullPolicy: Always
@@ -116,12 +122,23 @@ available_node_types:
                       volumeMounts:
                           - mountPath: /dev/shm
                             name: dshm
+                          - name: podinfo
+                            mountPath: /etc/podinfo
                       resources:
                           requests:
                               cpu: 2000m
                               memory: 2Gi
                           limits:
                               memory: 2Gi
+                      env:
+                          - name: KUBE_POD_NAME
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.name
+                          - name: KUBE_POD_NAMESPACE
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.namespace
 head_start_ray_commands:
     - ray stop
     - ulimit -n 65536; ray start --head --autoscaling-config=~/ray_bootstrap_config.yaml --dashboard-host 0.0.0.0
