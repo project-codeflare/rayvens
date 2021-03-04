@@ -4,7 +4,7 @@ Simple ray eventing using existin Ray API.
 To install, first clone the repository, then:
 
 ```
-cd ray_events
+cd ray_events/misc
 ```
 
 and invoke:
