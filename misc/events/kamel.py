@@ -65,7 +65,7 @@ def run(integrationFiles, integrationName, envVars):
             raise RuntimeError(
                 "Variable %s not set in current environment" % envVar)
         command.append("--env")
-        command.append("%s=${%s}" % (envVar, envVar))
+        command.append("%s=%s" % (envVar, os.getenv('SLACK_WEBHOOK')))
 
     command.append(" ".join(integrationFiles))
     return kamel_utils.invokeReturningCmd(command, integrationName)

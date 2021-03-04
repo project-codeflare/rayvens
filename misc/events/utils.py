@@ -7,6 +7,10 @@ externalizedClusterPort = "31093"
 # several services are listening to events.
 quarkusListenerPort = "8080"
 
+# Port for internal communication inside the cluster.
+# TODO: randomize this port as part of the supported list of ports.
+internalClusterPort = "80"
+
 # Check if the executable exists in PATH. This method should work
 # in Windows, Linux and MacOS. Python >= 3.3 required.
 

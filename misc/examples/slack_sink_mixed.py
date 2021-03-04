@@ -3,22 +3,28 @@ from ray import serve
 
 from events import kamel_backend
 from events import kamel
-
+from events import execution
 from events import kubernetes
+from examples import slack_sink_common
 
+import os
+import sys
 import time
 
 ray.init(num_cpus=4)
 client = serve.start()
-sinkEndpointRoute = "/toslack"
-data = "Use the kamel operator in a kind cluster to print this to a kamel Slack sink."
+route = "/toslack"
+message = "While Ray runs locally, use the kamel operator in a kind cluster to print this to a kamel Slack sink."
+
+execMode = execution.Execution(
+    location=execution.RayKamelExecLocation.MIXED)
 
 #
 # Install kamel operator in the kind cluster created using the script
 # in kamel subdirectory.
 #
 
-kamelImage = "localhost:5000/apache/camel-k:1.3.1"
+kamelImage = "docker.io/apache/camel-k:1.3.1"
 publishRegistry = "registry:5000"
 installInvocation = kamel.install(
     kamelImage,
@@ -59,20 +65,8 @@ print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 # Start doing some work
 #
 
-# Create a Kamel Backend and endpoint.
-sinkBackend = kamel_backend.KamelBackend(client, mixedLocalCluster=True)
-sinkBackend.createProxyEndpoint(
-    "output_to_cluster_slack_sink", sinkEndpointRoute)
-
-# Use endpoint to send data to the Ray Slack Sink.
-answerAsStr = ""
-for i in range(10):
-    answerAsStr = sinkBackend.postToProxyEndpoint(
-        "output_to_cluster_slack_sink", data + " Order number: %s" % i)
-print(answerAsStr)
-
-# Close proxy endpoint.
-sinkBackend.removeProxyEndpoint("output_to_cluster_slack_sink")
+slack_sink_common.sendMessageToSlackSink(
+    client, message, route, execMode=execMode)
 
 #
 # Stop kubectl service for externalizing the sink listener.
