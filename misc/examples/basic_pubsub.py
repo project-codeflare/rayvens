@@ -1,4 +1,4 @@
-from events import topics
+from misc.events import topics
 import ray
 ray.init()
 

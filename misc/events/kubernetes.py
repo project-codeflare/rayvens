@@ -1,6 +1,6 @@
 from events import kubernetes_utils
 from collections import namedtuple
-from events import utils
+from misc.events import utils
 import os
 
 # List that holds the list of active pods.

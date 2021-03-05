@@ -1,5 +1,5 @@
 import ray
-from events import utils
+from misc.events import utils
 import requests
 
 # Default value for Quarkus HTTP server.
@@ -36,7 +36,6 @@ class KamelSinkHandler:
             return {"message": "Failure"}
 
         endpoint = self.execMode.getQuarkusHTTPServer() + body.getRoute()
-        print("HTTP QUARKUS ENDPOINT:", endpoint)
         requests.post(endpoint, data=body.getData())
         return {"message": "Success"}
 

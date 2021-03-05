@@ -1,6 +1,6 @@
 import ray
 from enum import Enum
-from events import invocation
+from misc.events import invocation
 
 
 class KubectlCommand(Enum):

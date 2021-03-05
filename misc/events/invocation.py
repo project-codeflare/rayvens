@@ -3,9 +3,9 @@ import subprocess
 import os
 import signal
 import io
-from events import utils
-from events import kamel_utils
-from events import kubernetes_utils
+from misc.events import utils
+from misc.events import kamel_utils
+from misc.events import kubernetes_utils
 
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.

@@ -1,9 +1,9 @@
 import ray
 from ray import serve
 
-from events import kamel
-from events import execution
-from examples import slack_sink_common
+from misc.events import kamel
+from misc.events import execution
+from misc.examples import slack_sink_common
 
 import sys
 

@@ -1,5 +1,5 @@
-from events import kamel_utils
-from events import kubernetes
+from misc.events import kamel_utils
+from misc.events import kubernetes
 import os
 
 # Method to install kamel in a cluster.

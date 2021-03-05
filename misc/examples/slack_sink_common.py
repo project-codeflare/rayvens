@@ -1,5 +1,5 @@
-from events import kamel_backend
-from events import execution
+from misc.events import kamel_backend
+from misc.events import execution
 import os
 
 

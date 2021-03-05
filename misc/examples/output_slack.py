@@ -1,6 +1,6 @@
 import ray
-from events import kamel_backend
-from events import topics
+from misc.events import kamel_backend
+from misc.events import topics
 from ray import serve
 
 ray.init(num_cpus=4)
