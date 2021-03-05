@@ -84,7 +84,7 @@ available_node_types:
                       resources:
                           requests:
                               cpu: 2000m
-                              memory: 2Gi
+                              memory: 512Mi
                           limits:
                               memory: 2Gi
     head_node:
@@ -129,7 +129,7 @@ available_node_types:
                       resources:
                           requests:
                               cpu: 2000m
-                              memory: 2Gi
+                              memory: 512Mi
                           limits:
                               memory: 2Gi
                       env:
