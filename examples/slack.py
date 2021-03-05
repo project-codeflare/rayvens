@@ -23,10 +23,10 @@ slack_webhook = sys.argv[1]
 try:
     ray.init(address='auto')
 except ConnectionError:
-    ray.init()
+    ray.init(resources={'camel': 1})
 
 # start rayvens
-rayvens.start()
+camel = rayvens.Camel.remote()
 
 # a topic to receive events from
 incoming = rayvens.Topic.remote('source')
@@ -64,11 +64,11 @@ comparator = Comparator.remote()
 incoming.subscribe.remote(comparator.compare.remote)
 
 # configure and run camel sink to publish to slack
-rayvens.addSink('slack', outgoing,
-                f'slack:#kar-output?webhookUrl={slack_webhook}')
+camel.addSink.remote('slack', outgoing,
+                     f'slack:#kar-output?webhookUrl={slack_webhook}')
 
 # configure and run camel source to fetch AAPL price periodically
-rayvens.addSource(
+camel.addSource.remote(
     'http-cron',
     incoming,
     'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
@@ -78,8 +78,8 @@ rayvens.addSource(
 time.sleep(20)
 
 # terminate camel integrations and disconnect subscribers
-rayvens.disconnectAll(incoming)
-rayvens.disconnectAll(outgoing)
+camel.disconnectAll.remote(incoming)
+camel.disconnectAll.remote(outgoing)
 
 # wait for a while
 time.sleep(20)
