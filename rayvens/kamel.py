@@ -27,7 +27,7 @@ class Integration:
         namespace = os.getenv('KUBE_POD_NAMESPACE')
         if namespace != None:
             self.url = f'http://{self.name}.{namespace}.svc.cluster.local:80'
-            command = ['/home/ray/rayvens/linux-x86_64/kamel',
+            command = ['/home/ray/rayvens/rayvens/linux-x86_64/kamel',
                        'run', '--dev', filename]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
