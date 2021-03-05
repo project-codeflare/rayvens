@@ -1,0 +1,22 @@
+[flake8]
+exclude = 
+  misc/examples/kubernetes/
+  misc/examples/ray/
+  misc/examples/kamel/
+  .eggs/
+max-line-length = 79
+inline-quotes = "
+ignore =
+  C408
+  E121
+  E123
+  E126
+  E226
+  E24
+  E704
+  W503
+  W504
+  W605
+  I
+  N
+avoid-escape = no

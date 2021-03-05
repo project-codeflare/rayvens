@@ -1,7 +1,6 @@
 import atexit
 import os
 import signal
-import requests
 import subprocess
 import yaml
 
@@ -25,10 +24,12 @@ class Integration:
             yaml.dump(integration, f)
         command = ['kamel', 'local', 'run', filename]
         namespace = os.getenv('KUBE_POD_NAMESPACE')
-        if namespace != None:
+        if namespace is not None:
             self.url = f'http://{self.name}.{namespace}.svc.cluster.local:80'
-            command = ['/home/ray/rayvens/rayvens/linux-x86_64/kamel',
-                       'run', '--dev', filename]
+            command = [
+                '/home/ray/rayvens/rayvens/linux-x86_64/kamel', 'run', '--dev',
+                filename
+            ]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
         _integrations.append(self)

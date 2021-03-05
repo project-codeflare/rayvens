@@ -1,4 +1,4 @@
-# Ray events
+# Rayevns examples
 Simple ray eventing using existin Ray API.
 
 To install, first clone the repository, then:

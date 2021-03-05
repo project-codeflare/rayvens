@@ -1,9 +1,7 @@
 import ray
-import events.utils
 from enum import Enum
 from events import invocation
 from events import kubernetes
-from events import kubernetes_utils
 
 
 class KamelCommand(Enum):
@@ -70,6 +68,7 @@ def getKamelCommandEndCondition(subcommandType, baseName):
     raise RuntimeError('unsupported kamel subcommand: %s' %
                        getKamelCommandString(subcommandType))
 
+
 # Command types which are local.
 
 
@@ -78,6 +77,7 @@ def isLocalCommand(subcommandType):
         or subcommandType == KamelCommand.LOCAL_RUN
     return isLocal
 
+
 # Command types which lead to the creation of a kubectl service.
 
 
@@ -85,6 +85,7 @@ def createsKubectlService(subcommandType):
     createsService = subcommandType == KamelCommand.INSTALL \
         or subcommandType == KamelCommand.RUN
     return createsService
+
 
 # Command types which lead to the creation of a kubectl service.
 
@@ -95,6 +96,7 @@ def deletesKubectlService(subcommandType):
 
 def isUinstallCommand(subcommandType):
     return subcommandType == KamelCommand.UNINSTALL
+
 
 # Helper for ongoing local commands like kamel local run.
 
@@ -116,6 +118,7 @@ def invokeLocalOngoingCmd(command):
 
     return None
 
+
 # Helper for non-local ongoing commands like kamel run.
 # TODO: kubectl must be used to interact with the output of the process.
 # TODO: implement this method.
@@ -123,6 +126,7 @@ def invokeLocalOngoingCmd(command):
 
 def invokeOngoingCmd(command):
     pass
+
 
 # Helper for returning kamel commands such as kamel install.
 
@@ -145,7 +149,8 @@ def invokeReturningCmd(command, integrationName):
         # When pod is in running state add it to the list of existing pods.
         podIsRunning, podName = kubernetes.getPodRunningStatus(integrationName)
         if podIsRunning:
-            print("Pod is running correctly. The full name of the pod is:", podName)
+            print("Pod is running correctly. The full name of the pod is:",
+                  podName)
             kubernetes.addActivePod(kamelInvocation, integrationName, podName)
         else:
             print("Pod did not run correctly.")

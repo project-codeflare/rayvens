@@ -149,6 +149,7 @@ file_mounts:
     {
         "/home/ray/rayvens/setup.py": "../setup.py",
         "/home/ray/rayvens/rayvens": "../rayvens",
+        "/home/ray/rayvens/misc": "../misc",
     }
 file_mounts_sync_continuously: false
 head_setup_commands: ["pip install -e rayvens"]

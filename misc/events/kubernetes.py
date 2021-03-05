@@ -15,6 +15,7 @@ def getPodRunningStatus(integrationName):
     command = ["get", "pods", "-w", "--all-namespaces"]
     return kubernetes_utils.getPodStatusCmd(command, integrationName)
 
+
 # Create service that Ray can talk to from outside the cluster.
 
 
@@ -34,10 +35,8 @@ spec:
   selector:
     camel.apache.org/integration: %s
   type: NodePort
-    """ % (serviceName,
-           utils.externalizedClusterPort,
-           utils.quarkusListenerPort,
-           utils.quarkusListenerPort,
+    """ % (serviceName, utils.externalizedClusterPort,
+           utils.quarkusListenerPort, utils.quarkusListenerPort,
            integrationName)
 
     # Directory to output yaml file for the external connector.
@@ -48,7 +47,7 @@ spec:
         os.mkdir(outputDirName)
 
     # Write to output yaml file.
-    outputFileName = os.path.join(outputDirName, serviceName+".yaml")
+    outputFileName = os.path.join(outputDirName, serviceName + ".yaml")
     outputFile = open(outputFileName, "w")
     outputFile.write(yamlFile)
     outputFile.close()
@@ -63,6 +62,7 @@ spec:
 
     if serviceHasBeenStarted:
         print("Service %s has been started succesfully." % serviceName)
+
 
 # Delete service.
 

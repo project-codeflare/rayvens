@@ -1,5 +1,4 @@
 import ray
-import events.utils
 from enum import Enum
 from events import invocation
 
@@ -57,7 +56,7 @@ def getKubectlCommandEndCondition(subcommandType, serviceName):
 
 def extractPodFullName(line, podBaseName):
     # Check if line contins pod name.
-    if not podBaseName in line:
+    if podBaseName not in line:
         return ""
 
     # Split line into tokens.
@@ -71,7 +70,7 @@ def extractPodFullName(line, podBaseName):
 
 def serviceNameMatches(line, serviceName):
     # Check if line contins pod name.
-    if not serviceName in line:
+    if serviceName not in line:
         return False
 
     # Split line into tokens.
@@ -107,6 +106,7 @@ def isInRunningState(line, fullPodName):
 def isInErrorState(line, fullPodName):
     return isInState(line, fullPodName, ["Error", "CrashLoopBackOff"])
 
+
 # Helper for invoking a long running kubectl command.
 
 
@@ -125,6 +125,7 @@ def getPodStatusCmd(command, integrationName):
     # Return pod status
     return podIsRunning, podName
 
+
 # Helper for starting a service. Command returns immediately.
 
 
@@ -138,6 +139,7 @@ def executeReturningKubectlCmd(command, serviceName):
 
     # Return outcome.
     return outcome
+
 
 # Helper for check that a service exists.
 

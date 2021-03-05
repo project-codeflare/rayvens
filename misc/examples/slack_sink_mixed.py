@@ -1,23 +1,18 @@
 import ray
 from ray import serve
 
-from events import kamel_backend
 from events import kamel
 from events import execution
 from events import kubernetes
 from examples import slack_sink_common
 
-import os
-import sys
-import time
-
 ray.init(num_cpus=4)
 client = serve.start()
 route = "/toslack"
-message = "While Ray runs locally, use the kamel operator in a kind cluster to print this to a kamel Slack sink."
+message = "While Ray runs locally, use the kamel operator in a kind cluster to"
+"print this to a kamel Slack sink."
 
-execMode = execution.Execution(
-    location=execution.RayKamelExecLocation.MIXED)
+execMode = execution.Execution(location=execution.RayKamelExecLocation.MIXED)
 
 #
 # Install kamel operator in the kind cluster created using the script
@@ -26,17 +21,17 @@ execMode = execution.Execution(
 
 kamelImage = "docker.io/apache/camel-k:1.3.1"
 publishRegistry = "registry:5000"
-installInvocation = kamel.install(
-    kamelImage,
-    publishRegistry,
-    localCluster=True,
-    usingKind=True,
-    insecureRegistry=True)
+installInvocation = kamel.install(kamelImage,
+                                  publishRegistry,
+                                  localCluster=True,
+                                  usingKind=True,
+                                  insecureRegistry=True)
 
 #
 # Use kamel run to create the slack sink using the kamel operator.
 #
-print("Length of active pod list after install: ", kubernetes.getNumActivePods())
+print("Length of active pod list after install: ",
+      kubernetes.getNumActivePods())
 print("Name of install pod is", kubernetes.getPodName(installInvocation))
 
 integrationFiles = ["kamel/slack.yaml"]
@@ -65,8 +60,10 @@ print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 # Start doing some work
 #
 
-slack_sink_common.sendMessageToSlackSink(
-    client, message, route, execMode=execMode)
+slack_sink_common.sendMessageToSlackSink(client,
+                                         message,
+                                         route,
+                                         execMode=execMode)
 
 #
 # Stop kubectl service for externalizing the sink listener.

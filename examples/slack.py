@@ -1,15 +1,16 @@
 import rayvens
 import json
-import os
 import ray
 from ray import serve
 import sys
 import time
 
-# fetch AAPL quotes every 3 seconds, analyze trend (up/down/same), and publish trend to slack
+# fetch AAPL quotes every 3 seconds, analyze trend (up/down/same), and publish
+# trend to slack
 #
 # the flow of events is:
-#     http-cron camel source -> incoming topic -> comparator actor -> outgoing topic -> slack camel sink
+#     http-cron camel source -> incoming topic -> comparator actor -> outgoing
+# topic -> slack camel sink
 #
 # app requires a single command line argument: the slack webhook
 
@@ -26,8 +27,11 @@ except ConnectionError:
     ray.init()
 
 # initialize ray serve in order to receive external events
-rayvens.setClient(serve.start(http_options={'host': '0.0.0.0',
-                                            'location': 'EveryNode'}))
+rayvens.setClient(
+    serve.start(http_options={
+        'host': '0.0.0.0',
+        'location': 'EveryNode'
+    }))
 
 # a topic to receive events from camel
 incoming = rayvens.Topic.remote('source')
@@ -69,8 +73,11 @@ rayvens.addSink('slack', outgoing,
                 f'slack:#kar-output?webhookUrl={slack_webhook}')
 
 # configure and run camel source to fetch AAPL price periodically
-rayvens.addSource('http-cron', incoming,
-                  'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo', period=3000)
+rayvens.addSource(
+    'http-cron',
+    incoming,
+    'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    period=3000)
 
 # run for a while
 time.sleep(20)

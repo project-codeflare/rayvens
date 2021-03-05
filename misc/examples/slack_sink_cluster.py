@@ -1,23 +1,19 @@
 import ray
 from ray import serve
 
-from events import kamel_backend
 from events import kamel
 from events import execution
-from events import kubernetes
 from examples import slack_sink_common
 
-import os
 import sys
-import time
 
 ray.init(num_cpus=4)
 client = serve.start()
 route = "/toslack"
-message = "Use Ray and Kamel in a kind cluster to print this to a kamel Slack sink."
+message = "Use Ray and Kamel in a kind cluster to print this to a kamel Slack"
+"sink."
 
-execMode = execution.Execution(
-    location=execution.RayKamelExecLocation.CLUSTER)
+execMode = execution.Execution(location=execution.RayKamelExecLocation.CLUSTER)
 
 slack_sink_common.exportSlackWebhook(sys.argv)
 
@@ -28,12 +24,11 @@ slack_sink_common.exportSlackWebhook(sys.argv)
 
 kamelImage = "docker.io/apache/camel-k:1.3.1"
 publishRegistry = "registry:5000"
-installInvocation = kamel.install(
-    kamelImage,
-    publishRegistry,
-    localCluster=True,
-    usingKind=True,
-    insecureRegistry=True)
+installInvocation = kamel.install(kamelImage,
+                                  publishRegistry,
+                                  localCluster=True,
+                                  usingKind=True,
+                                  insecureRegistry=True)
 
 #
 # Use kamel run to create the slack sink using the kamel operator.
@@ -53,8 +48,10 @@ runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
 #
 
 execMode.setIntegrstionName("my-simple-integration")
-slack_sink_common.sendMessageToSlackSink(
-    client, message, route, execMode=execMode)
+slack_sink_common.sendMessageToSlackSink(client,
+                                         message,
+                                         route,
+                                         execMode=execMode)
 
 #
 # Stop kamel sink.

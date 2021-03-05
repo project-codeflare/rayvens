@@ -36,30 +36,48 @@ class Topic:
 
 
 def addSink(name, topic, to):
-    integration = kamel.Integration(name, [
-        {'from': {'uri': f'platform-http:/{name}', 'steps': [{'to': to}]}}])
-    topic.subscribe.remote(lambda data: requests.post(
-        f'{integration.url}/{name}', data), name)
+    integration = kamel.Integration(name, [{
+        'from': {
+            'uri': f'platform-http:/{name}',
+            'steps': [{
+                'to': to
+            }]
+        }
+    }])
+    topic.subscribe.remote(
+        lambda data: requests.post(f'{integration.url}/{name}', data), name)
     topic._register.remote(name, integration)
 
 
 def addSource(name, topic, url, period=3000, prefix='/ravyens'):
     async def publish(data):
         topic.publish.remote(await data.body())
+
     client.create_backend(name, publish, config={'num_replicas': 1})
-    client.create_endpoint(
-        name, backend=name, route=f'{prefix}/{name}', methods=['POST'])
+    client.create_endpoint(name,
+                           backend=name,
+                           route=f'{prefix}/{name}',
+                           methods=['POST'])
     endpoint = 'http://localhost:8000'
     namespace = os.getenv('KUBE_POD_NAMESPACE')
-    if namespace != None:
+    if namespace is not None:
         with open('/etc/podinfo/labels', 'r') as f:
             for line in f:
                 k, v = line.partition('=')[::2]
                 if k == 'component':
-                    endpoint = f'http://{v[1:-2]}.{namespace}.svc.cluster.local:8000'
+                    endpoint = f'http://{v[1:-2]}.{namespace}.svc.cluster'
+                    '.local:8000'
                     break
-    integration = kamel.Integration(name, [{'from': {'uri': f'timer:tick?period={period}', 'steps': [
-        {'to': url}, {'to': f'{endpoint}{prefix}/{name}'}]}}])
+    integration = kamel.Integration(name, [{
+        'from': {
+            'uri': f'timer:tick?period={period}',
+            'steps': [{
+                'to': url
+            }, {
+                'to': f'{endpoint}{prefix}/{name}'
+            }]
+        }
+    }])
     topic._register.remote(name, integration)
 
 

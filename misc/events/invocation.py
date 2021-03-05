@@ -2,7 +2,6 @@ import ray
 import subprocess
 import os
 import signal
-import sys
 import io
 from events import utils
 from events import kamel_utils
@@ -36,7 +35,8 @@ class KamelInvocationActor:
         if not kamel_utils.isLocalCommand(self.subcommandType) and \
            not utils.executableIsAvailable("kubectl"):
             raise RuntimeError(
-                'kubectl executable not found in PATH for non-local kamel command')
+                "kubectl executable not found in PATH for non-local kamel"
+                "command")
 
         # Get end condition or fail if command type is not supported.
         self.endCondition = kamel_utils.getKamelCommandEndCondition(
@@ -56,9 +56,10 @@ class KamelInvocationActor:
         while True:
             # Log progress of kamel subprocess.
             # TODO: better logging. Merge logs?
-            # TODO: We only show logs for start-up, can we show logs during runtime?
-            output = utils.printLogFromSubProcess(
-                self.subprocessName, self.process)
+            # TODO: We only show logs for start-up, can we show logs during
+            # runtime?
+            output = utils.printLogFromSubProcess(self.subprocessName,
+                                                  self.process)
 
             returnCode = self.process.poll()
             if returnCode is not None:
@@ -67,8 +68,8 @@ class KamelInvocationActor:
             # Some form of completion signal is received.
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.
-            # TODO: brittle, check process completion by checking if it has started
-            # listening on the host:port.
+            # TODO: brittle, check process completion by checking if it has
+            # started listening on the host:port.
             if self.endCondition in output:
                 break
 
@@ -107,6 +108,7 @@ class KamelInvocationActor:
         # any subprocesses that the kamel command might have created.
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
 
+
 #
 # Handle calls to Kubernetes kubectl.
 #
@@ -125,7 +127,8 @@ class KubectlInvocationActor:
         self.subcommandType = kubernetes_utils.getKubectlCommandType(
             commandOptions)
         self.isRunning = False
-        # TODO: rename this, this can be either a pod or a service or a deployment name.
+        # TODO: rename this, this can be either a pod or a service or a
+        # deployment name.
         self.podName = ""
 
         # Get end condition or fail if command type is not supported.
@@ -145,9 +148,10 @@ class KubectlInvocationActor:
     def executeKubectlCmd(self, serviceName):
         success = False
         while True:
-            output = utils.printLogFromSubProcess(
-                self.subprocessName, self.process)
-            if self.subcommandType == kubernetes_utils.KubectlCommand.GET_SERVICES:
+            output = utils.printLogFromSubProcess(self.subprocessName,
+                                                  self.process)
+            if self.subcommandType == \
+               kubernetes_utils.KubectlCommand.GET_SERVICES:
                 if kubernetes_utils.serviceNameMatches(output, serviceName):
                     success = True
                     break
@@ -170,10 +174,11 @@ class KubectlInvocationActor:
 
     def podIsInRunningState(self, integrationName):
         while True:
-            # Process output line by line until we find the pod we are looking for.
+            # Process output line by line until we find the pod we are looking
+            # for.
             # There should only be one new pod.
-            output = utils.printLogFromSubProcess(
-                self.subprocessName, self.process)
+            output = utils.printLogFromSubProcess(self.subprocessName,
+                                                  self.process)
             if self.podName == "":
                 self.podName = kubernetes_utils.extractPodFullName(
                     output, integrationName)
