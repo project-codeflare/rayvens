@@ -34,7 +34,7 @@ installInvocation = kamel.install(kamelImage,
 # Use kamel run to create the slack sink using the kamel operator.
 #
 
-integrationFiles = ["/home/ray/ray_events/misc/examples/kamel/slack.yaml"]
+integrationFiles = ["/home/ray/rayvens/misc/examples/kamel/slack.yaml"]
 
 # List of environment variables to be used from current environment.
 envVars = ["SLACK_WEBHOOK"]

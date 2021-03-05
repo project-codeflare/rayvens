@@ -155,7 +155,7 @@ worker_nodes:
 
 file_mounts:
   {
-    "~/ray_events": "/Users/dorubercea/R/events/ray_events",
+    "~/rayvens": "/Users/dorubercea/R/events/rayvens",
     "~/anaconda3/bin/kamel": "/Users/dorubercea/K/CAMEL-K/kamel_linux_64bit/kamel",
   }
 
@@ -166,7 +166,7 @@ initialization_commands:
 
 setup_commands:
   [
-    "cd ~/ray_events/misc ; sudo /home/ray/anaconda3/bin/pip install -e . -v ; cd -",
+    "cd ~/rayvens/ ; sudo /home/ray/anaconda3/bin/pip install -e . -v ; cd -",
   ]
 
 head_setup_commands: []
