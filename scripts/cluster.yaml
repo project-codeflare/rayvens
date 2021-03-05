@@ -1,5 +1,5 @@
 cluster_name: example-cluster
-max_workers: 1
+max_workers: 2
 upscaling_speed: 1.0
 idle_timeout_minutes: 5
 provider:
@@ -60,8 +60,7 @@ head_node_type: head_node
 available_node_types:
     worker_node:
         min_workers: 0
-        max_workers: 1
-        resources: { "CPU": 2 }
+        max_workers: 2
         node_config:
             apiVersion: v1
             kind: Pod
@@ -89,6 +88,9 @@ available_node_types:
                           limits:
                               memory: 2Gi
     head_node:
+        min_workers: 0
+        max_workers: 0
+        resources: { "camel": 1 }
         node_config:
             apiVersion: v1
             kind: Pod
