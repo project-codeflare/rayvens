@@ -1,4 +1,4 @@
-import events
+import rayvens
 import json
 import os
 import ray
@@ -26,17 +26,17 @@ except ConnectionError:
     ray.init()
 
 # initialize ray serve in order to receive external events
-events.setClient(serve.start(http_options={'host': '0.0.0.0',
-                                           'location': 'EveryNode'}))
+rayvens.setClient(serve.start(http_options={'host': '0.0.0.0',
+                                            'location': 'EveryNode'}))
 
 # a topic to receive events from camel
-incoming = events.Topic.remote('source')
+incoming = rayvens.Topic.remote('source')
 
 # log incoming events
 incoming.subscribe.remote(lambda data: print('LOG:', data))
 
 # a topic to send events to camel
-outgoing = events.Topic.remote('sink')
+outgoing = rayvens.Topic.remote('sink')
 
 
 @ray.remote
@@ -65,19 +65,19 @@ comparator = Comparator.remote()
 incoming.subscribe.remote(comparator.compare.remote)
 
 # configure and run camel sink to publish to slack
-events.addSink('slack', outgoing,
-               f'slack:#kar-output?webhookUrl={slack_webhook}')
+rayvens.addSink('slack', outgoing,
+                f'slack:#kar-output?webhookUrl={slack_webhook}')
 
 # configure and run camel source to fetch AAPL price periodically
-events.addSource('http-cron', incoming,
-                 'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo', period=3000)
+rayvens.addSource('http-cron', incoming,
+                  'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo', period=3000)
 
 # run for a while
 time.sleep(20)
 
 # terminate camel integrations and disconnect subscribers
-events.disconnectAll(incoming)
-events.disconnectAll(outgoing)
+rayvens.disconnectAll(incoming)
+rayvens.disconnectAll(outgoing)
 
 # wait for a while
 time.sleep(20)

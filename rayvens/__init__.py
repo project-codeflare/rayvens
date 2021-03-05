@@ -1,4 +1,4 @@
-from events import kamel
+from rayvens import kamel
 import os
 import ray
 import requests
@@ -43,7 +43,7 @@ def addSink(name, topic, to):
     topic._register.remote(name, integration)
 
 
-def addSource(name, topic, url, period=3000, prefix='/events'):
+def addSource(name, topic, url, period=3000, prefix='/ravyens'):
     async def publish(data):
         topic.publish.remote(await data.body())
     client.create_backend(name, publish, config={'num_replicas': 1})
