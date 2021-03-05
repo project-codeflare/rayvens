@@ -6,26 +6,12 @@ import requests
 from rayvens import kamel
 
 
-@ray.remote(num_cpus=0, resources={'camel': 1})
+@ray.remote(num_cpus=0)
 class Camel:
     def __init__(self):
         self.client = serve.start(http_options={'host': '0.0.0.0'})
 
-    def addSink(self, name, topic, to):
-        integration = kamel.Integration(name, [{
-            'from': {
-                'uri': f'platform-http:/{name}',
-                'steps': [{
-                    'to': to
-                }]
-            }
-        }])
-        topic.subscribe.remote(
-            lambda data: requests.post(f'{integration.url}/{name}', data),
-            name)
-        topic._register.remote(name, integration)
-
-    def addSource(self, name, topic, url, period=3000, prefix='/ravyens'):
+    def add_source(self, name, topic, url, period=3000, prefix='/ravyens'):
         async def publish(data):
             topic.publish.remote(await data.body())
 
@@ -58,11 +44,6 @@ class Camel:
         }])
         topic._register.remote(name, integration)
 
-    def disconnectAll(self, topic):
-        integrations = ray.get(topic._disconnect.remote())
-        for i in integrations:
-            i['integration'].cancel()
-
 
 @ray.remote(num_cpus=0)
 class Topic:
@@ -81,8 +62,42 @@ class Topic:
     def _register(self, name, integration):
         self.integrations.append({'name': name, 'integration': integration})
 
-    def _disconnect(self):
-        self.subscribers = []
-        integrations = self.integrations
+    def disconnect(self):
+        for i in self.integrations:
+            i['integration'].cancel()
         self.integrations = []
-        return integrations
+
+
+class Client:
+    def __init__(self):
+        if os.getenv('KUBE_POD_NAMESPACE') is not None:
+            self.camel = Camel.options(resources={'camel': 1}).remote()
+        else:
+            self.camel = Camel.remote()
+
+    def add_source(self, name, *args, **kwargs):
+        self.camel.add_source.remote(name, *args, **kwargs)
+
+    def Source(self, name, *args, **kwargs):
+        topic = Topic.remote(name)
+        self.add_source(name, topic, *args, **kwargs)
+        return topic
+
+    def add_sink(self, name, topic, to):
+        integration = kamel.Integration(name, [{
+            'from': {
+                'uri': f'platform-http:/{name}',
+                'steps': [{
+                    'to': to
+                }]
+            }
+        }])
+        topic.subscribe.remote(
+            lambda data: requests.post(f'{integration.url}/{name}', data),
+            name)
+        topic._register.remote(name, integration)
+
+    def Sink(self, name, *args, **kwargs):
+        topic = Topic.remote(name)
+        self.add_sink(name, topic, *args, **kwargs)
+        return topic
