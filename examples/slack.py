@@ -1,7 +1,6 @@
 import rayvens
 import json
 import ray
-from ray import serve
 import sys
 import time
 
@@ -26,14 +25,10 @@ try:
 except ConnectionError:
     ray.init()
 
-# initialize ray serve in order to receive external events
-rayvens.setClient(
-    serve.start(http_options={
-        'host': '0.0.0.0',
-        'location': 'EveryNode'
-    }))
+# start rayvens
+rayvens.start()
 
-# a topic to receive events from camel
+# a topic to receive events from
 incoming = rayvens.Topic.remote('source')
 
 # log incoming events

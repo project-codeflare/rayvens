@@ -1,17 +1,34 @@
-from rayvens import kamel
 import os
 import ray
+from ray import serve
 import requests
 
-client = None
+from rayvens import kamel
+
+server = None
 
 
-def setClient(c):
-    global client
-    client = c
+@ray.remote(num_cpus=0)
+class Serve:
+    def __init__(self):
+        self.client = serve.start(http_options={'host': '0.0.0.0'})
+
+    def create_backend(self, *args, **kwargs):
+        self.client.create_backend(*args, **kwargs)
+
+    def create_endpoint(self, *args, **kwargs):
+        self.client.create_endpoint(*args, **kwargs)
 
 
-@ray.remote
+def start():
+    global server
+    if os.getenv('KUBE_POD_NAMESPACE') is not None:
+        server = Serve.options(resources={'camel': 1}).remote()
+    else:
+        server = Serve.remote()
+
+
+@ray.remote(num_cpus=0)
 class Topic:
     def __init__(self, name):
         self.name = name
@@ -53,11 +70,14 @@ def addSource(name, topic, url, period=3000, prefix='/ravyens'):
     async def publish(data):
         topic.publish.remote(await data.body())
 
-    client.create_backend(name, publish, config={'num_replicas': 1})
-    client.create_endpoint(name,
-                           backend=name,
-                           route=f'{prefix}/{name}',
-                           methods=['POST'])
+    server.create_backend.remote(name,
+                                 publish,
+                                 config={'num_replicas': 1},
+                                 ray_actor_options={'num_cpus': 0})
+    server.create_endpoint.remote(name,
+                                  backend=name,
+                                  route=f'{prefix}/{name}',
+                                  methods=['POST'])
     endpoint = 'http://localhost:8000'
     namespace = os.getenv('KUBE_POD_NAMESPACE')
     if namespace is not None:
@@ -65,8 +85,7 @@ def addSource(name, topic, url, period=3000, prefix='/ravyens'):
             for line in f:
                 k, v = line.partition('=')[::2]
                 if k == 'component':
-                    endpoint = f'http://{v[1:-2]}.{namespace}.svc.cluster'
-                    '.local:8000'
+                    endpoint = f'http://{v[1:-2]}.{namespace}.svc.cluster.local:8000'
                     break
     integration = kamel.Integration(name, [{
         'from': {
