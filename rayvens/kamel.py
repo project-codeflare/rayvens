@@ -1,18 +1,7 @@
-import atexit
 import os
 import signal
 import subprocess
 import yaml
-
-_integrations = []
-
-
-def _atexit():
-    for i in _integrations:
-        i.cancel()
-
-
-atexit.register(_atexit)
 
 
 class Integration:
@@ -32,7 +21,6 @@ class Integration:
             ]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
-        _integrations.append(self)
 
     def cancel(self):
         try:

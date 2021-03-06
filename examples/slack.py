@@ -66,11 +66,11 @@ comparator = Comparator.remote()
 source.subscribe.remote(comparator.compare.remote)
 
 # run for a while
-time.sleep(20)
+time.sleep(30)
 
 # disconnect source and sink
-source.disconnect.remote()
-sink.disconnect.remote()
+client.disconnect(source)
+client.disconnect(sink)
 
 # wait for a while
 time.sleep(20)

@@ -1,3 +1,4 @@
+import atexit
 import os
 import ray
 from ray import serve
@@ -9,7 +10,11 @@ from rayvens import kamel
 @ray.remote(num_cpus=0)
 class Camel:
     def __init__(self):
-        self.client = serve.start(http_options={'host': '0.0.0.0'})
+        self.client = serve.start(http_options={
+            'host': '0.0.0.0',
+            'location': 'EveryNode'
+        })
+        self.integrations = []
 
     def add_source(self, name, topic, url, period=3000, prefix='/ravyens'):
         async def publish(data):
@@ -43,45 +48,10 @@ class Camel:
             }
         }])
         topic._register.remote(name, integration)
-
-
-@ray.remote(num_cpus=0)
-class Topic:
-    def __init__(self, name):
-        self.name = name
-        self.subscribers = []
-        self.integrations = []
-
-    def subscribe(self, f, name=None):
-        self.subscribers.append({'f': f, 'name': name})
-
-    def publish(self, *args, **kwargs):
-        for s in self.subscribers:
-            s['f'](*args, **kwargs)
-
-    def _register(self, name, integration):
-        self.integrations.append({'name': name, 'integration': integration})
-
-    def disconnect(self):
-        for i in self.integrations:
-            i['integration'].cancel()
-        self.integrations = []
-
-
-class Client:
-    def __init__(self):
-        if os.getenv('KUBE_POD_NAMESPACE') is not None:
-            self.camel = Camel.options(resources={'camel': 1}).remote()
+        if self.integrations is None:
+            integration.cancel()
         else:
-            self.camel = Camel.remote()
-
-    def add_source(self, name, *args, **kwargs):
-        self.camel.add_source.remote(name, *args, **kwargs)
-
-    def Source(self, name, *args, **kwargs):
-        topic = Topic.remote(name)
-        self.add_source(name, topic, *args, **kwargs)
-        return topic
+            self.integrations.append(integration)
 
     def add_sink(self, name, topic, to):
         integration = kamel.Integration(name, [{
@@ -96,8 +66,71 @@ class Client:
             lambda data: requests.post(f'{integration.url}/{name}', data),
             name)
         topic._register.remote(name, integration)
+        if self.integrations is None:
+            integration.cancel()
+        else:
+            self.integrations.append(integration)
+
+    def cancel(self, integrations):
+        for i in integrations:
+            i['integration'].cancel()
+
+    def exit(self):
+        integrations = self.integrations
+        self.integrations = None
+        for i in integrations:
+            i.cancel()
+
+
+@ray.remote(num_cpus=0)
+class Topic:
+    def __init__(self, name):
+        self.name = name
+        self._subscribers = []
+        self._integrations = []
+
+    def subscribe(self, f, name=None):
+        self._subscribers.append({'f': f, 'name': name})
+
+    def publish(self, *args, **kwargs):
+        for s in self._subscribers:
+            s['f'](*args, **kwargs)
+
+    def _register(self, name, integration):
+        self._integrations.append({'name': name, 'integration': integration})
+
+    def _disconnect(self, camel):
+        self._subscribers = []
+        camel.cancel.remote(self._integrations)
+        self._integrations = []
+
+
+class Client:
+    def __init__(self):
+        if os.getenv('KUBE_POD_NAMESPACE') is not None:
+            self._camel = Camel.options(resources={'head': 1}).remote()
+        else:
+            self._camel = Camel.remote()
+        atexit.register(self._camel.exit.remote)
+
+    def Topic(self, name):
+        return Topic.remote(name)
+
+    def add_source(self, name, *args, **kwargs):
+        self._camel.add_source.remote(name, *args, **kwargs)
+
+    def Source(self, name, *args, **kwargs):
+        topic = Topic.remote(name)
+        self.add_source(name, topic, *args, **kwargs)
+        return topic
+
+    def add_sink(self, name, *args, **kwargs):
+        self._camel.add_sink.remote(name, *args, **kwargs)
 
     def Sink(self, name, *args, **kwargs):
         topic = Topic.remote(name)
         self.add_sink(name, topic, *args, **kwargs)
         return topic
+
+    def disconnect(self, topic):
+        topic._disconnect.remote(self._camel)
