@@ -19,20 +19,20 @@ execMode = execution.Execution(location=execution.RayKamelExecLocation.MIXED)
 # in kamel subdirectory.
 #
 
-kamelImage = "docker.io/apache/camel-k:1.3.1"
-publishRegistry = "registry:5000"
-installInvocation = kamel.install(kamelImage,
-                                  publishRegistry,
-                                  localCluster=True,
-                                  usingKind=True,
-                                  insecureRegistry=True)
+# kamelImage = "docker.io/apache/camel-k:1.3.1"
+# publishRegistry = "registry:5000"
+# installInvocation = kamel.install(kamelImage,
+#                                   publishRegistry,
+#                                   localCluster=True,
+#                                   usingKind=True,
+#                                   insecureRegistry=True)
 
 #
 # Use kamel run to create the slack sink using the kamel operator.
 #
-print("Length of active pod list after install: ",
-      kubernetes.getNumActivePods())
-print("Name of install pod is", kubernetes.getPodName(installInvocation))
+# print("Length of active pod list after install: ",
+#       kubernetes.getNumActivePods())
+# print("Name of install pod is", kubernetes.getPodName(installInvocation))
 
 integrationFiles = ["kamel/slack.yaml"]
 
@@ -78,6 +78,6 @@ kamel.delete(runInvocation)
 #
 # Uinstall the kamel operator from the cluster.
 #
-kamel.uninstall(installInvocation)
+# kamel.uninstall(installInvocation)
 print("Length of active pod list after uninstall: ",
       kubernetes.getNumActivePods())

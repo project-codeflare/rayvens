@@ -4,3 +4,10 @@ containerdConfigPatches:
   - |-
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."host.docker.internal:5000"]
       endpoint = ["http://host.docker.internal:5000"]
+nodes:
+- role: control-plane
+- role: worker
+  extraPortMappings:
+  - containerPort: 31095
+    hostPort: 31095
+    protocol: TCP

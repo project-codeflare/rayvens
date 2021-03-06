@@ -62,10 +62,10 @@ def extractPodFullName(line, podBaseName):
     # Split line into tokens.
     wordList = line.split()
     # If line is too short to be a valid pod line then exit.
-    if len(wordList) < 2:
+    if len(wordList) < 1:
         return ""
 
-    return wordList[1]
+    return wordList[0]
 
 
 def serviceNameMatches(line, serviceName):
@@ -89,12 +89,12 @@ def isInState(line, fullPodName, stateList):
     # Split line into tokens.
     wordList = line.split()
     # If line is too short to be a valid pod line then exit.
-    if len(wordList) < 4:
+    if len(wordList) < 2:
         return False
 
-    if wordList[1] == fullPodName:
+    if wordList[0] == fullPodName:
         for state in stateList:
-            if state == wordList[3]:
+            if state == wordList[2]:
                 return True
     return False
 

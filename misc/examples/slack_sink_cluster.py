@@ -22,13 +22,13 @@ slack_sink_common.exportSlackWebhook(sys.argv)
 # in kamel subdirectory.
 #
 
-kamelImage = "docker.io/apache/camel-k:1.3.1"
-publishRegistry = "registry:5000"
-installInvocation = kamel.install(kamelImage,
-                                  publishRegistry,
-                                  localCluster=True,
-                                  usingKind=True,
-                                  insecureRegistry=True)
+# kamelImage = "docker.io/apache/camel-k:1.3.1"
+# publishRegistry = "registry:5000"
+# installInvocation = kamel.install(kamelImage,
+#                                   publishRegistry,
+#                                   localCluster=True,
+#                                   usingKind=True,
+#                                   insecureRegistry=True)
 
 #
 # Use kamel run to create the slack sink using the kamel operator.
@@ -61,4 +61,4 @@ kamel.delete(runInvocation)
 #
 # Uinstall the kamel operator from the cluster.
 #
-kamel.uninstall(installInvocation)
+# kamel.uninstall(installInvocation)

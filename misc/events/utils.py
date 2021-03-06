@@ -1,6 +1,8 @@
+import os
+
 # Port externalized by the cluster.
 # TODO: randomize this port as part of the supported list of ports.
-externalizedClusterPort = "31093"
+externalizedClusterPort = "31095"
 
 # Port used by the Quarkus Runtime to listen to HTTP requests.
 # TODO: this value is just the default and can be customized in case
@@ -15,9 +17,14 @@ internalClusterPort = "80"
 # in Windows, Linux and MacOS. Python >= 3.3 required.
 
 
-def executableIsAvailable(executableName):
+def executableIsAvailable(executableNameOrPath):
+    # If this is a path to the executable file return true.
+    if os.path.isfile(executableNameOrPath):
+        return True
+
+    # Look up executable in path.
     from shutil import which
-    return which(executableName) is not None
+    return which(executableNameOrPath) is not None
 
 
 def subprocessTag(subprocessName):

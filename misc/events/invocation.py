@@ -27,6 +27,12 @@ class KamelInvocationActor:
         # Create the kamel command.
         execCommand = " ".join(["exec", "kamel", commandOptions])
 
+        # Add to PATH for case when this command is invoked in a cluster.
+        # TODO: only do this when running on CLUSTER not all the time.
+        os.environ['PATH'] = ":".join(
+            ["/home/ray/rayvens/rayvens/linux-x86_64",
+             os.getenv('PATH')])
+
         # Fail early before command is invoked if kamel is not found.
         if not utils.executableIsAvailable("kamel"):
             raise RuntimeError('kamel executable not found in PATH')
@@ -137,6 +143,9 @@ class KubectlInvocationActor:
 
         # Create the kubectl command.
         execCommand = " ".join(["exec", "kubectl", commandOptions])
+
+        if not utils.executableIsAvailable("kubectl"):
+            raise RuntimeError('kubectl executable not found in PATH')
 
         # Launch kamel command in a new process.
         self.process = subprocess.Popen(execCommand,

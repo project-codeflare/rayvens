@@ -41,6 +41,9 @@ class Execution:
     def setNamespace(self, namespace):
         self.namespace = namespace
 
+    def getNamespace(self):
+        return self.namespace
+
     def getQuarkusHTTPServer(self):
         if self.location == RayKamelExecLocation.LOCAL:
             return "http://0.0.0.0:8080"

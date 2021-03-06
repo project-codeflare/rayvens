@@ -1,5 +1,6 @@
 from misc.events import kamel_utils
 from misc.events import kubernetes
+from misc.events import execution
 import os
 
 # Method to install kamel in a cluster.
@@ -24,6 +25,10 @@ def install(kamelImage,
         raise RuntimeError('locally, only kind cluster is supported')
 
     command = ["install"]
+
+    # Namespace
+    command.append("-n")
+    command.append(execution.mode.getNamespace())
 
     # Add kamel operator image.
     command.append("--operator-image")
@@ -51,7 +56,13 @@ def install(kamelImage,
 
 
 def uninstall(installInvocation):
-    return kamel_utils.invokeReturningCmd(["uninstall"], "camel-k-operator")
+    command = ["uninstall"]
+
+    # Namespace
+    command.append("-n")
+    command.append(execution.mode.getNamespace())
+
+    return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
 
 
 # Kamel run invocation.
@@ -63,6 +74,10 @@ def run(integrationFiles, integrationName, envVars):
     # Integration name.
     command.append("--name")
     command.append(integrationName)
+
+    # Namespace
+    command.append("-n")
+    command.append(execution.mode.getNamespace())
 
     for envVar in envVars:
         if envVar not in os.environ:
@@ -85,6 +100,11 @@ def delete(runningIntegrationInvocation):
 
     # Compose command with integration name.
     command = ["delete"]
+
+    # Namespace
+    command.append("-n")
+    command.append(execution.mode.getNamespace())
+
     command.append(integrationName)
 
     return kamel_utils.invokeReturningCmd(command, integrationName)
