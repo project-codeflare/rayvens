@@ -41,7 +41,7 @@ sink = client.Sink('slack', f'slack:#kar-output?webhookUrl={slack_webhook}')
 
 
 @ray.remote
-# Actor to compare stock quote with last quote and publish result
+# Actor to compare stock quote with last quote
 class Comparator:
     def __init__(self):
         self.lastQuote = None
