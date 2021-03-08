@@ -1,25 +1,10 @@
 import json
 import ray
 import rayvens
-import sys
 import time
 
-# this example demonstrates how to use Camel
-# to receive and emit external events
-#
-# fetch AAPL quotes every 3 seconds
-# analyze trend (up/down/same)
-# publish trend to slack
-#
-# http-cron event source -> comparator actor -> slack event sink
-#
-# app requires a single command line argument: the slack webhook
-
-# process command line arguments
-if len(sys.argv) < 2:
-    print(f'usage: {sys.argv[0]} <slack_webhook>')
-    sys.exit(1)
-slack_webhook = sys.argv[1]
+# this example demonstrates how to subscribe to a Camel event source
+# and process incoming events using a stateful actor
 
 # initialize ray
 try:
@@ -39,9 +24,6 @@ source = client.Source(
 # log incoming events
 source.subscribe.remote(lambda event: print('LOG:', event))
 
-# start event sink actor
-sink = client.Sink('slack', f'slack:#kar-output?webhookUrl={slack_webhook}')
-
 
 @ray.remote
 # Actor to compare stock quote with last quote
@@ -55,11 +37,11 @@ class Comparator:
         try:
             if self.lastQuote:
                 if quote > self.lastQuote:
-                    return 'AAPL is up'
+                    print('AAPL is up')
                 elif quote < self.lastQuote:
-                    return 'AAPL is down'
+                    print('AAPL is down')
                 else:
-                    return 'AAPL is unchanged'
+                    print('AAPL is unchanged')
         finally:
             self.lastQuote = quote
 
@@ -67,18 +49,14 @@ class Comparator:
 # comparator instance
 comparator = Comparator.remote()
 
-# process event stream using comparator
+# create stream operator from comparator
 operator = client.Operator('comparator', comparator.compare.remote)
-source.subscribe.remote(operator.publish.remote)
-operator.subscribe.remote(sink.publish.remote)
 
-# or without creating a separate operator
-# sink.add_operator.remote(comparator.compare.remote)
-# source.subscribe.remote(sink.publish.remote)
+# subscribe operator to source
+source.subscribe.remote(operator.publish.remote)
 
 # run for a while
 time.sleep(60)
 
 # optionally disconnect source and sink
 client.disconnect(source)
-client.disconnect(sink)
