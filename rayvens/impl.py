@@ -1,7 +1,6 @@
 import os
 import ray
 from ray import serve
-import requests
 import signal
 import subprocess
 import yaml
@@ -69,9 +68,10 @@ class Camel:
                 }]
             }
         }])
-        topic.subscribe.remote(
-            lambda data: requests.post(f'{integration.url}/{name}', data),
-            name)
+
+        url = f'{integration.url}/{name}'
+        topic.subscribe.remote(lambda data: topic._post.remote(url, data),
+                               name)
         topic._register.remote(name, integration)
         if self.integrations is None:
             integration.cancel()

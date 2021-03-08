@@ -34,7 +34,7 @@ source = client.Source(
     period=3000)
 
 # log incoming events
-source.subscribe.remote(lambda data: print('LOG:', data))
+source.subscribe.remote(lambda event: print('LOG:', event))
 
 # start event sink actor
 sink = client.Sink('slack', f'slack:#kar-output?webhookUrl={slack_webhook}')
@@ -46,31 +46,36 @@ class Comparator:
     def __init__(self):
         self.lastQuote = None
 
-    def compare(self, data):
-        obj = json.loads(data)
-        quote = obj[0]['price']
-        if self.lastQuote:
-            if quote > self.lastQuote:
-                sink.publish.remote('UP')
-            elif quote < self.lastQuote:
-                sink.publish.remote('DOWN')
-            else:
-                sink.publish.remote('SAME')
-        self.lastQuote = quote
+    def compare(self, event):
+        payload = json.loads(event)
+        quote = payload[0]['price']
+        try:
+            if self.lastQuote:
+                if quote > self.lastQuote:
+                    return 'UP'
+                elif quote < self.lastQuote:
+                    return 'DOWN'
+                else:
+                    return 'SAME'
+        finally:
+            self.lastQuote = quote
 
 
 # comparator instance
 comparator = Comparator.remote()
 
-# feed source events to comparator actor
-source.subscribe.remote(comparator.compare.remote)
+# process event stream using comparator
+operator = client.Operator('comparator', comparator.compare.remote)
+source.subscribe.remote(operator.publish.remote)
+operator.subscribe.remote(sink.publish.remote)
+
+# or without creating a separate operator
+# sink.add_operator.remote(comparator.compare.remote)
+# source.subscribe.remote(sink.publish.remote)
 
 # run for a while
-time.sleep(30)
+time.sleep(60)
 
-# disconnect source and sink
+# optionally disconnect source and sink
 client.disconnect(source)
 client.disconnect(sink)
-
-# wait for a while
-time.sleep(20)

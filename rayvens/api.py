@@ -1,5 +1,6 @@
 import atexit
 import ray
+import requests
 
 from .impl import Camel
 
@@ -10,13 +11,21 @@ class Topic:
         self.name = name
         self._subscribers = []
         self._integrations = []
+        self._callable = None
 
     def subscribe(self, callable, name=None):
         self._subscribers.append({'callable': callable, 'name': name})
 
-    def publish(self, *args, **kwargs):
+    def publish(self, data):
+        if data is None:
+            return
+        if self._callable is not None:
+            data = self._callable(data)
         for s in self._subscribers:
-            s['callable'](*args, **kwargs)
+            s['callable'](data)
+
+    def add_operator(self, callable):
+        self._callable = callable
 
     def _register(self, name, integration):
         self._integrations.append({'name': name, 'integration': integration})
@@ -25,6 +34,10 @@ class Topic:
         self._subscribers = []
         camel.cancel.remote(self._integrations)
         self._integrations = []
+
+    def _post(self, url, data):
+        if data is not None:
+            requests.post(url, data)
 
 
 class Client:
@@ -49,6 +62,11 @@ class Client:
     def Sink(self, name, *args, **kwargs):
         topic = Topic.remote(name)
         self.add_sink(name, topic, *args, **kwargs)
+        return topic
+
+    def Operator(self, name, callable):
+        topic = Topic.remote(name)
+        topic.add_operator.remote(callable)
         return topic
 
     def disconnect(self, topic):
