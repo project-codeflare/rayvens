@@ -16,7 +16,7 @@ except ConnectionError:
 client = rayvens.Client()
 
 # start event source actor
-source = client.Source(
+source = client.Source.remote(
     'http-cron',
     'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
@@ -50,7 +50,7 @@ class Comparator:
 comparator = Comparator.remote()
 
 # create stream operator from comparator
-operator = client.Operator('comparator', comparator.compare.remote)
+operator = client.Operator.remote('comparator', comparator.compare.remote)
 
 # subscribe operator to source
 source.subscribe.remote(operator.publish.remote)

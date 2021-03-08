@@ -31,7 +31,7 @@ except ConnectionError:
 client = rayvens.Client()
 
 # start event source actor
-source = client.Source(
+source = client.Source.remote(
     'http-cron',
     'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
@@ -40,7 +40,8 @@ source = client.Source(
 source.subscribe.remote(lambda event: print('LOG:', event))
 
 # start event sink actor
-sink = client.Sink('slack', f'slack:#kar-output?webhookUrl={slack_webhook}')
+sink = client.Sink.remote('slack',
+                          f'slack:#kar-output?webhookUrl={slack_webhook}')
 
 
 @ray.remote
@@ -68,7 +69,7 @@ class Comparator:
 comparator = Comparator.remote()
 
 # process event stream using comparator
-operator = client.Operator('comparator', comparator.compare.remote)
+operator = client.Operator.remote('comparator', comparator.compare.remote)
 source.subscribe.remote(operator.publish.remote)
 operator.subscribe.remote(sink.publish.remote)
 

@@ -18,7 +18,7 @@ except ConnectionError:
 client = rayvens.Client()
 
 # create a topic actor
-topic = client.Topic('example')
+topic = client.Topic.remote('example')
 
 
 # Ray actor to handle events

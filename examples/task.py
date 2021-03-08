@@ -17,7 +17,7 @@ except ConnectionError:
 client = rayvens.Client()
 
 # create a topic actor
-topic = client.Topic('example')
+topic = client.Topic.remote('example')
 
 
 # define a first event handling task
