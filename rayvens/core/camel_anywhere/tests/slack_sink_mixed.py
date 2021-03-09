@@ -1,7 +1,7 @@
 import ray
 from ray import serve
 
-from rayvens.core.types import RayKamelExecLocation
+from rayvens.types import RayKamelExecLocation
 from rayvens.core.camel_anywhere import kamel
 from rayvens.core.camel_anywhere.mode import mode
 from rayvens.core.camel_anywhere import kubernetes

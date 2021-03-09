@@ -1,5 +1,5 @@
-from rayvens.core.types import RayKamelExecLocation
-from rayvens.core.types import KamelOperatorMode
+from rayvens.types import RayKamelExecLocation
+from rayvens.types import KamelOperatorMode
 from rayvens.core.utils import utils
 
 
