@@ -1,10 +1,10 @@
 import ray
 from ray import serve
 
-from misc.events import kamel
-from misc.events.execution import mode, RayKamelExecLocation
-from misc.events import kubernetes
-from misc.examples import slack_sink_common
+from rayvens.core.camel import kamel
+from rayvens.core.camel.execution import mode, RayKamelExecLocation
+from rayvens.core.camel import kubernetes
+from rayvens.core.camel.tests import slack_sink_common
 
 ray.init(num_cpus=4)
 client = serve.start()

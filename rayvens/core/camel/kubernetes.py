@@ -1,7 +1,7 @@
 from collections import namedtuple
-from misc.events import utils
-from misc.events import kubernetes_utils
-from misc.events.execution import mode
+from rayvens.core.camel import utils
+from rayvens.core.camel import kubernetes_utils
+from rayvens.core.camel.execution import mode
 import os
 
 # List that holds the list of active pods.

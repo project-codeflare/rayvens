@@ -1,4 +1,4 @@
-from misc.events import utils
+from rayvens.core.camel import utils
 from enum import Enum
 
 # Enum for capturing the location of the Kamel execution.

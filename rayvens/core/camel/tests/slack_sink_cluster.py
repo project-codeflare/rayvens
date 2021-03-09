@@ -1,9 +1,9 @@
 import ray
 from ray import serve
 
-from misc.events import kamel
-from misc.events.execution import mode, RayKamelExecLocation
-from misc.examples import slack_sink_common
+from rayvens.core.camel import kamel
+from rayvens.core.camel.execution import mode, RayKamelExecLocation
+from rayvens.core.camel.tests import slack_sink_common
 
 import sys
 
@@ -34,7 +34,9 @@ slack_sink_common.exportSlackWebhook(sys.argv)
 # Use kamel run to create the slack sink using the kamel operator.
 #
 
-integrationFiles = ["/home/ray/rayvens/misc/examples/kamel/slack.yaml"]
+integrationFiles = [
+    "/home/ray/rayvens/rayvens/core/camel/tests/kamel/slack.yaml"
+]
 
 # List of environment variables to be used from current environment.
 envVars = ["SLACK_WEBHOOK"]

@@ -1,6 +1,6 @@
-from misc.events import kamel_utils
-from misc.events import kubernetes
-from misc.events.execution import mode
+from rayvens.core.camel import kamel_utils
+from rayvens.core.camel import kubernetes
+from rayvens.core.camel.execution import mode
 import os
 
 # Method to install kamel in a cluster.

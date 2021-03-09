@@ -3,10 +3,10 @@ import subprocess
 import os
 import signal
 import io
-from misc.events import utils
-from misc.events import kamel_utils
-from misc.events import kubernetes_utils
-from misc.events.execution import mode
+from rayvens.core.camel import utils
+from rayvens.core.camel import kamel_utils
+from rayvens.core.camel import kubernetes_utils
+from rayvens.core.camel.execution import mode
 
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.

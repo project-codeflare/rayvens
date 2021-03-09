@@ -1,4 +1,4 @@
-from misc.events import topics
+from rayvens.core.camel import topics
 import ray
 ray.init()
 

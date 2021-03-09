@@ -1,5 +1,5 @@
-from misc.events import kamel_backend
-from misc.events.execution import mode
+from rayvens.core.camel import kamel_backend
+from rayvens.core.camel.execution import mode
 import os
 
 

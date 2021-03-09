@@ -1,5 +1,5 @@
 import ray
-from misc.events import utils
+from rayvens.core.camel import utils
 import requests
 
 # Default value for Quarkus HTTP server.
