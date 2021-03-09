@@ -33,7 +33,7 @@ class Comparator:
         self.last_quote = None
 
     def ingest(self, event):
-        payload = json.loads(event)
+        payload = json.loads(event)  # parse event string to json
         quote = payload[0]['price']  # payload[0] is AAPL
         try:
             if self.last_quote:
