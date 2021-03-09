@@ -11,7 +11,7 @@ These instructions have been tested on Big Sur.
 
 We recommend installing Python 3.8.7 using [pyenv](https://github.com/pyenv/pyenv).
 
-Install Ray and Ray Serve:
+Install Ray and Ray Serve with Kubernetes support:
 ```shell
 pip install --upgrade pip
 pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-2.0.0.dev0-cp38-cp38-macosx_10_13_x86_64.whl
