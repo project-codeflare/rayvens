@@ -3,6 +3,8 @@ import ray
 import requests
 
 from rayvens.core.impl import Camel
+from rayvens.core.camel_anywhere.impl import CamelAnyNode
+from rayvens.types import CamelOperatorMode
 
 
 @ray.remote(num_cpus=0)
@@ -65,8 +67,13 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 class Client:
-    def __init__(self, prefix='/rayvens'):
-        self._camel = Camel.start(prefix)
+    def __init__(self, prefix='/rayvens', mode=CamelOperatorMode.HEAD_NODE):
+        if mode == CamelOperatorMode.HEAD_NODE:
+            self._camel = Camel.start(prefix)
+        elif mode == CamelOperatorMode.ANY_NODE:
+            self._camel = CamelAnyNode.start(prefix)
+        else:
+            raise RuntimeError("Not yet implemented")
         atexit.register(self._camel.exit.remote)
 
     def create_topic(self, name, source=None, sink=None, operator=None):

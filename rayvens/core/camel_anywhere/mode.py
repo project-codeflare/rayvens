@@ -1,12 +1,23 @@
-from rayvens.types import RayKamelExecLocation
-from rayvens.types import KamelOperatorMode
+from enum import Enum
+from rayvens.types import CamelOperatorMode
 from rayvens.core.utils import utils
+
+
+class RayKamelExecLocation(Enum):
+    # Ray and Kamel running locally.
+    LOCAL = 1
+
+    # Ray running locally, Kamel running in the cluster.
+    MIXED = 2
+
+    # Ray and Kamel running in the cluster.
+    CLUSTER = 3
 
 
 class Execution:
     def __init__(self,
                  location=RayKamelExecLocation.LOCAL,
-                 kamelExecMode=KamelOperatorMode.OPERATOR_ANYWHERE):
+                 kamelExecMode=CamelOperatorMode.ANY_NODE):
         self.location = location
         self.kamelExecMode = kamelExecMode
         self.integrationName = ""
