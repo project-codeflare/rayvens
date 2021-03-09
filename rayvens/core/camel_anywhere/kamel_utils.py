@@ -1,7 +1,7 @@
 import ray
 from enum import Enum
-from rayvens.core.camel import invocation
-from rayvens.core.camel import kubernetes
+from rayvens.core.camel_anywhere import invocation
+from rayvens.core.camel_anywhere import kubernetes
 
 
 class KamelCommand(Enum):

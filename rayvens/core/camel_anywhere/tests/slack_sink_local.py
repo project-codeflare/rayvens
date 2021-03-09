@@ -1,7 +1,7 @@
 from ray import serve
 import ray
-from rayvens.core.camel import kamel
-from rayvens.core.camel.tests import slack_sink_common
+from rayvens.core.camel_anywhere import kamel
+from rayvens.core.camel_anywhere.tests import slack_sink_common
 
 ray.init(num_cpus=4)
 

@@ -1,6 +1,6 @@
 from collections import namedtuple
 from rayvens.core.utils import utils
-from rayvens.core.camel import kubernetes_utils
+from rayvens.core.camel_anywhere import kubernetes_utils
 from rayvens.core.mode import mode
 import os
 

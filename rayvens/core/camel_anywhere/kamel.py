@@ -1,5 +1,5 @@
-from rayvens.core.camel import kamel_utils
-from rayvens.core.camel import kubernetes
+from rayvens.core.camel_anywhere import kamel_utils
+from rayvens.core.camel_anywhere import kubernetes
 from rayvens.core.mode import mode
 import os
 

@@ -1,5 +1,5 @@
-from rayvens.core.camel import kamel_backend
-from rayvens.core.camel.execution import mode
+from rayvens.core.camel_anywhere import kamel_backend
+from rayvens.core.camel_anywhere.execution import mode
 import os
 
 

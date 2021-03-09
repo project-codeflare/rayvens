@@ -1,6 +1,6 @@
 import ray
-from rayvens.core.camel import kamel_backend
-from rayvens.core.camel import topics
+from rayvens.core.camel_anywhere import kamel_backend
+from rayvens.core.camel_anywhere import topics
 from ray import serve
 
 ray.init(num_cpus=4)

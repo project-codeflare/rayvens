@@ -1,9 +1,9 @@
 import ray
 from ray import serve
 
-from rayvens.core.camel import kamel
-from rayvens.core.camel.execution import mode, RayKamelExecLocation
-from rayvens.core.camel.tests import slack_sink_common
+from rayvens.core.camel_anywhere import kamel
+from rayvens.core.camel_anywhere.execution import mode, RayKamelExecLocation
+from rayvens.core.camel_anywhere.tests import slack_sink_common
 
 import sys
 
