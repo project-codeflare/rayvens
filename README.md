@@ -82,7 +82,7 @@ topic << 'hello' << 'world'
 
 This program initialize Ray and Rayvens and creates a `Topic`. Topics and events
 are the core facilities offered by Rayvens. Topics bridge event publishers and
-subscribers.
+subscribers. Topic are currently implemented as Ray actors.
 
 In this example, a subscriber is added to `topic` with the statement `topic >>
 print`. This subscriber simply invokes the Python `print` method on every event
