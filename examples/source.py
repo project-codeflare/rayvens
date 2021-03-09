@@ -54,7 +54,7 @@ comparator = Comparator.remote()
 source >> comparator
 
 # run for a while
-time.sleep(60)
+time.sleep(300)
 
 # optionally disconnect source
 client.disconnect(source)

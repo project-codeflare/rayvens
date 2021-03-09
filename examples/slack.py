@@ -77,7 +77,7 @@ operator = client.create_topic('comparator', operator=comparator)
 source >> operator >> sink
 
 # run for a while
-time.sleep(60)
+time.sleep(300)
 
 # optionally disconnect source and sink
 client.disconnect(source)

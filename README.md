@@ -31,6 +31,10 @@ Try Rayvens:
 python rayvens/examples/hello.py
 ```
 
+Rayvens configures and uses [Ray
+Serve](https://docs.ray.io/en/master/serve/index.html) to accept incoming
+external events.
+
 ## A First Example
 
 The [hello.py](examples/hello.py) file demonstrates an elementary Rayvens
@@ -122,6 +126,19 @@ Try your Ray cluster on Kind with:
 ray submit rayvens/scripts/cluster.yaml rayvens/examples/pubsub.py
 ```
 
+### Cluster.yaml
+
+Our example [cluster.yaml](scripts/cluster.yaml) configuration file is derived from Ray's
+[example-full.yaml](https://github.com/ray-project/ray/blob/master/python/ray/autoscaler/kubernetes/example-full.yaml)
+configuration file with some notable enhancements:
+- additional configuration parameters for the head and worker pods (RBAC rules
+  to manage Camel integrations, downward api, custom resource tags),
+- an additional service port (8000) to receive external events from Camel,
+- file mounts and the installation of Rayvens of every node,
+- a 2-cpu-per-pod resource requirement to make room for Ray Serve.
+
+We plan to support the Ray operator in the near future.
+
 ### Cleanup Kind
 
 To take down the Kind cluster (including Ray and Camel-K) run:
@@ -137,8 +154,8 @@ docker rm registry
 
 ## Event Source Example
 
-The [source.py](examples/source.py) example demonstrates how to process
-external events with Rayvens.
+The [source.py](examples/source.py) example demonstrates how to process external
+events with Rayvens.
 
 First, we create a topic connected to an external event source:
 ```python
@@ -195,6 +212,111 @@ The `Comparator` class follows the convention that it accepts events by means of
 a method named `ingest`. If for instance this method were to be named `accept`
 instead, then we would have to subscribe the actor to the source using syntax
 `source >> comparator.accept`.
+
+### Running the example
+
+Run the example locally with:
+```shell
+python run rayvens/examples/source.py
+```
+
+Run the example on Kind with:
+```shell
+ray submit rayvens/scripts/cluster.yaml rayvens/examples/source.py
+```
+
+When running locally, the Camel-K client may need to download and cache
+dependencies on first run (using Maven). When running on Kubernetes, the Camel-K
+operator is used to build and cache a container image for source. In both cases,
+the the source may take a minute or more to start the first time. The source
+should start in matter of seconds on subsequent runs.
+
+Rayvens manages the Camel processes automatically and in most case should be
+able to terminate these processes when the main program exits. In rare case,
+there may be leftover `java` and `kamel` processes when running locally or
+Kubernetes `integrations` objects. Please clean these manually.
+
+## Event Sink Example
+
+The [slack.py](examples/slack.py) builds upon the previous example by pushing
+the output messages to [Slack](https://slack.com).
+
+In addition to the same source as before, it instantiates a sink:
+```python
+sink_config = dict(kind='slack-sink',
+                   channel=slack_channel,
+                   webhookUrl=slack_webhook)
+sink = client.create_topic('slack', sink=sink_config)
+```
+This sink sends messages to Slack. It requires two configuration parameters that
+must be provided as command-line parameters to the program:
+- the slack channel to publish to, e.g., `#test`, and
+- a webhook url for this channel.
+
+Please refer to the [Slack webhooks](https://api.slack.com/messaging/webhooks)
+documentation for details on how to obtain these.
+
+This example program includes a `Comparator` actor similar to the previous
+example:
+```python
+
+# Actor to compare APPL quote with last quote
+@ray.remote
+class Comparator:
+    def __init__(self):
+        self.last_quote = None
+
+    def ingest(self, event):
+        payload = json.loads(event)  # parse event string to json
+        quote = payload[0]['price']  # payload[0] is AAPL
+        try:
+            if self.last_quote:
+                if quote > self.last_quote:
+                    return 'AAPL is up'
+                elif quote < self.last_quote:
+                    return 'AAPL is down'
+                else:
+                    return 'AAPL is unchanged'
+        finally:
+            self.last_quote = quote
+
+
+# comparator instance
+comparator = Comparator.remote()
+```
+
+But in this case, the `ingest` method returns the status message instead of
+printing it.
+
+To make is possible to publish these messages to Slack, we first need to build a
+topic around this actor using code:
+```
+operator = client.create_topic('comparator', operator=comparator)
+```
+This basically makes it possible for the comparator to act as an event source,
+where the events produced are simply the stream of values returned from the
+ingest method. Observe the `ingest` method does not have to produce an event for
+every event it ingests.
+
+We can then link the three topics using code:
+```
+source >> operator >> sink
+```
+
+### Running the example
+
+We assume the `SLACK_CHANNEL` and `SLACK_WEBHOOK` environment variables contain
+the necessary configuration parameters.
+
+Run the example locally with:
+```shell
+python run rayvens/examples/sink.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
+```
+
+Run the example on Kind with:
+```shell
+ray submit rayvens/scripts/cluster.yaml rayvens/examples/sink.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
+```
 
 ## License
 
