@@ -2,7 +2,7 @@ import ray
 from ray import serve
 
 from misc.events import kamel
-from misc.events import execution
+from misc.events.execution import mode, RayKamelExecLocation
 from misc.events import kubernetes
 from misc.examples import slack_sink_common
 
@@ -12,7 +12,7 @@ route = "/toslack"
 message = "While Ray runs locally, use the kamel operator in a kind cluster to"
 "print this to a kamel Slack sink."
 
-execMode = execution.Execution(location=execution.RayKamelExecLocation.MIXED)
+mode.location = RayKamelExecLocation.MIXED
 
 #
 # Install kamel operator in the kind cluster created using the script
@@ -60,10 +60,7 @@ print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 # Start doing some work
 #
 
-slack_sink_common.sendMessageToSlackSink(client,
-                                         message,
-                                         route,
-                                         execMode=execMode)
+slack_sink_common.sendMessageToSlackSink(client, message, route)
 
 #
 # Stop kubectl service for externalizing the sink listener.

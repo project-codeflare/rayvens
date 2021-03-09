@@ -1,7 +1,7 @@
 from collections import namedtuple
 from misc.events import utils
 from misc.events import kubernetes_utils
-from misc.events import execution
+from misc.events.execution import mode
 import os
 
 # List that holds the list of active pods.
@@ -17,7 +17,7 @@ def getPodRunningStatus(integrationName):
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     return kubernetes_utils.getPodStatusCmd(command, integrationName)
 
@@ -64,14 +64,14 @@ spec:
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     if kubernetes_utils.executeReturningKubectlCmd(command, serviceName):
         command = ["get", "services", "-w"]
 
         # Namespace
         command.append("-n")
-        command.append(execution.mode.getNamespace())
+        command.append(mode.getNamespace())
 
         serviceHasBeenStarted = kubernetes_utils.executeOngoingKubectlCmd(
             command, serviceName)
@@ -88,7 +88,7 @@ def deleteService(serviceName):
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     kubernetes_utils.executeReturningKubectlCmd(command, serviceName)
 

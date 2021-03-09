@@ -1,14 +1,11 @@
 from misc.events import kamel_backend
-from misc.events import execution
+from misc.events.execution import mode
 import os
 
 
-def sendMessageToSlackSink(client, message, route, execMode=None):
-    if execMode is None:
-        execMode = execution.Execution()
-
+def sendMessageToSlackSink(client, message, route):
     # Create a Kamel Backend and endpoint.
-    sinkBackend = kamel_backend.KamelBackend(client, execMode)
+    sinkBackend = kamel_backend.KamelBackend(client, mode)
     sinkBackend.createProxyEndpoint("output_to_ray_slack_sink", route)
 
     # Use endpoint to send data to the Ray Slack Sink.

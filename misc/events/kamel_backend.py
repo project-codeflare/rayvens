@@ -27,15 +27,15 @@ class ExternalEvent:
 
 
 class KamelSinkHandler:
-    def __init__(self, execMode):
-        self.execMode = execMode
+    def __init__(self, mode):
+        self.mode = mode
 
     async def __call__(self, request):
         body = await request.body()
         if not isinstance(body, ExternalEvent):
             return {"message": "Failure"}
 
-        endpoint = self.execMode.getQuarkusHTTPServer() + body.getRoute()
+        endpoint = self.mode.getQuarkusHTTPServer() + body.getRoute()
         requests.post(endpoint, data=body.getData())
         return {"message": "Success"}
 
@@ -43,11 +43,11 @@ class KamelSinkHandler:
 class KamelBackend:
     backendName = "kamel_backend"
 
-    def __init__(self, client, execMode):
+    def __init__(self, client, mode):
         self.client = client
         # Create it as a normal backend.
 
-        client.create_backend(self.backendName, KamelSinkHandler, execMode)
+        client.create_backend(self.backendName, KamelSinkHandler, mode)
         self.endpointToRoute = {}
 
     def createProxyEndpoint(self, endpointName, route):

@@ -6,6 +6,7 @@ import io
 from misc.events import utils
 from misc.events import kamel_utils
 from misc.events import kubernetes_utils
+from misc.events.execution import mode
 
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.
@@ -28,10 +29,10 @@ class KamelInvocationActor:
         execCommand = " ".join(["exec", "kamel", commandOptions])
 
         # Add to PATH for case when this command is invoked in a cluster.
-        # TODO: only do this when running on CLUSTER not all the time.
-        os.environ['PATH'] = ":".join(
-            ["/home/ray/rayvens/rayvens/linux-x86_64",
-             os.getenv('PATH')])
+        if mode.isCluster():
+            os.environ['PATH'] = ":".join(
+                ["/home/ray/rayvens/rayvens/linux-x86_64",
+                 os.getenv('PATH')])
 
         # Fail early before command is invoked if kamel is not found.
         if not utils.executableIsAvailable("kamel"):

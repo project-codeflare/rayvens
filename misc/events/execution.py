@@ -57,6 +57,15 @@ class Execution:
                 utils.internalClusterPort)
         raise RuntimeError("unreachable")
 
+    def isLocal(self):
+        return self.location == RayKamelExecLocation.LOCAL
+
+    def isMixed(self):
+        return self.location == RayKamelExecLocation.MIXED
+
+    def isCluster(self):
+        return self.location == RayKamelExecLocation.CLUSTER
+
 
 # Default execution mode.
 mode = Execution()

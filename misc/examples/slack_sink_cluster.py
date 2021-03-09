@@ -2,7 +2,7 @@ import ray
 from ray import serve
 
 from misc.events import kamel
-from misc.events import execution
+from misc.events.execution import mode, RayKamelExecLocation
 from misc.examples import slack_sink_common
 
 import sys
@@ -13,7 +13,7 @@ route = "/toslack"
 message = "Use Ray and Kamel in a kind cluster to print this to a kamel Slack"
 "sink."
 
-execMode = execution.Execution(location=execution.RayKamelExecLocation.CLUSTER)
+mode.location = RayKamelExecLocation.CLUSTER
 
 slack_sink_common.exportSlackWebhook(sys.argv)
 
@@ -47,11 +47,8 @@ runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
 # Start doing some work
 #
 
-execMode.setIntegrstionName("my-simple-integration")
-slack_sink_common.sendMessageToSlackSink(client,
-                                         message,
-                                         route,
-                                         execMode=execMode)
+mode.integrationName = "my-simple-integration"
+slack_sink_common.sendMessageToSlackSink(client, message, route)
 
 #
 # Stop kamel sink.

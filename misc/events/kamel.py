@@ -1,6 +1,6 @@
 from misc.events import kamel_utils
 from misc.events import kubernetes
-from misc.events import execution
+from misc.events.execution import mode
 import os
 
 # Method to install kamel in a cluster.
@@ -28,7 +28,7 @@ def install(kamelImage,
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     # Add kamel operator image.
     command.append("--operator-image")
@@ -60,7 +60,7 @@ def uninstall(installInvocation):
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
 
@@ -77,7 +77,7 @@ def run(integrationFiles, integrationName, envVars):
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     for envVar in envVars:
         if envVar not in os.environ:
@@ -103,7 +103,7 @@ def delete(runningIntegrationInvocation):
 
     # Namespace
     command.append("-n")
-    command.append(execution.mode.getNamespace())
+    command.append(mode.getNamespace())
 
     command.append(integrationName)
 
