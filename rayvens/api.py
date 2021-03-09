@@ -2,7 +2,7 @@ import atexit
 import ray
 import requests
 
-from .impl import Camel
+from rayvens.core.impl import Camel
 
 
 @ray.remote(num_cpus=0)
