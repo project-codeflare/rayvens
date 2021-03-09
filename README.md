@@ -46,8 +46,7 @@ topic = client.create_topic('example')
 
 topic >> print
 
-topic << 'hello'
-topic << 'world'
+topic << 'hello' << 'world'
 ```
 
 This program initialize Ray and Rayvens and creates a `Topic`. Topics and events
@@ -61,7 +60,9 @@ actors.
 
 A couple of events are then published to `topic` using the syntax `topic <<
 value`. As illustrate here, events are just arbitrary values in general, but of
-course publishers and subscribers can agree on specific event schemas.
+course publishers and subscribers can agree on specific event schemas. The `<<`
+operator has left-to-right associativity making it possible to send multiple
+events with one statement.
 
 Run this program with:
 ```shell

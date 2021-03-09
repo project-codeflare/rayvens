@@ -8,5 +8,4 @@ topic = client.create_topic('example')
 
 topic >> print
 
-topic << 'hello'
-topic << 'world'
+topic << 'hello' << 'world'
