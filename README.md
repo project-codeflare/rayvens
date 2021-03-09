@@ -51,12 +51,12 @@ topic << 'world'
 ```
 
 This program initialize Ray and Rayvens and creates a `Topic`. Topics and events
-are the core facility offered by Rayvens. Topics bridge event publishers and
+are the core facilities offered by Rayvens. Topics bridge event publishers and
 subscribers.
 
 In this example, a subscriber is added to `topic` with the statement `topic >>
 print`. This subscriber simply invokes the Python `print` method on every event
-it receives. In general, subscribers can be Python callables, ray tasks, or ray
+it receives. In general, subscribers can be Python callables, Ray tasks, or Ray
 actors.
 
 A couple of events are then published to `topic` using the syntax `topic <<
@@ -69,8 +69,8 @@ python rayvens/examples/hello.py
 ```
 Observe the two events are delivered in order.
 
-Other examples of subscribers are provided in the [examples](examples) folder.
-See in particular the [task.py](examples/task.py) and
+Other examples are provided in the [examples](examples) folder. See in
+particular the [pubsub.py](examples/pubsub.py), [task.py](examples/task.py), and
 [actor.py](examples/actor.py) examples for further discussions of in-order and
 out-of-order event delivery.
 
@@ -80,6 +80,8 @@ To run Rayvens programs including Camel components, there are two choices:
 - running Ray on the host with a local installation of the Camel-K client, Java,
   and Maven, or
 - running Ray and Camel-K inside a Kubernetes cluster.
+
+We expect to offer a "run anywhere" implementation in the near future.
 
 ### Setup Camel-K on the host
 
