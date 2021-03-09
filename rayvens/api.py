@@ -65,8 +65,8 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 class Client:
-    def __init__(self):
-        self._camel = Camel.start()
+    def __init__(self, prefix='/rayvens'):
+        self._camel = Camel.start(prefix)
         atexit.register(self._camel.exit.remote)
 
     def create_topic(self, name, source=None, sink=None, operator=None):

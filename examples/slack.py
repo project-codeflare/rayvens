@@ -11,15 +11,14 @@ import time
 # analyze trend (up/down/same)
 # publish trend to slack
 #
-# http-cron event source -> comparator actor -> slack event sink
-#
-# app requires a single command line argument: the slack webhook
+# http-source -> comparator actor -> slack-sink
 
 # process command line arguments
-if len(sys.argv) < 2:
-    print(f'usage: {sys.argv[0]} <slack_webhook>')
+if len(sys.argv) < 3:
+    print(f'usage: {sys.argv[0]} <slack_channel> <slack_webhook>')
     sys.exit(1)
-slack_webhook = sys.argv[1]
+slack_channel = sys.argv[1]
+slack_webhook = sys.argv[2]
 
 # initialize ray
 try:
@@ -31,36 +30,41 @@ except ConnectionError:
 client = rayvens.Client()
 
 # start event source actor
-url = 'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo'
-source = client.create_topic('http-cron', source=dict(url=url, period=3000))
+source_config = dict(
+    kind='http-source',
+    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    period=3000)
+source = client.create_topic('http-source', source=source_config)
 
 # log incoming events
 source >> (lambda event: print('LOG:', event))
 
 # start event sink actor
-sink = client.create_topic(
-    'slack', sink=f'slack:#kar-output?webhookUrl={slack_webhook}')
+sink_config = dict(kind='slack-sink',
+                   channel=slack_channel,
+                   webhookUrl=slack_webhook)
+sink = client.create_topic('slack', sink=sink_config)
 
 
+# Actor to compare APPL quote with last quote
 @ray.remote
-# Actor to compare stock quote with last quote
 class Comparator:
     def __init__(self):
-        self.lastQuote = None
+        self.last_quote = None
 
     def ingest(self, event):
         payload = json.loads(event)
-        quote = payload[0]['price']
+        quote = payload[0]['price']  # payload[0] is AAPL
         try:
-            if self.lastQuote:
-                if quote > self.lastQuote:
+            if self.last_quote:
+                if quote > self.last_quote:
                     return 'AAPL is up'
-                elif quote < self.lastQuote:
+                elif quote < self.last_quote:
                     return 'AAPL is down'
                 else:
                     return 'AAPL is unchanged'
         finally:
-            self.lastQuote = quote
+            self.last_quote = quote
 
 
 # comparator instance

@@ -9,22 +9,26 @@ import yaml
 @ray.remote(num_cpus=0)
 class Camel:
     @staticmethod
-    def start():
+    def start(prefix):
         if os.getenv('KUBE_POD_NAMESPACE') is not None:
             return Camel.options(resources={'head': 1}).remote()
         else:
-            return Camel.remote()
+            return Camel.remote(prefix)
 
-    def __init__(self):
+    def __init__(self, prefix):
         self.client = serve.start(http_options={
             'host': '0.0.0.0',
             'location': 'EveryNode'
         })
+        self.prefix = prefix
         self.integrations = []
 
     def add_source(self, name, topic, source):
+        if source['kind'] is None:
+            raise TypeError('A Camel source needs a kind.')
+        if source['kind'] not in ['http-source']:
+            raise TypeError('Unsupported Camel source.')
         url = source['url']
-        prefix = source.get('prefix', '/ravens')
         period = source.get('period', 1000)
 
         async def f(data):
@@ -36,7 +40,7 @@ class Camel:
                                    ray_actor_options={'num_cpus': 0})
         self.client.create_endpoint(name,
                                     backend=name,
-                                    route=f'{prefix}/{name}',
+                                    route=f'{self.prefix}/{name}',
                                     methods=['POST'])
         endpoint = 'http://localhost:8000'
         namespace = os.getenv('KUBE_POD_NAMESPACE')
@@ -54,7 +58,7 @@ class Camel:
                 'steps': [{
                     'to': url
                 }, {
-                    'to': f'{endpoint}{prefix}/{name}'
+                    'to': f'{endpoint}{self.prefix}/{name}'
                 }]
             }
         }])
@@ -64,12 +68,18 @@ class Camel:
         else:
             self.integrations.append(integration)
 
-    def add_sink(self, name, topic, to):
+    def add_sink(self, name, topic, sink):
+        if sink['kind'] is None:
+            raise TypeError('A Camel sink needs a kind.')
+        if sink['kind'] not in ['slack-sink']:
+            raise TypeError('Unsupported Camel sink.')
+        channel = sink['channel']
+        webhookUrl = sink['webhookUrl']
         integration = Integration(name, [{
             'from': {
                 'uri': f'platform-http:/{name}',
                 'steps': [{
-                    'to': to
+                    'to': f'slack:{channel}?webhookUrl={webhookUrl}',
                 }]
             }
         }])
