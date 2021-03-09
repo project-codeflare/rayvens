@@ -76,3 +76,7 @@ To take down the docker registry run:
 docker stop registry
 docker rm registry
 ```
+
+# License
+
+Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.TXT). 
