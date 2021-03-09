@@ -11,7 +11,7 @@ class Camel:
     @staticmethod
     def start(prefix):
         if os.getenv('KUBE_POD_NAMESPACE') is not None:
-            return Camel.options(resources={'head': 1}).remote()
+            return Camel.options(resources={'head': 1}).remote(prefix)
         else:
             return Camel.remote(prefix)
 
