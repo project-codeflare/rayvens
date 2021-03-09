@@ -1,7 +1,7 @@
 from collections import namedtuple
 from rayvens.core.utils import utils
 from rayvens.core.camel_anywhere import kubernetes_utils
-from rayvens.core.mode import mode
+from rayvens.core.camel_anywhere.mode import mode
 import os
 
 # List that holds the list of active pods.

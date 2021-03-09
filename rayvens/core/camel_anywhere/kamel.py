@@ -1,6 +1,6 @@
 from rayvens.core.camel_anywhere import kamel_utils
 from rayvens.core.camel_anywhere import kubernetes
-from rayvens.core.mode import mode
+from rayvens.core.camel_anywhere.mode import mode
 import os
 
 # Method to install kamel in a cluster.

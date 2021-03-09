@@ -6,7 +6,7 @@ import io
 from rayvens.core.utils import utils
 from rayvens.core.camel_anywhere import kamel_utils
 from rayvens.core.camel_anywhere import kubernetes_utils
-from rayvens.core.camel_anywhere.execution import mode
+from rayvens.core.camel_anywhere.mode import mode
 
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.
