@@ -22,12 +22,16 @@ class Camel:
         })
         self.integrations = []
 
-    def add_source(self, name, topic, url, period=3000, prefix='/ravyens'):
-        async def publish(data):
-            topic.publish.remote(await data.body())
+    def add_source(self, name, topic, source):
+        url = source['url']
+        prefix = source.get('prefix', '/ravens')
+        period = source.get('period', 1000)
+
+        async def f(data):
+            topic.ingest.remote(await data.body())
 
         self.client.create_backend(name,
-                                   publish,
+                                   f,
                                    config={'num_replicas': 1},
                                    ray_actor_options={'num_cpus': 0})
         self.client.create_endpoint(name,
@@ -71,8 +75,7 @@ class Camel:
         }])
 
         url = f'{integration.url}/{name}'
-        topic.subscribe.remote(lambda data: topic._post.remote(url, data),
-                               name)
+        topic.send_to.remote(lambda data: topic._post.remote(url, data), name)
         topic._register.remote(name, integration)
         if self.integrations is None:
             integration.cancel()

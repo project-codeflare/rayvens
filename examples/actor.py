@@ -18,7 +18,7 @@ except ConnectionError:
 client = rayvens.Client()
 
 # create a topic actor
-topic = client.Topic.remote('example')
+topic = client.create_topic('example')
 
 
 # Ray actor to handle events
@@ -38,9 +38,9 @@ acc1 = Accumulator.remote('actor1')
 acc2 = Accumulator.remote('actor2')
 
 # subscribe actors to topic
-topic.subscribe.remote(acc1.add.remote)
-topic.subscribe.remote(acc2.add.remote)
+topic.send_to.remote(acc1.add.remote)
+topic.send_to.remote(acc2.add.remote)
 
 # publish a few events
 for i in range(10):
-    topic.publish.remote(i)
+    topic.ingest.remote(i)

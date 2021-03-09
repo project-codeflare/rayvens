@@ -31,17 +31,15 @@ except ConnectionError:
 client = rayvens.Client()
 
 # start event source actor
-source = client.Source.remote(
-    'http-cron',
-    'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
-    period=3000)
+url = 'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo'
+source = client.create_topic('http-cron', source=dict(url=url, period=3000))
 
 # log incoming events
-source.subscribe.remote(lambda event: print('LOG:', event))
+source.send_to.remote(lambda event: print('LOG:', event))
 
 # start event sink actor
-sink = client.Sink.remote('slack',
-                          f'slack:#kar-output?webhookUrl={slack_webhook}')
+sink = client.create_topic(
+    'slack', sink=f'slack:#kar-output?webhookUrl={slack_webhook}')
 
 
 @ray.remote
@@ -50,7 +48,7 @@ class Comparator:
     def __init__(self):
         self.lastQuote = None
 
-    def compare(self, event):
+    def ingest(self, event):
         payload = json.loads(event)
         quote = payload[0]['price']
         try:
@@ -69,9 +67,9 @@ class Comparator:
 comparator = Comparator.remote()
 
 # process event stream using comparator
-operator = client.Operator.remote('comparator', comparator.compare.remote)
-source.subscribe.remote(operator.publish.remote)
-operator.subscribe.remote(sink.publish.remote)
+operator = client.create_topic('comparator', operator=comparator.ingest.remote)
+source.send_to.remote(operator.ingest.remote)
+operator.send_to.remote(sink.ingest.remote)
 
 # or without creating a separate operator
 # sink.add_operator.remote(comparator.compare.remote)

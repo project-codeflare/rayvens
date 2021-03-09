@@ -19,7 +19,7 @@ except ConnectionError:
 client = rayvens.Client()
 
 # create a topic actor
-topic = client.Topic.remote('example')
+topic = client.create_topic('example')
 
 
 # define a first event handler
@@ -33,9 +33,9 @@ def handler2(event):
 
 
 # subscribe handlers to topic
-topic.subscribe.remote(handler1)
-topic.subscribe.remote(handler2)
+topic.send_to.remote(handler1)
+topic.send_to.remote(handler2)
 
 # publish a few events
 for i in range(10):
-    topic.publish.remote(f'event {i}')
+    topic.ingest.remote(f'event {i}')

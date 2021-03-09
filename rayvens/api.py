@@ -1,5 +1,4 @@
 import atexit
-import collections
 import ray
 import requests
 
@@ -14,10 +13,10 @@ class Topic:
         self._integrations = []
         self._callable = None
 
-    def subscribe(self, callable, name=None):
+    def send_to(self, callable, name=None):
         self._subscribers.append({'callable': callable, 'name': name})
 
-    def publish(self, data):
+    def ingest(self, data):
         if data is None:
             return
         if self._callable is not None:
@@ -41,46 +40,26 @@ class Topic:
             requests.post(url, data)
 
 
-class _Remote:
-    def __init__(self, name, make):
-        self._name = name
-        self.remote = make
-
-    def __call__(self, *args, **kwargs):
-        raise TypeError(
-            "Actors cannot be instantiated directly. "
-            f"Instead of '{self._name}()', use '{self._name}.remote()'.")
-
-
 class Client:
     def __init__(self):
         self._camel = Camel.start()
         atexit.register(self._camel.exit.remote)
-        self.Topic = Topic
-        self.Source = _Remote('Source', self._Source)
-        self.Sink = _Remote('Sink', self._Sink)
-        self.Operator = _Remote('Operator', self._Operator)
 
-    def add_source(self, name, topic, *args, **kwargs):
-        self._camel.add_source.remote(name, topic, *args, **kwargs)
-
-    def _Source(self, name, *args, **kwargs):
+    def create_topic(self, name, source=None, sink=None, operator=None):
         topic = Topic.remote(name)
-        self.add_source(name, topic, *args, **kwargs)
+        if source is not None:
+            self.add_source(name, topic, source)
+        if sink is not None:
+            self.add_sink(name, topic, sink)
+        if operator is not None:
+            topic.add_operator.remote(operator)
         return topic
 
-    def add_sink(self, name, topic, *args, **kwargs):
-        self._camel.add_sink.remote(name, topic, *args, **kwargs)
+    def add_source(self, name, topic, source):
+        self._camel.add_source.remote(name, topic, source)
 
-    def _Sink(self, name, *args, **kwargs):
-        topic = Topic.remote(name)
-        self.add_sink(name, topic, *args, **kwargs)
-        return topic
-
-    def _Operator(self, name, callable):
-        topic = Topic.remote(name)
-        topic.add_operator.remote(callable)
-        return topic
+    def add_sink(self, name, topic, sink):
+        self._camel.add_sink.remote(name, topic, sink)
 
     def disconnect(self, topic):
         topic._disconnect.remote(self._camel)

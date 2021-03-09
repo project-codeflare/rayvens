@@ -16,13 +16,11 @@ except ConnectionError:
 client = rayvens.Client()
 
 # start event source actor
-source = client.Source.remote(
-    'http-cron',
-    'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
-    period=3000)
+url = 'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo'
+source = client.create_topic('http-cron', source=dict(url=url, period=3000))
 
 # log incoming events
-source.subscribe.remote(lambda event: print('LOG:', event))
+source.send_to.remote(lambda event: print('LOG:', event))
 
 
 @ray.remote
@@ -31,7 +29,7 @@ class Comparator:
     def __init__(self):
         self.lastQuote = None
 
-    def compare(self, event):
+    def ingest(self, event):
         payload = json.loads(event)
         quote = payload[0]['price']
         try:
@@ -49,11 +47,8 @@ class Comparator:
 # comparator instance
 comparator = Comparator.remote()
 
-# create stream operator from comparator
-operator = client.Operator.remote('comparator', comparator.compare.remote)
-
-# subscribe operator to source
-source.subscribe.remote(operator.publish.remote)
+# subscribe comparator to source
+source.send_to.remote(comparator.ingest.remote)
 
 # run for a while
 time.sleep(60)
