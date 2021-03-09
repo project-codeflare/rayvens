@@ -79,4 +79,4 @@ docker rm registry
 
 # License
 
-Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.TXT). 
+Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.txt). 
