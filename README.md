@@ -17,8 +17,8 @@ source = client.create_topic('http', source=source_config)
 Publish messages to Slack using:
 ```python
 sink_config = dict(kind='slack-sink',
-                   channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   channel='#rayvens',
+                   webhookUrl=os.getenv('RAYVENS_WEBHOOK'))
 sink = client.create_topic('slack', sink=sink_config)
 ```
 
