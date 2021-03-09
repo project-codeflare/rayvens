@@ -118,7 +118,7 @@ operator](https://camel.apache.org/camel-k/latest/architecture/operator.html).
 
 Try your Ray cluster on Kind with:
 ```shell
-ray submit rayvens/scripts/cluster.yaml rayvens/examples/hello.py 
+ray submit rayvens/scripts/cluster.yaml rayvens/examples/pubsub.py
 ```
 
 ### Cleanup Kind
