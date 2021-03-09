@@ -33,7 +33,7 @@ python rayvens/examples/pubsub.py
 ## Setup Camel-K
 
 To run Rayvens programs including Camel components, there are two choices:
-- running Ray on the host with a local installation of the Camel-K client, Java, and Maven), or
+- running Ray on the host with a local installation of the Camel-K client, Java, and Maven, or
 - running Ray and Camel-K inside a Kubernetes cluster.
 
 ### Setup Camel-K on the host
@@ -57,21 +57,21 @@ Setup Ray on Kind:
 ```shell
 ./rayvens/scripts/start-kind.sh
 ```
-This script sets up a persistent docker registry on the host at port 5000 if needed, creates a Kind cluster, installs Ray on this cluster as well as the [Camel-K operator](https://camel.apache.org/camel-k/latest/architecture/operator.html).
+This script launches a persistent docker registry on the host at port 5000, creates a Kind cluster, installs Ray on this cluster as well as the [Camel-K operator](https://camel.apache.org/camel-k/latest/architecture/operator.html).
 
 Try your Ray cluster on Kind with:
 ```shell
 ray submit rayvens/scripts/cluster.yaml rayvens/examples/pubsub.py 
 ```
 
-## Cleanup Kind
+### Cleanup Kind
 
 To take down the Kind cluster (including Ray and Camel-K) run:
 ```shell
 kind delete cluster
 ```
 
-To take down the registry run:
+To take down the docker registry run:
 ```
 docker stop registry
 docker rm registry
