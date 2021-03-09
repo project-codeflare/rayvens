@@ -5,6 +5,33 @@ applications can produce events, subscribe to event streams, and process events.
 Rayvens leverages [Apache Camel](https://camel.apache.org) to make it possible
 for data scientists to access hundreds data services with little effort.
 
+For example, one can periodically fetch data from a REST API using code:
+```python
+source_config = dict(
+    kind='http-source',
+    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    period=3000)
+source = client.create_topic('http', source=source_config)
+```
+
+Publish messages to Slack using:
+```python
+sink_config = dict(kind='slack-sink',
+                   channel=slack_channel,
+                   webhookUrl=slack_webhook)
+sink = client.create_topic('slack', sink=sink_config)
+```
+
+Connect the two together with code:
+```python
+source >> sink
+```
+
+Or do some event processing with code:
+```python
+source >> operator >> sink
+```
+
 ## Setup Rayvens
 
 These instructions have been tested on Big Sur.
@@ -163,7 +190,7 @@ source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_topic('http-source', source=source_config)
+source = client.create_topic('http', source=source_config)
 ```
 An event source configuration is a dictionary. The `kind` key specifies the
 source type. Other keys vary. An `http-source` periodically makes a REST call to
