@@ -1,35 +1,12 @@
-from rayvens.core.camel import utils
-from enum import Enum
-
-# Enum for capturing the location of the Kamel execution.
-
-
-class KamelExecMode(Enum):
-    # The Kamel operator can only be run on the Ray head node.
-    OPERATOR_HEAD_NODE = 1
-
-    # Kamel operator can run anywhere in the cluster.
-    OPERATOR_ANYWHERE = 2
-
-    # No Kamel operator needed just kamel running local command in a container.
-    CONTAINERIZED = 3
-
-
-class RayKamelExecLocation(Enum):
-    # Ray and Kamel running locally.
-    LOCAL = 1
-
-    # Ray running locally, Kamel running in the cluster.
-    MIXED = 2
-
-    # Ray and Kamel running in the cluster.
-    CLUSTER = 3
+from rayvens.core.types import RayKamelExecLocation
+from rayvens.core.types import KamelOperatorMode
+from rayvens.core.utils import utils
 
 
 class Execution:
     def __init__(self,
                  location=RayKamelExecLocation.LOCAL,
-                 kamelExecMode=KamelExecMode.OPERATOR_ANYWHERE):
+                 kamelExecMode=KamelOperatorMode.OPERATOR_ANYWHERE):
         self.location = location
         self.kamelExecMode = kamelExecMode
         self.integrationName = ""
