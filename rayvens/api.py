@@ -40,6 +40,30 @@ class Topic:
             requests.post(url, data)
 
 
+def _remote(x):
+    if isinstance(x, ray.actor.ActorHandle):
+        return x.ingest.remote
+    elif isinstance(x, ray.actor.ActorMethod) or isinstance(
+            x, ray.remote_function.RemoteFunction):
+        return x.remote
+    else:
+        return x
+
+
+def _rshift(source, sink):
+    source.send_to.remote(_remote(sink))
+    return sink
+
+
+def _lshift(topic, data):
+    topic.ingest.remote(data)
+    return topic
+
+
+setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
+setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
+
+
 class Client:
     def __init__(self):
         self._camel = Camel.start()
@@ -52,7 +76,7 @@ class Client:
         if sink is not None:
             self.add_sink(name, topic, sink)
         if operator is not None:
-            topic.add_operator.remote(operator)
+            topic.add_operator.remote(_remote(operator))
         return topic
 
     def add_source(self, name, topic, source):

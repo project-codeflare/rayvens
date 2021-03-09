@@ -35,7 +35,7 @@ url = 'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo'
 source = client.create_topic('http-cron', source=dict(url=url, period=3000))
 
 # log incoming events
-source.send_to.remote(lambda event: print('LOG:', event))
+source >> (lambda event: print('LOG:', event))
 
 # start event sink actor
 sink = client.create_topic(
@@ -66,14 +66,11 @@ class Comparator:
 # comparator instance
 comparator = Comparator.remote()
 
-# process event stream using comparator
-operator = client.create_topic('comparator', operator=comparator.ingest.remote)
-source.send_to.remote(operator.ingest.remote)
-operator.send_to.remote(sink.ingest.remote)
+# stream operator applying comparator to events
+operator = client.create_topic('comparator', operator=comparator)
 
-# or without creating a separate operator
-# sink.add_operator.remote(comparator.compare.remote)
-# source.subscribe.remote(sink.publish.remote)
+# connect source to comparator to sink
+source >> operator >> sink
 
 # run for a while
 time.sleep(60)

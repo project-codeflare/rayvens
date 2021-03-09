@@ -20,7 +20,7 @@ url = 'http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo'
 source = client.create_topic('http-cron', source=dict(url=url, period=3000))
 
 # log incoming events
-source.send_to.remote(lambda event: print('LOG:', event))
+source >> (lambda event: print('LOG:', event))
 
 
 @ray.remote
@@ -48,7 +48,7 @@ class Comparator:
 comparator = Comparator.remote()
 
 # subscribe comparator to source
-source.send_to.remote(comparator.ingest.remote)
+source >> comparator
 
 # run for a while
 time.sleep(60)

@@ -33,9 +33,9 @@ def handler2(event):
 
 
 # subscribe handlers to topic
-topic.send_to.remote(handler1)
-topic.send_to.remote(handler2)
+topic >> handler1
+topic >> handler2
 
 # publish a few events
 for i in range(10):
-    topic.ingest.remote(f'event {i}')
+    topic << f'event {i}'

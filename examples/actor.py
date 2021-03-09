@@ -38,9 +38,9 @@ acc1 = Accumulator.remote('actor1')
 acc2 = Accumulator.remote('actor2')
 
 # subscribe actors to topic
-topic.send_to.remote(acc1.add.remote)
-topic.send_to.remote(acc2.add.remote)
+topic >> acc1.add
+topic >> acc2.add
 
 # publish a few events
 for i in range(10):
-    topic.ingest.remote(i)
+    topic << i
