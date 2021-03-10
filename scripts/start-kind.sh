@@ -5,6 +5,10 @@ cd $(python -c 'import os,sys;print(os.path.dirname(os.path.realpath(sys.argv[1]
 echo "--- starting private docker registry"
 docker run -d --restart=always -p 5000:5000 --name registry registry:2
 
+echo "--- building the rayvens image"
+docker build .. -t localhost:5000/rayvens
+docker push localhost:5000/rayvens
+
 echo "--- starting kind cluster"
 kind delete cluster
 kind create cluster --config kind.yaml
