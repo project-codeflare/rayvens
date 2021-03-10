@@ -1,6 +1,7 @@
 # Rayvens
 
 [![Build Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/solsa/rayvens)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
 applications can produce events, subscribe to event streams, and process events.
