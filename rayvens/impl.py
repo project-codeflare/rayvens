@@ -1,22 +1,24 @@
+import atexit
 import os
 import ray
 from ray import serve
+import requests
 import signal
 import subprocess
 import yaml
 
 
+def start(prefix, mode):
+    if os.getenv('KUBE_POD_NAMESPACE') is not None and mode != 'local':
+        camel = Camel.options(resources={'head': 1}).remote(prefix, 'operator')
+    else:
+        camel = Camel.remote(prefix, 'local')
+    atexit.register(camel.exit.remote)
+    return camel
+
+
 @ray.remote(num_cpus=0)
 class Camel:
-    @staticmethod
-    def start(prefix, mode):
-        if os.getenv('KUBE_POD_NAMESPACE') is not None and mode != 'local':
-            return Camel.options(resources={
-                'head': 1
-            }).remote(prefix, 'operator')
-        else:
-            return Camel.remote(prefix, 'local')
-
     def __init__(self, prefix, mode):
         self.client = serve.start(http_options={
             'host': '0.0.0.0',
@@ -65,7 +67,6 @@ class Camel:
                 }]
             }
         }])
-        topic._register.remote(name, integration)
         if self.integrations is None:
             integration.cancel()
         else:
@@ -88,22 +89,28 @@ class Camel:
         }])
 
         url = f'{integration.url}/{name}'
-        topic.send_to.remote(lambda data: topic._post.remote(url, data), name)
-        topic._register.remote(name, integration)
+        helper = Helper.remote(url)
+        topic.send_to.remote(helper, name)
         if self.integrations is None:
             integration.cancel()
         else:
             self.integrations.append(integration)
-
-    def cancel(self, integrations):
-        for i in integrations:
-            i['integration'].cancel()
 
     def exit(self):
         integrations = self.integrations
         self.integrations = None
         for i in integrations:
             i.cancel()
+
+
+@ray.remote(num_cpus=0)
+class Helper:
+    def __init__(self, url):
+        self.url = url
+
+    def ingest(self, data):
+        if data is not None:
+            requests.post(self.url, data)
 
 
 class Integration:

@@ -78,7 +78,3 @@ source >> operator >> sink
 
 # run for a while
 time.sleep(300)
-
-# optionally disconnect source and sink
-client.disconnect(source)
-client.disconnect(sink)

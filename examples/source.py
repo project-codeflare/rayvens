@@ -55,6 +55,3 @@ source >> comparator
 
 # run for a while
 time.sleep(300)
-
-# optionally disconnect source
-client.disconnect(source)

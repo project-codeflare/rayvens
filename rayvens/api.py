@@ -1,8 +1,6 @@
-import atexit
 import ray
-import requests
 
-from .impl import Camel
+from .impl import start as start_mode_1
 
 
 @ray.remote(num_cpus=0)
@@ -10,49 +8,36 @@ class Topic:
     def __init__(self, name):
         self.name = name
         self._subscribers = []
-        self._integrations = []
-        self._callable = None
+        self._operator = None
 
-    def send_to(self, callable, name=None):
-        self._subscribers.append({'callable': callable, 'name': name})
+    def send_to(self, subscriber, name=None):
+        self._subscribers.append({'subscriber': subscriber, 'name': name})
 
     def ingest(self, data):
         if data is None:
             return
-        if self._callable is not None:
-            data = self._callable(data)
+        if self._operator is not None:
+            data = _eval(self._operator, data)
         for s in self._subscribers:
-            s['callable'](data)
+            _eval(s['subscriber'], data)
 
-    def add_operator(self, callable):
-        self._callable = callable
-
-    def _register(self, name, integration):
-        self._integrations.append({'name': name, 'integration': integration})
-
-    def _disconnect(self, camel):
-        self._subscribers = []
-        camel.cancel.remote(self._integrations)
-        self._integrations = []
-
-    def _post(self, url, data):
-        if data is not None:
-            requests.post(url, data)
+    def add_operator(self, operator):
+        self._operator = operator
 
 
-def _remote(x):
-    if isinstance(x, ray.actor.ActorHandle):
-        return x.ingest.remote
-    elif isinstance(x, ray.actor.ActorMethod) or isinstance(
-            x, ray.remote_function.RemoteFunction):
-        return x.remote
+def _eval(f, data):
+    if isinstance(f, ray.actor.ActorHandle):
+        return f.ingest.remote(data)
+    elif isinstance(f, ray.actor.ActorMethod) or isinstance(
+            f, ray.remote_function.RemoteFunction):
+        return f.remote(data)
     else:
-        return x
+        return f(data)
 
 
-def _rshift(source, sink):
-    source.send_to.remote(_remote(sink))
-    return sink
+def _rshift(topic, subscriber):
+    topic.send_to.remote(subscriber)
+    return subscriber
 
 
 def _lshift(topic, data):
@@ -64,11 +49,11 @@ setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
 setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
-def _select(camel_mode):
+def _start(camel_mode):
     if camel_mode in ['local', 'operator1']:
-        return Camel
+        return start_mode_1
     elif camel_mode == 'auto':
-        return Camel  # TODO
+        return start_mode_1  # TODO
     else:
         raise TypeError(
             'Unsupported camel_mode. Must be one of auto, local, operator1.')
@@ -76,8 +61,7 @@ def _select(camel_mode):
 
 class Client:
     def __init__(self, prefix='/rayvens', camel_mode='auto'):
-        self._camel = _select(camel_mode).start(prefix, camel_mode)
-        atexit.register(self._camel.exit.remote)
+        self._camel = _start(camel_mode)(prefix, camel_mode)
 
     def create_topic(self, name, source=None, sink=None, operator=None):
         topic = Topic.remote(name)
@@ -86,7 +70,7 @@ class Client:
         if sink is not None:
             self.add_sink(name, topic, sink)
         if operator is not None:
-            topic.add_operator.remote(_remote(operator))
+            topic.add_operator.remote(operator)
         return topic
 
     def add_source(self, name, topic, source):
@@ -94,6 +78,3 @@ class Client:
 
     def add_sink(self, name, topic, sink):
         self._camel.add_sink.remote(name, topic, sink)
-
-    def disconnect(self, topic):
-        topic._disconnect.remote(self._camel)
