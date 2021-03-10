@@ -1,11 +1,13 @@
 # Rayvens
 
+[![Build Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/solsa/rayvens)
+
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
 applications can produce events, subscribe to event streams, and process events.
 Rayvens leverages [Apache Camel](https://camel.apache.org) to make it possible
 for data scientists to access hundreds data services with little effort.
 
-For example, one can periodically fetch data from a REST API using code:
+For example, one can periodically fetch data from a REST API with code:
 ```python
 source_config = dict(
     kind='http-source',
@@ -14,7 +16,7 @@ source_config = dict(
 source = client.create_topic('http', source=source_config)
 ```
 
-Publish messages to Slack using:
+Publish messages to Slack with code:
 ```python
 sink_config = dict(kind='slack-sink',
                    channel='#rayvens',
@@ -34,7 +36,7 @@ source >> operator >> sink
 
 ## Setup Rayvens
 
-These instructions have been tested on Big Sur.
+These instructions have been tested on Big Sur and Ubuntu 18.04.4.
 
 We recommend installing Python 3.8.7 using
 [pyenv](https://github.com/pyenv/pyenv).
@@ -42,7 +44,14 @@ We recommend installing Python 3.8.7 using
 Install Ray and Ray Serve with Kubernetes support:
 ```shell
 pip install --upgrade pip
-pip install https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-2.0.0.dev0-cp38-cp38-macosx_10_13_x86_64.whl
+
+# for osx
+pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/6d5511cf8079f04d4f70ac724de8b62437adf0e7/ray-2.0.0.dev0-cp38-cp38-macosx_10_13_x86_64.whl
+
+# for linux
+pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/6d5511cf8079f04d4f70ac724de8b62437adf0e7/ray-2.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
+
+# for both
 pip install "ray[serve]"
 pip install kubernetes
 ```
