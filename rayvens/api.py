@@ -64,9 +64,19 @@ setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
 setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
+def _select(camel_mode):
+    if camel_mode in ['local', 'operator1']:
+        return Camel
+    elif camel_mode == 'auto':
+        return Camel  # TODO
+    else:
+        raise TypeError(
+            'Unsupported camel_mode. Must be one of auto, local, operator1.')
+
+
 class Client:
-    def __init__(self, prefix='/rayvens'):
-        self._camel = Camel.start(prefix)
+    def __init__(self, prefix='/rayvens', camel_mode='auto'):
+        self._camel = _select(camel_mode).start(prefix, camel_mode)
         atexit.register(self._camel.exit.remote)
 
     def create_topic(self, name, source=None, sink=None, operator=None):
