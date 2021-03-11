@@ -30,11 +30,7 @@ class Execution:
                  kamelExecMode=CamelOperatorMode.ANY_NODE):
         self.location = location
         self.kamelExecMode = kamelExecMode
-        self.integrationName = ""
         self.namespace = "ray"
-
-    def setIntegrstionName(self, integrationName):
-        self.integrationName = integrationName
 
     def setNamespace(self, namespace):
         self.namespace = namespace
@@ -42,17 +38,16 @@ class Execution:
     def getNamespace(self):
         return self.namespace
 
-    def getQuarkusHTTPServer(self):
+    def getQuarkusHTTPServer(self, integration_name):
         if self.location == RayKamelExecLocation.LOCAL:
             return "http://0.0.0.0:8080"
         if self.location == RayKamelExecLocation.MIXED:
             return "http://localhost:%s" % utils.externalizedClusterPort
         if self.location == RayKamelExecLocation.CLUSTER:
-            if self.integrationName == "":
+            if integration_name == "":
                 raise RuntimeError("integration name is not set")
             return "http://%s.%s.svc.cluster.local:%s" % (
-                self.integrationName, self.namespace,
-                utils.internalClusterPort)
+                integration_name, self.namespace, utils.internalClusterPort)
         raise RuntimeError("unreachable")
 
     def isLocal(self):

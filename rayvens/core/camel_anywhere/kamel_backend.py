@@ -15,14 +15,15 @@ quarkusHTTPServerLocalCluster = "http://localhost:%s" % \
 
 
 class ExternalEvent:
-    def __init__(self, route, data):
+    def __init__(self, route, integration_name):
         self.route = route
-        self.data = data
+        self.integration_name = integration_name
+        self.data = None
 
-    def getRoute(self):
-        return self.route
-
-    def getData(self):
+    def get_data(self):
+        if self.data is None:
+            raise RuntimeError(
+                "Attempting to send event with None data field.")
         return self.data
 
 
@@ -35,8 +36,9 @@ class KamelSinkHandler:
         if not isinstance(body, ExternalEvent):
             return {"message": "Failure"}
 
-        endpoint = self.mode.getQuarkusHTTPServer() + body.getRoute()
-        requests.post(endpoint, data=body.getData())
+        endpoint = self.mode.getQuarkusHTTPServer(
+            body.integration_name) + body.route
+        requests.post(endpoint, data=body.get_data())
         return {"message": "Success"}
 
 
@@ -50,33 +52,43 @@ class KamelBackend:
                               mode,
                               config={'num_replicas': 1},
                               ray_actor_options={'num_cpus': 0})
-        self.endpointToRoute = {}
+        self.endpoint_to_event = {}
 
-    def createProxyEndpoint(self, client, endpointName, route):
-        self.endpointToRoute[endpointName] = route
+    def createProxyEndpoint(self, client, endpoint_name, route,
+                            integration_name):
+        self.endpoint_to_event[endpoint_name] = ExternalEvent(
+            route, integration_name)
+        print("Create: Length of endpoint_to_event list:",
+              len(self.endpoint_to_event))
 
         # Create endpoint with method as POST.
-        client.create_endpoint(endpointName,
+        client.create_endpoint(endpoint_name,
                                backend=self.backendName,
                                route=route,
                                methods=["POST"])
 
-    def postToProxyEndpoint(self, client, endpointName, data):
-        # Retrieve route.
-        route = self.endpointToRoute[endpointName]
+    def _post_event(self, endpointHandle, endpoint_name, data):
+        # Get partial event.
+        print("Post: Length of endpoint_to_event list:",
+              len(self.endpoint_to_event))
+        event = self.endpoint_to_event[endpoint_name]
 
-        # Internal data format.
-        externalEvent = ExternalEvent(route, data)
+        # Populate data field.
+        event.data = data
 
         # Send request to backend.
-        answerAsStr = ray.get(
-            client.get_handle(endpointName).remote(externalEvent))
+        return ray.get(endpointHandle.remote(event))
 
-        return answerAsStr
+    def postToProxyEndpoint(self, client, endpoint_name, data):
+        return self._post_event(client.get_handle(endpoint_name),
+                                endpoint_name, data)
 
-    def removeProxyEndpoint(self, client, endpointName):
-        client.delete_endpoint(endpointName)
-        self.endpointToRoute.pop(endpointName)
+    def postToProxyEndpointHandle(self, endpointHandle, endpoint_name, data):
+        return self._post_event(endpointHandle, endpoint_name, data)
+
+    def removeProxyEndpoint(self, client, endpoint_name):
+        client.delete_endpoint(endpoint_name)
+        self.endpoint_to_event.pop(endpoint_name)
 
 
 # Method which send post request to external Camel-K sink.

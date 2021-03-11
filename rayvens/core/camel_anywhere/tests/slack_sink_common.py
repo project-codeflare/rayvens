@@ -3,20 +3,22 @@ from rayvens.core.camel_anywhere.mode import mode
 import os
 
 
-def sendMessageToSlackSink(client, message, route):
+def sendMessageToSlackSink(client, message, route, integration_name):
     # Create a Kamel Backend and endpoint.
     sinkBackend = kamel_backend.KamelBackend(client, mode)
-    sinkBackend.createProxyEndpoint(client, "output_to_ray_slack_sink", route)
+    endpoint_name = "output_to_ray_slack_sink"
+    sinkBackend.createProxyEndpoint(client, endpoint_name, route,
+                                    integration_name)
 
     # Use endpoint to send data to the Ray Slack Sink.
     answerAsStr = ""
     for i in range(10):
         answerAsStr = sinkBackend.postToProxyEndpoint(
-            client, "output_to_ray_slack_sink", message + " Part: %s" % i)
+            client, endpoint_name, message + " Part: %s" % i)
     print(answerAsStr)
 
     # Close proxy endpoint.
-    sinkBackend.removeProxyEndpoint(client, "output_to_ray_slack_sink")
+    sinkBackend.removeProxyEndpoint(client, endpoint_name)
 
 
 def exportSlackWebhook(args):

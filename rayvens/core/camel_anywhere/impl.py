@@ -8,20 +8,25 @@ from rayvens.core.camel_anywhere import kamel
 
 def start(prefix, camel_mode):
     camel = None
-    if camel_mode == 'anywhere.local':
+    if camel_mode == 'local':
         mode.location = RayKamelExecLocation.LOCAL
         camel = CamelAnyNode.remote(prefix, camel_mode, mode)
-    elif camel_mode == 'anywhere.mixed':
+    elif camel_mode == 'mixed':
         mode.location = RayKamelExecLocation.MIXED
         camel = CamelAnyNode.remote(prefix, camel_mode, mode)
-    elif camel_mode == 'anywhere.operator':
+    elif camel_mode == 'operator':
         mode.location = RayKamelExecLocation.CLUSTER
         camel = CamelAnyNode.options(resources={
             'head': 1
         }).remote(prefix, camel_mode, mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
+
+    # Setup what happens at exit.
     atexit.register(camel.exit.remote)
+
+    # Start the kamel backend.
+    camel.start_kamel_backend.remote()
     return camel
 
 
@@ -32,7 +37,6 @@ class CamelAnyNode:
             'host': '0.0.0.0',
             'location': 'EveryNode'
         })
-        # # self.client = serve.start()
         self.prefix = prefix
         self.camel_mode = mode
         self.mode = mode
@@ -57,8 +61,6 @@ class CamelAnyNode:
         route = sink['route']
 
         # Write integration code to file.
-        # TODO: Get this content from a Catalog.
-        # filename = f'{name}.yaml'
         integration_content = [{
             'from': {
                 'uri': f'platform-http:{route}',
@@ -67,10 +69,6 @@ class CamelAnyNode:
                 }]
             }
         }]
-        # print("File path:", os.path.abspath(filename))
-        # print("File contents:", integration)
-        # with open(filename, 'w') as f:
-        #     yaml.dump(integration, f)
 
         # Start running the integration.
         print("Start kamel run. Mode is cluster = ", self.mode.isCluster())
@@ -84,15 +82,18 @@ class CamelAnyNode:
 
         endpoint_name = self._get_endpoint_name(name)
         print("Create endpoint with name:", endpoint_name)
-        # self.kamel_backend.removeProxyEndpoint(endpoint_name)
         self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
-                                               route)
+                                               route, integration_name)
 
         print("Add endpoint to Topic list.")
-        endpoint_helper = EndpointHelper.remote(endpoint_name)
-        topic.send_to.remote(endpoint_helper, name)
+        helper = EndpointHelper.remote(self.kamel_backend,
+                                       self.client.get_handle(endpoint_name),
+                                       endpoint_name)
+        topic.send_to.remote(helper, name)
 
     def exit(self):
+        # TODO: delete endpoints.
+        # This deletes all the integrations.
         for invocation in self.invocations:
             if self.mode.isCluster() or self.mode.isMixed():
                 kamel.delete(invocation)
@@ -114,11 +115,15 @@ class CamelAnyNode:
 
 @ray.remote(num_cpus=0)
 class EndpointHelper:
-    def __init__(self, backend, endpoint_name):
+    def __init__(self, backend, endpoint_handle, endpoint_name):
         self.backend = backend
         self.endpoint_name = endpoint_name
+        self.endpoint_handle = endpoint_handle
 
     def ingest(self, data):
+        print("Endpoint:", self.endpoint_name, "DATA:", data)
+        print("Data is not None", data is not None)
         if data is not None:
-            self.backend.postToProxyEndpoint(self.client, self.endpoint_name,
-                                             data)
+            answer = self.backend.postToProxyEndpointHandle(
+                self.endpoint_handle, self.endpoint_name, data)
+            print(answer)

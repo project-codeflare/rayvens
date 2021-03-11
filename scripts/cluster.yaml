@@ -157,3 +157,12 @@ head_start_ray_commands:
 worker_start_ray_commands:
     - ray stop
     - ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379
+
+file_mounts:
+    {
+        "/home/ray/rayvens/setup.py": "../setup.py",
+        "/home/ray/rayvens/rayvens": "../rayvens",
+    }
+file_mounts_sync_continuously: false
+head_setup_commands: ["pip install -e rayvens"]
+worker_setup_commands: ["pip install -e rayvens"]
