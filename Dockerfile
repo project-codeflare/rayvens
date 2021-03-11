@@ -7,7 +7,9 @@ RUN sudo apt-get update -qq \
     && sudo rm -rf /var/lib/apt/lists/* \
     && sudo apt-get clean
 
-COPY setup.py ./
-COPY rayvens rayvens/
+COPY setup.py rayvens/
+COPY rayvens rayvens/rayvens/
 
-RUN pip install rayvens
+RUN sudo chown -R ray:users rayvens
+
+RUN pip install -e ./rayvens
