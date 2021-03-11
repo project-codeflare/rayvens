@@ -1,6 +1,16 @@
 from enum import Enum
-from rayvens.types import CamelOperatorMode
 from rayvens.core.utils import utils
+
+
+class CamelOperatorMode(Enum):
+    # The Kamel operator can only be run on the Ray head node.
+    HEAD_NODE = 1
+
+    # Kamel operator can run anywhere in the cluster.
+    ANY_NODE = 2
+
+    # No Kamel operator needed just kamel running local command in a container.
+    CONTAINERIZED = 3
 
 
 class RayKamelExecLocation(Enum):
