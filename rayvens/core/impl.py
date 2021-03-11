@@ -23,7 +23,7 @@ class Camel:
         self.prefix = prefix
         self.integrations = []
 
-    def add_source(self, name, topic, source):
+    def add_source(self, name, topic, source, integration_name):
         if source['kind'] is None:
             raise TypeError('A Camel source needs a kind.')
         if source['kind'] not in ['http-source']:
@@ -68,7 +68,7 @@ class Camel:
         else:
             self.integrations.append(integration)
 
-    def add_sink(self, name, topic, sink):
+    def add_sink(self, name, topic, sink, integration_name):
         if sink['kind'] is None:
             raise TypeError('A Camel sink needs a kind.')
         if sink['kind'] not in ['slack-sink']:

@@ -13,6 +13,7 @@ class Topic:
         self.name = name
         self._subscribers = []
         self._integrations = []
+        self._endpoint_calls = []
         self._callable = None
 
     def send_to(self, callable, name=None):
@@ -25,6 +26,9 @@ class Topic:
             data = self._callable(data)
         for s in self._subscribers:
             s['callable'](data)
+        for endpoint_call in self._endpoint_calls:
+            endpoint_call['callable'].remote(endpoint_call['endpoint_name'],
+                                             data)
 
     def add_operator(self, callable):
         self._callable = callable
@@ -40,6 +44,12 @@ class Topic:
     def _post(self, url, data):
         if data is not None:
             requests.post(url, data)
+
+    def _save_endpoint_call(self, callable, endpoint_name):
+        self._endpoint_calls.append({
+            'callable': callable,
+            'endpoint_name': endpoint_name
+        })
 
 
 def _remote(x):
@@ -67,11 +77,15 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 class Client:
-    def __init__(self, prefix='/rayvens', mode=CamelOperatorMode.HEAD_NODE):
-        if mode == CamelOperatorMode.HEAD_NODE:
+    def __init__(self,
+                 prefix='/rayvens',
+                 camel_operator_mode=CamelOperatorMode.HEAD_NODE):
+        self.camel_operator_mode = camel_operator_mode
+        if self.camel_operator_mode == CamelOperatorMode.HEAD_NODE:
             self._camel = Camel.start(prefix)
-        elif mode == CamelOperatorMode.ANY_NODE:
+        elif self.camel_operator_mode == CamelOperatorMode.ANY_NODE:
             self._camel = CamelAnyNode.start(prefix)
+            self._camel.start_kamel_backend.remote()
         else:
             raise RuntimeError("Not yet implemented")
         atexit.register(self._camel.exit.remote)
@@ -93,4 +107,9 @@ class Client:
         self._camel.add_sink.remote(name, topic, sink)
 
     def disconnect(self, topic):
-        topic._disconnect.remote(self._camel)
+        if self.camel_operator_mode == CamelOperatorMode.ANY_NODE:
+            # TODO:
+            # self._camel.stop_kamel_backend.remote()
+            self._camel.exit.remote()
+        else:
+            topic._disconnect.remote(self._camel)

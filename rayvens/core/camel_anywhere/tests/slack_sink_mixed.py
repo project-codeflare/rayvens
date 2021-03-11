@@ -41,7 +41,8 @@ envVars = ["SLACK_WEBHOOK"]
 
 # Note: careful with the names, for pod names, the integration name will be
 # modified by kamel to replace underscores with dashes.
-runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
+runInvocation = kamel.run(integrationFiles, mode, "my-simple-integration",
+                          envVars)
 
 #
 # Create service through which we can communicate with the kamel sink.

@@ -3,32 +3,51 @@ import subprocess
 import os
 import signal
 import io
+import yaml
 from rayvens.core.utils import utils
 from rayvens.core.camel_anywhere import kamel_utils
 from rayvens.core.camel_anywhere import kubernetes_utils
-from rayvens.core.camel_anywhere.mode import mode
 
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.
 #
 
 
-@ray.remote
+@ray.remote(num_cpus=0)
 class KamelInvocationActor:
     subprocessName = "Kamel"
 
-    def __init__(self, commandOptions, baseName=""):
+    def __init__(self,
+                 commandOptions,
+                 mode,
+                 integration_name="",
+                 integration_content=[]):
+        self.mode = mode
+
         # If list is porvided, join it.
         if isinstance(commandOptions, list):
             commandOptions = " ".join(commandOptions)
+
+        # Create final kamel command.
+        final_command = ["exec", "kamel", commandOptions]
+
+        # If integration content is not null then we have files to create and
+        # write to.
+        for file_content in integration_content:
+            filename = f'{integration_name}.yaml'
+            with open(filename, 'w') as f:
+                yaml.dump(file_content, f)
+            final_command.append(os.path.abspath(filename))
 
         # Get subcommand type.
         self.subcommandType = kamel_utils.getKamelCommandType(commandOptions)
 
         # Create the kamel command.
-        execCommand = " ".join(["exec", "kamel", commandOptions])
+        execCommand = " ".join(final_command)
 
+        print("Exec command => ", execCommand)
         # Add to PATH for case when this command is invoked in a cluster.
+        print("KamelInvocationActor Cluster mode:", mode.isCluster())
         if mode.isCluster():
             os.environ['PATH'] = ":".join(
                 ["/home/ray/rayvens/rayvens/linux-x86_64",
@@ -47,7 +66,7 @@ class KamelInvocationActor:
 
         # Get end condition or fail if command type is not supported.
         self.endCondition = kamel_utils.getKamelCommandEndCondition(
-            self.subcommandType, baseName)
+            self.subcommandType, integration_name)
 
         # TODO: Does this work for Windows? Linux? Cloud?
         # Launch kamel command in a new process.
@@ -110,6 +129,12 @@ class KamelInvocationActor:
     def getSubcommandType(self):
         return self.subcommandType
 
+    def getNamespace(self):
+        return self.mode.getNamespace()
+
+    def getMode(self):
+        return self.mode
+
     def kill(self):
         # Magic formula for terminating all processes in the group including
         # any subprocesses that the kamel command might have created.
@@ -121,7 +146,7 @@ class KamelInvocationActor:
 #
 
 
-@ray.remote
+@ray.remote(num_cpus=0)
 class KubectlInvocationActor:
     subprocessName = "Kubectl"
 

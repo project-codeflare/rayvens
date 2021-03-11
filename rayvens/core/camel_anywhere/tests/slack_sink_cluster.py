@@ -9,6 +9,7 @@ import sys
 
 ray.init(num_cpus=4)
 client = serve.start()
+
 route = "/toslack"
 message = "Use Ray and Kamel in a kind cluster to print this to a kamel Slack"
 "sink."
@@ -43,10 +44,11 @@ envVars = ["SLACK_WEBHOOK"]
 
 # Note: careful with the names, for pod names, the integration name will be
 # modified by kamel to replace underscores with dashes.
-runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
+runInvocation = kamel.run(integrationFiles, mode, "my-simple-integration",
+                          envVars)
 
 #
-# Start doing some work
+# Start doing some work.
 #
 
 mode.integrationName = "my-simple-integration"
