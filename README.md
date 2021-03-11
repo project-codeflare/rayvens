@@ -376,4 +376,4 @@ ray submit rayvens/scripts/cluster.yaml rayvens/examples/sink.py "$SLACK_CHANNEL
 
 ## License
 
-Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.txt). 
+Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.txt).
