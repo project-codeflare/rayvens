@@ -1,6 +1,9 @@
-# Rayvens
+<p align="center">
+  <img src="rayvens.png" />
+</p>
 
 [![Build Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/solsa/rayvens)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
 applications can produce events, subscribe to event streams, and process events.
@@ -117,12 +120,28 @@ out-of-order event delivery.
 
 ## Setup Camel-K
 
-To run Rayvens programs including Camel components, there are two choices:
-- running Ray on the host with a local installation of the Camel-K client, Java,
-  and Maven, or
-- running Ray and Camel-K inside a Kubernetes cluster.
+To run Rayvens programs including Camel components, there are three choices:
+1. **local mode**: run Ray on the host with a local installation of the Camel-K
+   client, Java, and Maven,
+2. **operator mode**: run Ray and Camel-K inside a Kubernetes cluster relying on
+   the [Camel-K
+   operator](https://camel.apache.org/camel-k/latest/architecture/operator.html)
+   to run Camel components in dedicated pods,
+3. **anywhere mode**: run Ray and Camel-K inside a Kubernetes cluster without
+   relying on the [Camel-K
+   operator](https://camel.apache.org/camel-k/latest/architecture/operator.html)
+   by running the Camel components inside the Ray pods in jointly with the Ray
+   processes.
 
-We expect to offer a "run anywhere" implementation in the near future.
+Modes 2 and 3 rely on a custom Ray container image that adds to the base Ray
+image the Rayvens package and the kamel CLI and its dependencies. This image is
+built automatically as part of the setup described below. This setup also
+includes the deployment of the Camel-K operator used in mode 2 and the necessary
+RBAC rules for the operator.
+
+In principle, mode 3 permits running Rayvens anywhere Ray can by simply
+replacing the base Ray image with the Rayvens image. At this time however, we
+only include deployment instructions for Kubernetes.
 
 ### Setup Camel-K on the host
 
@@ -154,7 +173,8 @@ Setup Ray on Kind:
 ./rayvens/scripts/start-kind.sh
 ```
 This script launches a persistent docker registry on the host at port 5000,
-creates a Kind cluster, installs Ray on this cluster as well as the [Camel-K
+build the custom Rayvens image, creates a Kind cluster, installs Ray on this
+cluster as well as the [Camel-K
 operator](https://camel.apache.org/camel-k/latest/architecture/operator.html).
 
 Try your Ray cluster on Kind with:
@@ -356,4 +376,4 @@ ray submit rayvens/scripts/cluster.yaml rayvens/examples/sink.py "$SLACK_CHANNEL
 
 ## License
 
-Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.txt). 
+Rayvens is an open-source project with an [Apache 2.0 license](LICENSE.txt).

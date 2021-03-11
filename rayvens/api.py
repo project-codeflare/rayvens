@@ -1,10 +1,7 @@
-import atexit
 import ray
-import requests
 
-from rayvens.core.impl import Camel
-from rayvens.core.camel_anywhere.impl import CamelAnyNode
-from rayvens.types import CamelOperatorMode
+from rayvens.core.impl import start as start_mode_1
+from rayvens.core.camel_anywhere.impl import start as start_mode_2
 
 
 @ray.remote(num_cpus=0)
@@ -12,59 +9,39 @@ class Topic:
     def __init__(self, name):
         self.name = name
         self._subscribers = []
-        self._integrations = []
-        self._endpoint_calls = []
-        self._callable = None
+        self._operator = None
 
-    def send_to(self, callable, name=None):
-        self._subscribers.append({'callable': callable, 'name': name})
+    def send_to(self, subscriber, name=None):
+        self._subscribers.append({'subscriber': subscriber, 'name': name})
 
     def ingest(self, data):
         if data is None:
             return
-        if self._callable is not None:
-            data = self._callable(data)
+        if self._operator is not None:
+            data = _eval(self._operator, data)
         for s in self._subscribers:
-            s['callable'](data)
-        for endpoint_call in self._endpoint_calls:
-            endpoint_call['callable'].remote(endpoint_call['endpoint_name'],
-                                             data)
+            _eval(s['subscriber'], data)
+        # for endpoint_call in self._endpoint_calls:
+        #     endpoint_call['callable'].remote(endpoint_call['endpoint_name'],
+        #                                      data)
 
-    def add_operator(self, callable):
-        self._callable = callable
-
-    def _register(self, name, integration):
-        self._integrations.append({'name': name, 'integration': integration})
-
-    def _disconnect(self, camel):
-        self._subscribers = []
-        camel.cancel.remote(self._integrations)
-        self._integrations = []
-
-    def _post(self, url, data):
-        if data is not None:
-            requests.post(url, data)
-
-    def _save_endpoint_call(self, callable, endpoint_name):
-        self._endpoint_calls.append({
-            'callable': callable,
-            'endpoint_name': endpoint_name
-        })
+    def add_operator(self, operator):
+        self._operator = operator
 
 
-def _remote(x):
-    if isinstance(x, ray.actor.ActorHandle):
-        return x.ingest.remote
-    elif isinstance(x, ray.actor.ActorMethod) or isinstance(
-            x, ray.remote_function.RemoteFunction):
-        return x.remote
+def _eval(f, data):
+    if isinstance(f, ray.actor.ActorHandle):
+        return f.ingest.remote(data)
+    elif isinstance(f, ray.actor.ActorMethod) or isinstance(
+            f, ray.remote_function.RemoteFunction):
+        return f.remote(data)
     else:
-        return x
+        return f(data)
 
 
-def _rshift(source, sink):
-    source.send_to.remote(_remote(sink))
-    return sink
+def _rshift(topic, subscriber):
+    topic.send_to.remote(subscriber)
+    return subscriber
 
 
 def _lshift(topic, data):
@@ -76,19 +53,34 @@ setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
 setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
+def _start(camel_mode):
+    if camel_mode in ['local', 'operator1']:
+        return start_mode_1
+    elif camel_mode == 'operator2':
+        return start_mode_2
+    elif camel_mode == 'auto':
+        return start_mode_1  # TODO
+    else:
+        raise TypeError(
+            'Unsupported camel_mode. Must be one of auto, local, operator1.')
+
+
 class Client:
-    def __init__(self,
-                 prefix='/rayvens',
-                 camel_operator_mode=CamelOperatorMode.HEAD_NODE):
-        self.camel_operator_mode = camel_operator_mode
-        if self.camel_operator_mode == CamelOperatorMode.HEAD_NODE:
-            self._camel = Camel.start(prefix)
-        elif self.camel_operator_mode == CamelOperatorMode.ANY_NODE:
-            self._camel = CamelAnyNode.start(prefix)
-            self._camel.start_kamel_backend.remote()
-        else:
-            raise RuntimeError("Not yet implemented")
-        atexit.register(self._camel.exit.remote)
+    # def __init__(self,
+    #              prefix='/rayvens',
+    #              camel_operator_mode=CamelOperatorMode.HEAD_NODE):
+    #     self.camel_operator_mode = camel_operator_mode
+    #     if self.camel_operator_mode == CamelOperatorMode.HEAD_NODE:
+    #         self._camel = Camel.start(prefix)
+    #     elif self.camel_operator_mode == CamelOperatorMode.ANY_NODE:
+    #         self._camel = CamelAnyNode.start(prefix)
+    #         self._camel.start_kamel_backend.remote()
+    #     else:
+    #         raise RuntimeError("Not yet implemented")
+    #     atexit.register(self._camel.exit.remote)
+
+    def __init__(self, prefix='/rayvens', camel_mode='auto'):
+        self._camel = _start(camel_mode)(prefix, camel_mode)
 
     def create_topic(self, name, source=None, sink=None, operator=None):
         topic = Topic.remote(name)
@@ -97,7 +89,7 @@ class Client:
         if sink is not None:
             self.add_sink(name, topic, sink)
         if operator is not None:
-            topic.add_operator.remote(_remote(operator))
+            topic.add_operator.remote(operator)
         return topic
 
     def add_source(self, name, topic, source):
@@ -105,11 +97,3 @@ class Client:
 
     def add_sink(self, name, topic, sink):
         self._camel.add_sink.remote(name, topic, sink)
-
-    def disconnect(self, topic):
-        if self.camel_operator_mode == CamelOperatorMode.ANY_NODE:
-            # TODO:
-            # self._camel.stop_kamel_backend.remote()
-            self._camel.exit.remote()
-        else:
-            topic._disconnect.remote(self._camel)

@@ -1,27 +1,32 @@
+import atexit
 import os
 import ray
 from ray import serve
+import requests
 import signal
 import subprocess
 import yaml
 
 
+def start(prefix, mode):
+    if os.getenv('KUBE_POD_NAMESPACE') is not None and mode != 'local':
+        camel = Camel.options(resources={'head': 1}).remote(prefix, 'operator')
+    else:
+        camel = Camel.remote(prefix, 'local')
+    atexit.register(camel.exit.remote)
+    return camel
+
+
 @ray.remote(num_cpus=0)
 class Camel:
-    @staticmethod
-    def start(prefix):
-        if os.getenv('KUBE_POD_NAMESPACE') is not None:
-            return Camel.options(resources={'head': 1}).remote(prefix)
-        else:
-            return Camel.remote(prefix)
-
-    def __init__(self, prefix):
+    def __init__(self, prefix, mode):
         self.client = serve.start(http_options={
             'host': '0.0.0.0',
             'location': 'EveryNode'
         })
         self.prefix = prefix
         self.integrations = []
+        self.mode = mode
 
     def add_source(self, name, topic, source, integration_name):
         if source['kind'] is None:
@@ -43,8 +48,8 @@ class Camel:
                                     route=f'{self.prefix}/{name}',
                                     methods=['POST'])
         endpoint = 'http://localhost:8000'
-        namespace = os.getenv('KUBE_POD_NAMESPACE')
-        if namespace is not None:
+        if self.mode == 'operator':
+            namespace = os.getenv('KUBE_POD_NAMESPACE')
             with open('/etc/podinfo/labels', 'r') as f:
                 for line in f:
                     k, v = line.partition('=')[::2]
@@ -52,7 +57,7 @@ class Camel:
                         endpoint = (f'http://{v[1:-2]}.{namespace}'
                                     '.svc.cluster.local:8000')
                         break
-        integration = Integration(name, [{
+        integration = Integration(name, self.mode, [{
             'from': {
                 'uri': f'timer:tick?period={period}',
                 'steps': [{
@@ -62,7 +67,6 @@ class Camel:
                 }]
             }
         }])
-        topic._register.remote(name, integration)
         if self.integrations is None:
             integration.cancel()
         else:
@@ -75,7 +79,7 @@ class Camel:
             raise TypeError('Unsupported Camel sink.')
         channel = sink['channel']
         webhookUrl = sink['webhookUrl']
-        integration = Integration(name, [{
+        integration = Integration(name, self.mode, [{
             'from': {
                 'uri': f'platform-http:/{name}',
                 'steps': [{
@@ -85,16 +89,12 @@ class Camel:
         }])
 
         url = f'{integration.url}/{name}'
-        topic.send_to.remote(lambda data: topic._post.remote(url, data), name)
-        topic._register.remote(name, integration)
+        helper = Helper.remote(url)
+        topic.send_to.remote(helper, name)
         if self.integrations is None:
             integration.cancel()
         else:
             self.integrations.append(integration)
-
-    def cancel(self, integrations):
-        for i in integrations:
-            i['integration'].cancel()
 
     def exit(self):
         integrations = self.integrations
@@ -103,21 +103,28 @@ class Camel:
             i.cancel()
 
 
+@ray.remote(num_cpus=0)
+class Helper:
+    def __init__(self, url):
+        self.url = url
+
+    def ingest(self, data):
+        if data is not None:
+            requests.post(self.url, data)
+
+
 class Integration:
-    def __init__(self, name, integration):
+    def __init__(self, name, mode, integration):
         self.name = name
         self.url = 'http://localhost:8080'
         filename = f'{name}.yaml'
         with open(filename, 'w') as f:
             yaml.dump(integration, f)
         command = ['kamel', 'local', 'run', filename]
-        namespace = os.getenv('KUBE_POD_NAMESPACE')
-        if namespace is not None:
+        if mode == 'operator':
+            namespace = os.getenv('KUBE_POD_NAMESPACE')
             self.url = f'http://{self.name}.{namespace}.svc.cluster.local:80'
-            command = [
-                '/home/ray/rayvens/rayvens/linux-x86_64/kamel', 'run', '--dev',
-                filename
-            ]
+            command = ['kamel', 'run', '--dev', filename]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
 
