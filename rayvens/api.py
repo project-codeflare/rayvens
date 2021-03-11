@@ -56,7 +56,7 @@ def _start(camel_mode):
     elif camel_mode == 'auto':
         return start_mode_1  # TODO
     elif camel_mode in [
-            'anywhere.local', 'anywhere.mixed', 'anywhere.operator1'
+            'anywhere.local', 'anywhere.mixed', 'anywhere.operator'
     ]:
         return start_mode_2
     else:

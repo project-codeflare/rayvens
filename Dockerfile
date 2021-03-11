@@ -9,6 +9,5 @@ RUN sudo apt-get update -qq \
 
 COPY setup.py ./
 COPY rayvens rayvens/
-COPY misc/ misc/
 
 RUN pip install rayvens

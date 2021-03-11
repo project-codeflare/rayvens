@@ -84,10 +84,10 @@ available_node_types:
                             name: dshm
                       resources:
                           requests:
-                              cpu: 4000m
+                              cpu: 2000m
                               memory: 512Mi
                           limits:
-                              memory: 4Gi
+                              memory: 2Gi
                       env:
                           - name: KUBE_POD_NAME
                             valueFrom:
