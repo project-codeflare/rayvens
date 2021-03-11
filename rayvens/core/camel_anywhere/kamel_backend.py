@@ -50,19 +50,18 @@ class KamelBackend:
                               mode,
                               config={'num_replicas': 1},
                               ray_actor_options={'num_cpus': 0})
-        self.client = client
         self.endpointToRoute = {}
 
-    def createProxyEndpoint(self, endpointName, route):
+    def createProxyEndpoint(self, client, endpointName, route):
         self.endpointToRoute[endpointName] = route
 
         # Create endpoint with method as POST.
-        self.client.create_endpoint(endpointName,
-                                    backend=self.backendName,
-                                    route=route,
-                                    methods=["POST"])
+        client.create_endpoint(endpointName,
+                               backend=self.backendName,
+                               route=route,
+                               methods=["POST"])
 
-    def postToProxyEndpoint(self, endpointName, data):
+    def postToProxyEndpoint(self, client, endpointName, data):
         # Retrieve route.
         route = self.endpointToRoute[endpointName]
 
@@ -71,12 +70,12 @@ class KamelBackend:
 
         # Send request to backend.
         answerAsStr = ray.get(
-            self.client.get_handle(endpointName).remote(externalEvent))
+            client.get_handle(endpointName).remote(externalEvent))
 
         return answerAsStr
 
-    def removeProxyEndpoint(self, endpointName):
-        self.client.delete_endpoint(endpointName)
+    def removeProxyEndpoint(self, client, endpointName):
+        client.delete_endpoint(endpointName)
         self.endpointToRoute.pop(endpointName)
 
 

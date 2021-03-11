@@ -6,17 +6,17 @@ import os
 def sendMessageToSlackSink(client, message, route):
     # Create a Kamel Backend and endpoint.
     sinkBackend = kamel_backend.KamelBackend(client, mode)
-    sinkBackend.createProxyEndpoint("output_to_ray_slack_sink", route)
+    sinkBackend.createProxyEndpoint(client, "output_to_ray_slack_sink", route)
 
     # Use endpoint to send data to the Ray Slack Sink.
     answerAsStr = ""
     for i in range(10):
         answerAsStr = sinkBackend.postToProxyEndpoint(
-            "output_to_ray_slack_sink", message + " Part: %s" % i)
+            client, "output_to_ray_slack_sink", message + " Part: %s" % i)
     print(answerAsStr)
 
     # Close proxy endpoint.
-    sinkBackend.removeProxyEndpoint("output_to_ray_slack_sink")
+    sinkBackend.removeProxyEndpoint(client, "output_to_ray_slack_sink")
 
 
 def exportSlackWebhook(args):

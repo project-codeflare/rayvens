@@ -21,9 +21,6 @@ class Topic:
             data = _eval(self._operator, data)
         for s in self._subscribers:
             _eval(s['subscriber'], data)
-        # for endpoint_call in self._endpoint_calls:
-        #     endpoint_call['callable'].remote(endpoint_call['endpoint_name'],
-        #                                      data)
 
     def add_operator(self, operator):
         self._operator = operator
@@ -68,19 +65,6 @@ def _start(camel_mode):
 
 
 class Client:
-    # def __init__(self,
-    #              prefix='/rayvens',
-    #              camel_operator_mode=CamelOperatorMode.HEAD_NODE):
-    #     self.camel_operator_mode = camel_operator_mode
-    #     if self.camel_operator_mode == CamelOperatorMode.HEAD_NODE:
-    #         self._camel = Camel.start(prefix)
-    #     elif self.camel_operator_mode == CamelOperatorMode.ANY_NODE:
-    #         self._camel = CamelAnyNode.start(prefix)
-    #         self._camel.start_kamel_backend.remote()
-    #     else:
-    #         raise RuntimeError("Not yet implemented")
-    #     atexit.register(self._camel.exit.remote)
-
     def __init__(self, prefix='/rayvens', camel_mode='auto'):
         self._camel = _start(camel_mode)(prefix, camel_mode)
 

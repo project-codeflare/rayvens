@@ -7,22 +7,20 @@ from rayvens.core.camel_anywhere import kamel
 
 
 def start(prefix, camel_mode):
-    # if os.getenv('KUBE_POD_NAMESPACE') is not None and mode != 'local':
-    #     camel = CamelAnyNode.options(resources={
-    #         'head': 1
-    #     }).remote(prefix, 'operator')
-    # else:
-    #     camel = CamelAnyNode.remote(prefix, 'local')
-    # TODO: implement other
+    camel = None
     if camel_mode == 'anywhere.local':
         mode.location = RayKamelExecLocation.LOCAL
+        camel = CamelAnyNode.remote(prefix, camel_mode, mode)
     elif camel_mode == 'anywhere.mixed':
         mode.location = RayKamelExecLocation.MIXED
+        camel = CamelAnyNode.remote(prefix, camel_mode, mode)
     elif camel_mode == 'anywhere.operator':
         mode.location = RayKamelExecLocation.CLUSTER
+        camel = CamelAnyNode.options(resources={
+            'head': 1
+        }).remote(prefix, camel_mode, mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
-    camel = CamelAnyNode.remote(prefix, camel_mode, mode)
     atexit.register(camel.exit.remote)
     return camel
 
@@ -87,14 +85,12 @@ class CamelAnyNode:
         endpoint_name = self._get_endpoint_name(name)
         print("Create endpoint with name:", endpoint_name)
         # self.kamel_backend.removeProxyEndpoint(endpoint_name)
-        self.kamel_backend.createProxyEndpoint(endpoint_name, route)
+        self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
+                                               route)
 
         print("Add endpoint to Topic list.")
-        topic._save_endpoint_call.remote(self.post_to_endpoint, endpoint_name)
-
-    def post_to_endpoint(camel, endpoint_name, data):
-        print("Post to endpoint:", endpoint_name)
-        camel.kamel_backend.postToProxyEndpoint(endpoint_name, data)
+        endpoint_helper = EndpointHelper.remote(endpoint_name)
+        topic.send_to.remote(endpoint_helper, name)
 
     def exit(self):
         for invocation in self.invocations:
@@ -114,3 +110,15 @@ class CamelAnyNode:
     def _get_integration_name(self, name):
         self.integration_id += 1
         return "-".join(["integration", name, str(self.integration_id)])
+
+
+@ray.remote(num_cpus=0)
+class EndpointHelper:
+    def __init__(self, backend, endpoint_name):
+        self.backend = backend
+        self.endpoint_name = endpoint_name
+
+    def ingest(self, data):
+        if data is not None:
+            self.backend.postToProxyEndpoint(self.client, self.endpoint_name,
+                                             data)
