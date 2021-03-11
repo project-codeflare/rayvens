@@ -38,7 +38,7 @@ slack_sink_common.exportSlackWebhook(sys.argv)
 # List of environment variables to be used from current environment.
 envVars = ["SLACK_WEBHOOK"]
 integrationFiles = [
-    "/home/ray/rayvens/rayvens/core/camel/tests/kamel/slack.yaml"
+    "/home/ray/rayvens/rayvens/core/camel_anywhere/tests/kamel/slack.yaml"
 ]
 integration_name = "my-simple-integration"
 

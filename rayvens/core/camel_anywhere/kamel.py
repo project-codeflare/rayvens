@@ -135,4 +135,4 @@ def delete(runningIntegrationInvocation):
 
 def localRun(integrationFiles):
     command = ["local", "run", " ".join(integrationFiles)]
-    return kamel_utils.invokeLocalOngoingCmd(command)
+    return kamel_utils.invokeLocalOngoingCmd(command, mode)

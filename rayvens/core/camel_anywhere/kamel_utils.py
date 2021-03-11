@@ -101,10 +101,9 @@ def isUinstallCommand(subcommandType):
 # Helper for ongoing local commands like kamel local run.
 
 
-def invokeLocalOngoingCmd(command, integration_files, mode):
+def invokeLocalOngoingCmd(command, mode):
     # Invoke command using the Kamel invocation actor.
-    kamelInvocation = invocation.KamelInvocationActor.remote(
-        command, integration_files, mode)
+    kamelInvocation = invocation.KamelInvocationActor.remote(command, mode)
 
     # Wait for kamel command to finish launching the integration.
     kamelIsReady = ray.get(kamelInvocation.isLocalOngoingKamelReady.remote())

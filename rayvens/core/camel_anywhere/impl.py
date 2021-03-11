@@ -61,6 +61,7 @@ class CamelAnyNode:
         route = sink['route']
 
         # Write integration code to file.
+        # TODO: for now only support 1 integration content.
         integration_content = [{
             'from': {
                 'uri': f'platform-http:{route}',

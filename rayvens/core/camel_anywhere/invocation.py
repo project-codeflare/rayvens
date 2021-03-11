@@ -33,6 +33,7 @@ class KamelInvocationActor:
 
         # If integration content is not null then we have files to create and
         # write to.
+        # TODO: support multiple contents.
         for file_content in integration_content:
             filename = f'{integration_name}.yaml'
             with open(filename, 'w') as f:
