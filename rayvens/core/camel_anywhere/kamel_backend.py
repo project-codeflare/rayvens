@@ -47,14 +47,14 @@ class KamelEventHandler:
 class KamelBackend:
     backendName = "kamel_backend"
 
-    def __init__(self, client, mode, topic=None):
+    def __init__(self, client, mode, topic=None, ray_actor_options={}):
         # Create it as a normal backend.
         client.create_backend(self.backendName,
                               KamelEventHandler,
                               mode,
                               topic,
                               config={'num_replicas': 1},
-                              ray_actor_options={'num_cpus': 0})
+                              ray_actor_options=ray_actor_options)
         self.endpoint_to_event = {}
 
     def createProxyEndpoint(self, client, endpoint_name, route,

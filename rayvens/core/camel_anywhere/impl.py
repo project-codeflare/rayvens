@@ -59,7 +59,13 @@ class CamelAnyNode:
         integration_name = self._get_integration_name(name)
 
         # Create backend for this topic.
-        source_backend = KamelBackend(self.client, self.mode, topic=topic)
+        backend_options = {}
+        if self.camel_mode.isCluster:
+            backend_options = {'num_cpus': 0}
+        source_backend = KamelBackend(self.client,
+                                      self.mode,
+                                      topic=topic,
+                                      ray_actor_options=backend_options)
 
         # Create endpoint.
         source_backend.createProxyEndpoint(self.client, endpoint_name, route,
@@ -100,7 +106,11 @@ class CamelAnyNode:
 
         # Create backend if one hasn't been created so far.
         if self.kamel_backend is None:
-            self.kamel_backend = KamelBackend(self.client, self.mode)
+            backend_options = {}
+            if self.camel_mode.isCluster:
+                backend_options = {'num_cpus': 0}
+            self.kamel_backend = KamelBackend(
+                self.client, self.mode, ray_actor_options=backend_options)
 
         # Write integration code to file.
         # TODO: for now only support 1 integration content.
