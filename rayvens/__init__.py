@@ -1,1 +1,1 @@
-from .api import Client  # noqa: F401
+from rayvens.api import Client  # noqa: F401
