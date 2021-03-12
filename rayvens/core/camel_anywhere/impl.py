@@ -44,15 +44,18 @@ class CamelAnyNode:
         self.invocations = []
 
     def add_source(self, name, topic, source):
-        if source['kind'] is None:
-            raise TypeError('A Camel source needs a kind.')
-        if source['kind'] not in ['http-source']:
-            raise TypeError('Unsupported Camel source.')
+        if 'kind' in source:
+            if source['kind'] is None:
+                raise TypeError('A Camel source needs a kind.')
+            if source['kind'] not in ['http-source']:
+                raise TypeError('Unsupported Camel source.')
+        if 'url' not in source:
+            raise TypeError('url field not provided.')
         source_url = source['url']
-        period = source.get('period', 1000)
-        # TODO: do it like this.
-        # route = f'{self.prefix}' + source['route']
         route = f'{self.prefix}/{name}'
+        if 'route' in source and source['route'] is not None:
+            route = f'{self.prefix}' + source['route']
+        period = source.get('period', 1000)
 
         # Set endpoint and integration names.
         endpoint_name = self._get_endpoint_name(name)
@@ -96,13 +99,20 @@ class CamelAnyNode:
         self.invocations.append(source_invocation)
 
     def add_sink(self, name, topic, sink):
-        if sink['kind'] is None:
-            raise TypeError('A Camel sink needs a kind.')
-        if sink['kind'] not in ['slack-sink']:
-            raise TypeError('Unsupported Camel sink.')
+        if 'kind' in sink:
+            if sink['kind'] is None:
+                raise TypeError('A Camel sink needs a kind.')
+            if sink['kind'] not in ['slack-sink']:
+                raise TypeError('Unsupported Camel sink.')
+        route = f'/{name}'
+        if 'route' in sink and sink['route'] is not None:
+            route = sink['route']
+        if 'channel' not in sink:
+            raise TypeError('channel field not provided for sink.')
         channel = sink['channel']
+        if 'webhookUrl' not in sink:
+            raise TypeError('webhookUrl field not provided for sink.')
         webhookUrl = sink['webhookUrl']
-        route = sink['route']
 
         # Create backend if one hasn't been created so far.
         if self.kamel_backend is None:
