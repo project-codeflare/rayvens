@@ -37,6 +37,12 @@ def _eval(f, data):
 
 
 def _rshift(topic, subscriber):
+    if (not isinstance(subscriber, ray.actor.ActorHandle)) or getattr(
+            subscriber, 'send_to', None) is None:
+        # wrap subscriber with topic
+        operator = Topic.remote('implicit')
+        operator.add_operator.remote(subscriber)
+        subscriber = operator
     topic.send_to.remote(subscriber)
     return subscriber
 

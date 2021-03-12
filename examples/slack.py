@@ -70,11 +70,8 @@ class Comparator:
 # comparator instance
 comparator = Comparator.remote()
 
-# stream operator applying comparator to events
-operator = client.create_topic('comparator', operator=comparator)
-
 # connect source to comparator to sink
-source >> operator >> sink
+source >> comparator >> sink
 
 # run for a while
 time.sleep(300)
