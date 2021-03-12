@@ -38,7 +38,7 @@ class Execution:
     def getNamespace(self):
         return self.namespace
 
-    def getQuarkusHTTPServer(self, integration_name):
+    def getQuarkusHTTPServer(self, integration_name, source=False):
         if self.location == RayKamelExecLocation.LOCAL:
             return "http://0.0.0.0:8080"
         if self.location == RayKamelExecLocation.MIXED:
@@ -46,6 +46,10 @@ class Execution:
         if self.location == RayKamelExecLocation.CLUSTER:
             if integration_name == "":
                 raise RuntimeError("integration name is not set")
+            if source:
+                return "http://%s.%s.svc.cluster.local:%s" % (
+                    integration_name, self.namespace,
+                    utils.internalClusterPort)
             return "http://%s.%s.svc.cluster.local:%s" % (
                 integration_name, self.namespace, utils.internalClusterPort)
         raise RuntimeError("unreachable")

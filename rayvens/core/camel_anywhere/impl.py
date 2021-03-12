@@ -4,6 +4,7 @@ from ray import serve
 from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
 from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
 from rayvens.core.camel_anywhere import kamel
+from rayvens.core.utils import utils
 
 
 def start(prefix, camel_mode):
@@ -24,19 +25,19 @@ def start(prefix, camel_mode):
 
     # Setup what happens at exit.
     atexit.register(camel.exit.remote)
-
-    # Start the kamel backend.
-    camel.start_kamel_backend.remote()
     return camel
 
 
 @ray.remote(num_cpus=0)
 class CamelAnyNode:
     def __init__(self, prefix, camel_mode, mode):
-        self.client = serve.start(http_options={
-            'host': '0.0.0.0',
-            'location': 'EveryNode'
-        })
+        if camel_mode in ["local", "mixed"]:
+            self.client = serve.start()
+        else:
+            self.client = serve.start(http_options={
+                'host': '0.0.0.0',
+                'location': 'EveryNode'
+            })
         self.prefix = prefix
         self.camel_mode = mode
         self.mode = mode
@@ -45,11 +46,53 @@ class CamelAnyNode:
         self.integration_id = -1
         self.invocations = []
 
-    def start_kamel_backend(self):
-        self.kamel_backend = KamelBackend(self.client, self.mode)
-
     def add_source(self, name, topic, source):
-        pass
+        if source['kind'] is None:
+            raise TypeError('A Camel source needs a kind.')
+        if source['kind'] not in ['http-source']:
+            raise TypeError('Unsupported Camel source.')
+        source_url = source['url']
+        period = source.get('period', 1000)
+        # TODO: do it like this.
+        # route = f'{self.prefix}' + source['route']
+        route = f'{self.prefix}/{name}'
+
+        # Set endpoint and integration names.
+        endpoint_name = self._get_endpoint_name(name)
+        print("Create endpoint with name:", endpoint_name)
+        integration_name = self._get_integration_name(name)
+
+        # Create backend for this topic.
+        source_backend = KamelBackend(self.client, self.mode, topic=topic)
+
+        # Create endpoint.
+        source_backend.createProxyEndpoint(self.client, endpoint_name, route,
+                                           integration_name)
+
+        if self.camel_mode.isCluster():
+            server_pod_name = utils.get_server_pod_name()
+
+        # Endpoint address.
+        endpoint_address = self.camel_mode.getQuarkusHTTPServer(
+            server_pod_name, source=True)
+        print("endpoint_address", endpoint_address)
+        integration_content = [{
+            'from': {
+                'uri': f'timer:tick?period={period}',
+                'steps': [{
+                    'to': source_url
+                }, {
+                    'to': f'{endpoint_address}{route}'
+                }]
+            }
+        }]
+
+        # Start running the source integration.
+        source_invocation = kamel.run([integration_content],
+                                      self.mode,
+                                      integration_name,
+                                      integration_as_files=False)
+        self.invocations.append(source_invocation)
 
     def add_sink(self, name, topic, sink):
         if sink['kind'] is None:
@@ -59,6 +102,10 @@ class CamelAnyNode:
         channel = sink['channel']
         webhookUrl = sink['webhookUrl']
         route = sink['route']
+
+        # Create backend if one hasn't been created so far.
+        if self.kamel_backend is None:
+            self.kamel_backend = KamelBackend(self.client, self.mode)
 
         # Write integration code to file.
         # TODO: for now only support 1 integration content.

@@ -15,10 +15,11 @@ quarkusHTTPServerLocalCluster = "http://localhost:%s" % \
 
 
 class ExternalEvent:
-    def __init__(self, route, integration_name):
+    def __init__(self, route, integration_name, source=False):
         self.route = route
         self.integration_name = integration_name
         self.data = None
+        self.source = source
 
     def get_data(self):
         if self.data is None:
@@ -27,29 +28,34 @@ class ExternalEvent:
         return self.data
 
 
-class KamelSinkHandler:
-    def __init__(self, mode):
+class KamelEventHandler:
+    def __init__(self, mode, topic):
         self.mode = mode
+        self.topic = topic
 
     async def __call__(self, request):
         body = await request.body()
-        if not isinstance(body, ExternalEvent):
-            return {"message": "Failure"}
+        if isinstance(body, ExternalEvent):
+            endpoint = self.mode.getQuarkusHTTPServer(
+                body.integration_name) + body.route
+            requests.post(endpoint, data=body.get_data())
+            return {"message": "Success"}
 
-        endpoint = self.mode.getQuarkusHTTPServer(
-            body.integration_name) + body.route
-        requests.post(endpoint, data=body.get_data())
+        if self.topic is None:
+            return {"message": "Failure"}
+        self.topic.ingest.remote(body)
         return {"message": "Success"}
 
 
 class KamelBackend:
     backendName = "kamel_backend"
 
-    def __init__(self, client, mode):
+    def __init__(self, client, mode, topic=None):
         # Create it as a normal backend.
         client.create_backend(self.backendName,
-                              KamelSinkHandler,
+                              KamelEventHandler,
                               mode,
+                              topic,
                               config={'num_replicas': 1},
                               ray_actor_options={'num_cpus': 0})
         self.endpoint_to_event = {}
