@@ -341,22 +341,19 @@ class Comparator:
 comparator = Comparator.remote()
 ```
 
-But in this case, the `ingest` method returns the status message instead of
-printing it.
+We can then interface the source and sink using this comparator:
+```
+source >> comparator >> sink
+```
 
-To make is possible to publish these messages to Slack, we first need to build a
-topic around this actor using code:
+The `source >> comparator` expression implicitly produces a new stream of events
+derived from the source stream by invoking the ingest method of the comparator
+instance onto each source event. This stream consists of the values returned by the
+ingest method excluding the None values. In other words, the complete line of
+code is a shorthand for:
 ```
-operator = client.create_topic('comparator', operator=comparator)
-```
-This basically makes it possible for the comparator to act as an event source,
-where the events produced are simply the stream of values returned from the
-ingest method. Observe the `ingest` method does not have to produce an event for
-every event it ingests.
-
-We can then link the three topics using code:
-```
-source >> operator >> sink
+implicit_stream = source >> comparator
+implicit_stream >> sink
 ```
 
 ### Running the example
