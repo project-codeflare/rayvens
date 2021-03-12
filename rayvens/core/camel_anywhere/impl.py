@@ -59,7 +59,6 @@ class CamelAnyNode:
 
         # Set endpoint and integration names.
         endpoint_name = self._get_endpoint_name(name)
-        print("Create endpoint with name:", endpoint_name)
         integration_name = self._get_integration_name(name)
 
         # Create backend for this topic.
@@ -75,7 +74,6 @@ class CamelAnyNode:
         # Endpoint address.
         endpoint_address = self.camel_mode.getQuarkusHTTPServer(
             server_pod_name, source=True)
-        print("endpoint_address", endpoint_address)
         integration_content = [{
             'from': {
                 'uri': f'timer:tick?period={period}',
@@ -119,21 +117,17 @@ class CamelAnyNode:
         }]
 
         # Start running the integration.
-        print("Start kamel run. Mode is cluster = ", self.mode.isCluster())
         integration_name = self._get_integration_name(name)
         sink_invocation = kamel.run([integration_content],
                                     self.mode,
                                     integration_name,
                                     integration_as_files=False)
-        print("Append invocation to list.")
         self.invocations.append(sink_invocation)
 
         endpoint_name = self._get_endpoint_name(name)
-        print("Create endpoint with name:", endpoint_name)
         self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
                                                route, integration_name)
 
-        print("Add endpoint to Topic list.")
         helper = EndpointHelper.remote(self.kamel_backend,
                                        self.client.get_handle(endpoint_name),
                                        endpoint_name)
@@ -169,8 +163,6 @@ class EndpointHelper:
         self.endpoint_handle = endpoint_handle
 
     def ingest(self, data):
-        print("Endpoint:", self.endpoint_name, "DATA:", data)
-        print("Data is not None", data is not None)
         if data is not None:
             answer = self.backend.postToProxyEndpointHandle(
                 self.endpoint_handle, self.endpoint_name, data)
