@@ -1,7 +1,7 @@
 import ray
 import rayvens
 
-# this example demonstrate how to use a topic to connect
+# this example demonstrate how to use a stream to connect
 # event producers and consumers using a pub-sub pattern
 #
 # in this example, the event handlers are simple functions
@@ -18,8 +18,8 @@ except ConnectionError:
 # start rayvens client
 client = rayvens.Client()
 
-# create a topic actor
-topic = client.create_topic('example')
+# create a stream actor
+stream = client.create_stream('example')
 
 
 # define a first event handler
@@ -32,10 +32,10 @@ def handler2(event):
     print('handler2 received', event)
 
 
-# subscribe handlers to topic
-topic >> handler1
-topic >> handler2
+# subscribe handlers to stream
+stream >> handler1
+stream >> handler2
 
 # publish a few events
 for i in range(10):
-    topic << f'event {i}'
+    stream << f'event {i}'

@@ -1,7 +1,7 @@
 import ray
 import rayvens
 
-# this example demonstrate how to use a topic to connect
+# this example demonstrate how to use a stream to connect
 # event producers and consumers using a pub-sub pattern
 #
 # in this example, the event handlers are Ray actors
@@ -17,8 +17,8 @@ except ConnectionError:
 # start rayvens client
 client = rayvens.Client()
 
-# create a topic actor
-topic = client.create_topic('example')
+# create a stream actor
+stream = client.create_stream('example')
 
 
 # Ray actor to handle events
@@ -37,10 +37,10 @@ class Accumulator:
 acc1 = Accumulator.remote('actor1')
 acc2 = Accumulator.remote('actor2')
 
-# subscribe actors to topic
-topic >> acc1.add
-topic >> acc2.add
+# subscribe actors to stream
+stream >> acc1.add
+stream >> acc2.add
 
 # publish a few events
 for i in range(10):
-    topic << i
+    stream << i

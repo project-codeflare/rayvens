@@ -4,8 +4,8 @@ import rayvens
 ray.init()
 client = rayvens.Client()
 
-topic = client.create_topic('example')
+stream = client.create_stream('example')
 
-topic >> print
+stream >> print
 
-topic << 'hello' << 'world'
+stream << 'hello' << 'world'

@@ -5,7 +5,7 @@ from rayvens.core.camel_anywhere.impl import start as start_mode_2
 
 
 @ray.remote(num_cpus=0)
-class Topic:
+class Stream:
     def __init__(self, name, operator=None):
         self.name = name
         self._subscribers = []
@@ -14,7 +14,7 @@ class Topic:
     def send_to(self, subscriber, name=None):
         self._subscribers.append({'subscriber': subscriber, 'name': name})
 
-    def ingest(self, data):
+    def append(self, data):
         if data is None:
             return
         if self._operator is not None:
@@ -28,7 +28,7 @@ class Topic:
 
 def _eval(f, data):
     if isinstance(f, ray.actor.ActorHandle):
-        return f.ingest.remote(data)
+        return f.append.remote(data)
     elif isinstance(f, ray.actor.ActorMethod) or isinstance(
             f, ray.remote_function.RemoteFunction):
         return f.remote(data)
@@ -36,18 +36,18 @@ def _eval(f, data):
         return f(data)
 
 
-def _rshift(topic, subscriber):
+def _rshift(stream, subscriber):
     if (not isinstance(subscriber, ray.actor.ActorHandle)) or getattr(
             subscriber, 'send_to', None) is None:
-        # wrap subscriber with topic
-        subscriber = Topic.remote('implicit', operator=subscriber)
-    topic.send_to.remote(subscriber)
+        # wrap subscriber with stream
+        subscriber = Stream.remote('implicit', operator=subscriber)
+    stream.send_to.remote(subscriber)
     return subscriber
 
 
-def _lshift(topic, data):
-    topic.ingest.remote(data)
-    return topic
+def _lshift(stream, data):
+    stream.append.remote(data)
+    return stream
 
 
 setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
@@ -70,16 +70,16 @@ class Client:
     def __init__(self, prefix='/rayvens', camel_mode='auto'):
         self._camel = _start(camel_mode)(prefix, camel_mode)
 
-    def create_topic(self, name, source=None, sink=None, operator=None):
-        topic = Topic.remote(name, operator=operator)
+    def create_stream(self, name, source=None, sink=None, operator=None):
+        stream = Stream.remote(name, operator=operator)
         if source is not None:
-            self.add_source(name, topic, source)
+            self.add_source(name, stream, source)
         if sink is not None:
-            self.add_sink(name, topic, sink)
-        return topic
+            self.add_sink(name, stream, sink)
+        return stream
 
-    def add_source(self, name, topic, source):
-        self._camel.add_source.remote(name, topic, source)
+    def add_source(self, name, stream, source):
+        self._camel.add_source.remote(name, stream, source)
 
-    def add_sink(self, name, topic, sink):
-        self._camel.add_sink.remote(name, topic, sink)
+    def add_sink(self, name, stream, sink):
+        self._camel.add_sink.remote(name, stream, sink)

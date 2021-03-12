@@ -28,7 +28,7 @@ class Camel:
         self.integrations = []
         self.mode = mode
 
-    def add_source(self, name, topic, source):
+    def add_source(self, name, stream, source):
         if source['kind'] is None:
             raise TypeError('A Camel source needs a kind.')
         if source['kind'] not in ['http-source']:
@@ -37,7 +37,7 @@ class Camel:
         period = source.get('period', 1000)
 
         async def f(data):
-            topic.ingest.remote(await data.body())
+            stream.append.remote(await data.body())
 
         self.client.create_backend(name,
                                    f,
@@ -72,7 +72,7 @@ class Camel:
         else:
             self.integrations.append(integration)
 
-    def add_sink(self, name, topic, sink):
+    def add_sink(self, name, stream, sink):
         if sink['kind'] is None:
             raise TypeError('A Camel sink needs a kind.')
         if sink['kind'] not in ['slack-sink']:
@@ -90,7 +90,7 @@ class Camel:
 
         url = f'{integration.url}/{name}'
         helper = Helper.remote(url)
-        topic.send_to.remote(helper, name)
+        stream.send_to.remote(helper, name)
         if self.integrations is None:
             integration.cancel()
         else:
@@ -108,7 +108,7 @@ class Helper:
     def __init__(self, url):
         self.url = url
 
-    def ingest(self, data):
+    def append(self, data):
         if data is not None:
             requests.post(self.url, data)
 

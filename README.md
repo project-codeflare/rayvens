@@ -16,7 +16,7 @@ source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_topic('http', source=source_config)
+source = client.create_stream('http', source=source_config)
 ```
 
 Publish messages to Slack with code:
@@ -24,7 +24,7 @@ Publish messages to Slack with code:
 sink_config = dict(kind='slack-sink',
                    channel='#rayvens',
                    webhookUrl=os.getenv('RAYVENS_WEBHOOK'))
-sink = client.create_topic('slack', sink=sink_config)
+sink = client.create_stream('slack', sink=sink_config)
 ```
 
 Connect the two together with code:
@@ -85,23 +85,23 @@ import rayvens
 ray.init()
 client = rayvens.Client()
 
-topic = client.create_topic('example')
+stream = client.create_stream('example')
 
-topic >> print
+stream >> print
 
-topic << 'hello' << 'world'
+stream << 'hello' << 'world'
 ```
 
-This program initialize Ray and Rayvens and creates a `Topic`. Topics and events
-are the core facilities offered by Rayvens. Topics bridge event publishers and
-subscribers. Topic are currently implemented as Ray actors.
+This program initialize Ray and Rayvens and creates a `Stream`. Streams and events
+are the core facilities offered by Rayvens. Streams bridge event publishers and
+subscribers. Stream are currently implemented as Ray actors.
 
-In this example, a subscriber is added to `topic` with the statement `topic >>
+In this example, a subscriber is added to `stream` with the statement `stream >>
 print`. This subscriber simply invokes the Python `print` method on every event
 it receives. In general, subscribers can be Python callables, Ray tasks, or Ray
 actors.
 
-A couple of events are then published to `topic` using the syntax `topic <<
+A couple of events are then published to `stream` using the syntax `stream <<
 value`. As illustrate here, events are just arbitrary values in general, but of
 course publishers and subscribers can agree on specific event schemas. The `<<`
 operator has left-to-right associativity making it possible to send multiple
@@ -213,13 +213,13 @@ docker rm registry
 The [source.py](examples/source.py) example demonstrates how to process external
 events with Rayvens.
 
-First, we create a topic connected to an external event source:
+First, we create a stream connected to an external event source:
 ```python
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_topic('http', source=source_config)
+source = client.create_stream('http', source=source_config)
 ```
 An event source configuration is a dictionary. The `kind` key specifies the
 source type. Other keys vary. An `http-source` periodically makes a REST call to
@@ -236,7 +236,7 @@ class Comparator:
     def __init__(self):
         self.last_quote = None
 
-    def ingest(self, event):
+    def append(self, event):
         payload = json.loads(event)  # parse event string to json
         quote = payload[0]['price']  # payload[0] is AAPL
         try:
@@ -256,7 +256,7 @@ comparator = Comparator.remote()
 This actor instance compares the current price with the last price and prints a
 message accordingly.
 
-We then simply subscribe the `comparator` actor instance to the `source` topic.
+We then simply subscribe the `comparator` actor instance to the `source` stream.
 ```python
 source >> comparator
 ```
@@ -265,7 +265,7 @@ By using a Ray actor to process events, we can implement stateful processing and
 guarantee that events will be processed in order.
 
 The `Comparator` class follows the convention that it accepts events by means of
-a method named `ingest`. If for instance this method were to be named `accept`
+a method named `append`. If for instance this method were to be named `accept`
 instead, then we would have to subscribe the actor to the source using syntax
 `source >> comparator.accept`.
 
@@ -302,7 +302,7 @@ In addition to the same source as before, it instantiates a sink:
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
                    webhookUrl=slack_webhook)
-sink = client.create_topic('slack', sink=sink_config)
+sink = client.create_stream('slack', sink=sink_config)
 ```
 This sink sends messages to Slack. It requires two configuration parameters that
 must be provided as command-line parameters to the program:
@@ -322,7 +322,7 @@ class Comparator:
     def __init__(self):
         self.last_quote = None
 
-    def ingest(self, event):
+    def append(self, event):
         payload = json.loads(event)  # parse event string to json
         quote = payload[0]['price']  # payload[0] is AAPL
         try:
@@ -347,9 +347,9 @@ source >> comparator >> sink
 ```
 
 The `source >> comparator` expression implicitly produces a new stream of events
-derived from the source stream by invoking the ingest method of the comparator
+derived from the source stream by invoking the append method of the comparator
 instance onto each source event. This stream consists of the values returned by the
-ingest method excluding the None values. In other words, the complete line of
+append method excluding the None values. In other words, the complete line of
 code is a shorthand for:
 ```
 implicit_stream = source >> comparator

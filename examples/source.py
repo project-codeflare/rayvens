@@ -20,7 +20,7 @@ source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_topic('http', source=source_config)
+source = client.create_stream('http', source=source_config)
 
 # log incoming events
 source >> (lambda event: print('LOG:', event))
@@ -32,7 +32,7 @@ class Comparator:
     def __init__(self):
         self.last_quote = None
 
-    def ingest(self, event):
+    def append(self, event):
         payload = json.loads(event)  # parse event string to json
         quote = payload[0]['price']  # payload[0] is AAPL
         try:

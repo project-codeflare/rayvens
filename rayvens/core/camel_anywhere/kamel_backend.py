@@ -40,7 +40,7 @@ class KamelEventHandler:
 
         if self.topic is None:
             return {"message": "Failure"}
-        self.topic.ingest.remote(body)
+        self.topic.append.remote(body)
         return {"message": "Success"}
 
 

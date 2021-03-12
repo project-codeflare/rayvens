@@ -8,7 +8,7 @@ except ConnectionError:
 
 client = rayvens.Client()
 
-topic = client.create_topic('example')
+stream = client.create_stream('example')
 
 
 def handler1(event):
@@ -19,8 +19,8 @@ def handler2(event):
     print('handler2 received', event)
 
 
-topic >> handler1
-topic >> handler2
+stream >> handler1
+stream >> handler2
 
 for i in range(10):
-    topic << f'event {i}'
+    stream << f'event {i}'

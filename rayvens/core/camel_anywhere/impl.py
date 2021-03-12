@@ -169,7 +169,7 @@ class EndpointHelper:
         self.endpoint_name = endpoint_name
         self.endpoint_handle = endpoint_handle
 
-    def ingest(self, data):
+    def append(self, data):
         if data is not None:
             answer = self.backend.postToProxyEndpointHandle(
                 self.endpoint_handle, self.endpoint_name, data)

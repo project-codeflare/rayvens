@@ -27,7 +27,7 @@ sink_config = dict(kind='slack-sink',
                    route='/toslack',
                    channel=slack_channel,
                    webhookUrl=slack_webhook)
-sink = client.create_topic('slack', sink=sink_config)
+sink = client.create_stream('slack', sink=sink_config)
 
 # Connect source to comparator to sink.
 # sink >> print

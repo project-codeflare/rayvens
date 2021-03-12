@@ -14,7 +14,7 @@ source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_topic('http', source=source_config)
+source = client.create_stream('http', source=source_config)
 
 
 @ray.remote
@@ -23,7 +23,7 @@ class Counter:
         self.count = 0
         self.ready = asyncio.Event()
 
-    def ingest(self, event):
+    def append(self, event):
         print('AAPL is', json.loads(event)[0]['price'])
         self.count += 1
         if self.count > 5:
