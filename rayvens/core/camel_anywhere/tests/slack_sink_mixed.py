@@ -1,10 +1,10 @@
 import ray
 from ray import serve
 
-from misc.events import kamel
-from misc.events.execution import mode, RayKamelExecLocation
-from misc.events import kubernetes
-from misc.examples import slack_sink_common
+from rayvens.core.camel_anywhere import kamel
+from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
+from rayvens.core.camel_anywhere import kubernetes
+from rayvens.core.camel_anywhere.tests import slack_sink_common
 
 ray.init(num_cpus=4)
 client = serve.start()
@@ -34,14 +34,14 @@ mode.location = RayKamelExecLocation.MIXED
 #       kubernetes.getNumActivePods())
 # print("Name of install pod is", kubernetes.getPodName(installInvocation))
 
-integrationFiles = ["kamel/slack.yaml"]
-
 # List of environment variables to be used from current environment.
 envVars = ["SLACK_WEBHOOK"]
+integrationFiles = ["kamel/slack.yaml"]
+integration_name = "my-simple-integration"
 
 # Note: careful with the names, for pod names, the integration name will be
 # modified by kamel to replace underscores with dashes.
-runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
+runInvocation = kamel.run(integrationFiles, mode, integration_name, envVars)
 
 #
 # Create service through which we can communicate with the kamel sink.
@@ -50,7 +50,7 @@ runInvocation = kamel.run(integrationFiles, "my-simple-integration", envVars)
 # outside the cluster.
 #
 serviceName = "kind-external-connector"
-kubernetes.createExternalServiceForKamel(serviceName, "my-simple-integration")
+kubernetes.createExternalServiceForKamel(serviceName, integration_name)
 
 print("Length of active pod list after kamel run: ",
       kubernetes.getNumActivePods())
@@ -59,8 +59,8 @@ print("Name of integration pod is", kubernetes.getPodName(runInvocation))
 #
 # Start doing some work
 #
-
-slack_sink_common.sendMessageToSlackSink(client, message, route)
+slack_sink_common.sendMessageToSlackSink(client, message, route,
+                                         integration_name)
 
 #
 # Stop kubectl service for externalizing the sink listener.

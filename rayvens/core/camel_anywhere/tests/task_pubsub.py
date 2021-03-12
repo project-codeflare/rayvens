@@ -1,28 +1,29 @@
-from misc.events import topics
+from rayvens.core.camel_anywhere import topics
 import ray
 ray.init()
 
 # Import events.
 
 
+@ray.remote
 def subscribeEnglishWithName(name="default"):
     print("Hello", name, "!")
 
 
+@ray.remote
 def subscribeFrenchWithName(name="default"):
     print("Bonjour", name, "!")
 
 
+@ray.remote
 def subscribeRomanianWithName(name="default"):
     print("Buna", name, "!")
 
 
-print("Start greetings!")
-
 # Create a topic as an actor.
 newTopicHandle = topics.EventTopic.remote("newTopic")
 
-# Add subscribers.
+# Add another subscriber this time with an argument.
 newTopicHandle.subscribe.remote(subscribeEnglishWithName)
 newTopicHandle.subscribe.remote(subscribeFrenchWithName)
 newTopicHandle.subscribe.remote(subscribeRomanianWithName)
@@ -31,8 +32,8 @@ newTopicHandle.subscribe.remote(subscribeRomanianWithName)
 newTopicHandle.describe.remote()
 
 # Publish with no arguments.
-newTopicHandle.publish.remote()
+newTopicHandle.publishToRemote.remote()
 
 # Publish with argument.
 for i in range(10):
-    newTopicHandle.publish.remote("Doru %s" % i)
+    newTopicHandle.publishToRemote.remote("Doru %s" % i)

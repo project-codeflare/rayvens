@@ -9,7 +9,6 @@ RUN sudo apt-get update -qq \
 
 COPY setup.py rayvens/
 COPY rayvens rayvens/rayvens/
-COPY misc/ rayvens/misc/
 
 RUN sudo chown -R ray:users rayvens
 

@@ -1,7 +1,8 @@
-from ray import serve
 import ray
-from misc.events import kamel
-from misc.examples import slack_sink_common
+from ray import serve
+from rayvens.core.camel_anywhere import kamel
+from rayvens.core.camel_anywhere.tests import slack_sink_common
+import time
 
 ray.init(num_cpus=4)
 
@@ -19,9 +20,12 @@ message = "This local Slack sink has been created by Ray."
 # First we need to construct the kamel process which is going launch the
 # actual kamel sink.
 # Input is a list of tokens comprising the command.
+integration_name = "my-simple-integration"
 kamelInvocation = kamel.localRun(["kamel/slack.yaml"])
 
-slack_sink_common.sendMessageToSlackSink(client, message, route)
+slack_sink_common.sendMessageToSlackSink(client, message, route,
+                                         integration_name)
+time.sleep(10)
 
 # Kill all subprocesses associated with the kamel integration.
 kamelInvocation.kill.remote()

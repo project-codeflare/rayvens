@@ -17,3 +17,4 @@ script:
   - ./scripts/start-kind.sh
   - ray submit ./scripts/cluster.yaml ./examples/travis/topic.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/source.py
+  - ray submit ./scripts/cluster.yaml ./examples/travis/source_operator.py

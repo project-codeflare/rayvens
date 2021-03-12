@@ -1,8 +1,7 @@
 [flake8]
 exclude = 
-  misc/examples/kubernetes/
-  misc/examples/ray/
-  misc/examples/kamel/
+  rayvens/core/camel/tests/kubernetes/
+  rayvens/core/camel/tests/kamel/
   .eggs/
 max-line-length = 79
 inline-quotes = "

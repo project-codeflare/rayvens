@@ -13,6 +13,9 @@ quarkusListenerPort = "8080"
 # TODO: randomize this port as part of the supported list of ports.
 internalClusterPort = "80"
 
+# Cluster source port.
+internalClusterPort = "8000"
+
 # Check if the executable exists in PATH. This method should work
 # in Windows, Linux and MacOS. Python >= 3.3 required.
 
@@ -43,3 +46,13 @@ def printLogFromSubProcess(subprocessName, process):
 
 def printLog(subprocessName, message):
     print(subprocessTag(subprocessName), message)
+
+
+def get_server_pod_name():
+    with open('/etc/podinfo/labels', 'r') as f:
+        for line in f:
+            k, v = line.partition('=')[::2]
+            if k == 'component':
+                return f'{v[1:-2]}'
+
+    raise RuntimeError("Cannot find server pod name")

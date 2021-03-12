@@ -1,6 +1,7 @@
-from misc.events import kamel_utils
-from misc.events import kubernetes
-from misc.events.execution import mode
+import ray
+from rayvens.core.camel_anywhere import kamel_utils
+from rayvens.core.camel_anywhere import kubernetes
+from rayvens.core.camel_anywhere.mode import mode
 import os
 
 # Method to install kamel in a cluster.
@@ -10,6 +11,7 @@ import os
 
 def install(kamelImage,
             publishRegistry,
+            mode=mode,
             localCluster=False,
             usingKind=False,
             insecureRegistry=False):
@@ -49,7 +51,7 @@ def install(kamelImage,
     # Force installation.
     command.append("--force")
 
-    return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
+    return kamel_utils.invokeReturningCmd(command, mode, "camel-k-operator")
 
 
 # Invoke kamel uninstall.
@@ -62,18 +64,24 @@ def uninstall(installInvocation):
     command.append("-n")
     command.append(mode.getNamespace())
 
-    return kamel_utils.invokeReturningCmd(command, "camel-k-operator")
+    return kamel_utils.invokeReturningCmd(
+        command, ray.get(installInvocation.getMode.remote()),
+        "camel-k-operator")
 
 
 # Kamel run invocation.
 
 
-def run(integrationFiles, integrationName, envVars):
+def run(integration_files,
+        mode,
+        integration_name,
+        envVars=[],
+        integration_as_files=True):
     command = ["run"]
 
     # Integration name.
     command.append("--name")
-    command.append(integrationName)
+    command.append(integration_name)
 
     # Namespace
     command.append("-n")
@@ -86,8 +94,16 @@ def run(integrationFiles, integrationName, envVars):
         command.append("--env")
         command.append("%s=%s" % (envVar, os.getenv('SLACK_WEBHOOK')))
 
-    command.append(" ".join(integrationFiles))
-    return kamel_utils.invokeReturningCmd(command, integrationName)
+    # If files were provided then incorporate them inside the command.
+    # Otherwise send the integration file content list to the invocation actor.
+    integration_content = []
+    if integration_as_files:
+        command.append(" ".join(integration_files))
+    else:
+        integration_content = integration_files
+
+    return kamel_utils.invokeReturningCmd(command, mode, integration_name,
+                                          integration_content)
 
 
 # Kamel delete invocation.
@@ -103,11 +119,13 @@ def delete(runningIntegrationInvocation):
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(ray.get(runningIntegrationInvocation.getNamespace.remote()))
 
     command.append(integrationName)
 
-    return kamel_utils.invokeReturningCmd(command, integrationName)
+    return kamel_utils.invokeReturningCmd(
+        command, ray.get(runningIntegrationInvocation.getMode.remote()),
+        integrationName)
 
 
 # Invoke kamel local run on a given list of integration files.
@@ -117,4 +135,4 @@ def delete(runningIntegrationInvocation):
 
 def localRun(integrationFiles):
     command = ["local", "run", " ".join(integrationFiles)]
-    return kamel_utils.invokeLocalOngoingCmd(command)
+    return kamel_utils.invokeLocalOngoingCmd(command, mode)

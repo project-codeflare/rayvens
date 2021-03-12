@@ -1,7 +1,7 @@
 import ray
 from enum import Enum
-from misc.events import invocation
-from misc.events import kubernetes
+from rayvens.core.camel_anywhere import invocation
+from rayvens.core.camel_anywhere import kubernetes
 
 
 class KamelCommand(Enum):
@@ -101,9 +101,9 @@ def isUinstallCommand(subcommandType):
 # Helper for ongoing local commands like kamel local run.
 
 
-def invokeLocalOngoingCmd(command):
+def invokeLocalOngoingCmd(command, mode):
     # Invoke command using the Kamel invocation actor.
-    kamelInvocation = invocation.KamelInvocationActor.remote(command)
+    kamelInvocation = invocation.KamelInvocationActor.remote(command, mode)
 
     # Wait for kamel command to finish launching the integration.
     kamelIsReady = ray.get(kamelInvocation.isLocalOngoingKamelReady.remote())
@@ -131,9 +131,12 @@ def invokeOngoingCmd(command):
 # Helper for returning kamel commands such as kamel install.
 
 
-def invokeReturningCmd(command, integrationName):
+def invokeReturningCmd(command,
+                       mode,
+                       integration_name,
+                       integration_content=[]):
     kamelInvocation = invocation.KamelInvocationActor.remote(
-        command, integrationName)
+        command, mode, integration_name, integration_content)
 
     # Wait for the kamel command to be invoked and retrieve status.
     success = ray.get(kamelInvocation.isReturningKamelReady.remote())
@@ -147,20 +150,21 @@ def invokeReturningCmd(command, integrationName):
     subcommandType = ray.get(kamelInvocation.getSubcommandType.remote())
     if createsKubectlService(subcommandType):
         # When pod is in running state add it to the list of existing pods.
-        podIsRunning, podName = kubernetes.getPodRunningStatus(integrationName)
+        podIsRunning, podName = kubernetes.getPodRunningStatus(
+            integration_name)
         if podIsRunning:
             print("Pod is running correctly. The full name of the pod is:",
                   podName)
-            kubernetes.addActivePod(kamelInvocation, integrationName, podName)
+            kubernetes.addActivePod(kamelInvocation, integration_name, podName)
         else:
             print("Pod did not run correctly.")
 
     if deletesKubectlService(subcommandType):
         kubernetes.deleteActivePod(
-            kubernetes.getInvocationFromIntegrationName(integrationName))
+            kubernetes.getInvocationFromIntegrationName(integration_name))
 
     if isUinstallCommand(subcommandType):
         kubernetes.deleteActivePod(
-            kubernetes.getInvocationFromIntegrationName(integrationName))
+            kubernetes.getInvocationFromIntegrationName(integration_name))
 
     return kamelInvocation

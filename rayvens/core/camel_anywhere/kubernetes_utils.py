@@ -1,6 +1,6 @@
 import ray
 from enum import Enum
-from misc.events import invocation
+from rayvens.core.camel_anywhere import invocation
 
 
 class KubectlCommand(Enum):

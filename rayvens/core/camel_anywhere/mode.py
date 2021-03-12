@@ -1,15 +1,13 @@
-from misc.events import utils
 from enum import Enum
+from rayvens.core.utils import utils
 
-# Enum for capturing the location of the Kamel execution.
 
-
-class KamelExecMode(Enum):
+class CamelOperatorMode(Enum):
     # The Kamel operator can only be run on the Ray head node.
-    OPERATOR_HEAD_NODE = 1
+    HEAD_NODE = 1
 
     # Kamel operator can run anywhere in the cluster.
-    OPERATOR_ANYWHERE = 2
+    ANY_NODE = 2
 
     # No Kamel operator needed just kamel running local command in a container.
     CONTAINERIZED = 3
@@ -29,14 +27,10 @@ class RayKamelExecLocation(Enum):
 class Execution:
     def __init__(self,
                  location=RayKamelExecLocation.LOCAL,
-                 kamelExecMode=KamelExecMode.OPERATOR_ANYWHERE):
+                 kamelExecMode=CamelOperatorMode.ANY_NODE):
         self.location = location
         self.kamelExecMode = kamelExecMode
-        self.integrationName = ""
         self.namespace = "ray"
-
-    def setIntegrstionName(self, integrationName):
-        self.integrationName = integrationName
 
     def setNamespace(self, namespace):
         self.namespace = namespace
@@ -44,17 +38,20 @@ class Execution:
     def getNamespace(self):
         return self.namespace
 
-    def getQuarkusHTTPServer(self):
+    def getQuarkusHTTPServer(self, integration_name, source=False):
         if self.location == RayKamelExecLocation.LOCAL:
             return "http://0.0.0.0:8080"
         if self.location == RayKamelExecLocation.MIXED:
             return "http://localhost:%s" % utils.externalizedClusterPort
         if self.location == RayKamelExecLocation.CLUSTER:
-            if self.integrationName == "":
+            if integration_name == "":
                 raise RuntimeError("integration name is not set")
+            if source:
+                return "http://%s.%s.svc.cluster.local:%s" % (
+                    integration_name, self.namespace,
+                    utils.internalClusterPort)
             return "http://%s.%s.svc.cluster.local:%s" % (
-                self.integrationName, self.namespace,
-                utils.internalClusterPort)
+                integration_name, self.namespace, utils.internalClusterPort)
         raise RuntimeError("unreachable")
 
     def isLocal(self):
