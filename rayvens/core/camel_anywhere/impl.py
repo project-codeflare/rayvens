@@ -31,13 +31,10 @@ def start(prefix, camel_mode):
 @ray.remote(num_cpus=0)
 class CamelAnyNode:
     def __init__(self, prefix, camel_mode, mode):
-        if camel_mode in ["local", "mixed"]:
-            self.client = serve.start()
-        else:
-            self.client = serve.start(http_options={
-                'host': '0.0.0.0',
-                'location': 'EveryNode'
-            })
+        self.client = serve.start(http_options={
+            'host': '0.0.0.0',
+            'location': 'EveryNode'
+        })
         self.prefix = prefix
         self.camel_mode = mode
         self.mode = mode

@@ -1,12 +1,9 @@
 import ray
-from rayvens.core.utils import utils
 import requests
 
 # Default value for Quarkus HTTP server.
 # TODO: multiple sinks will require multiple ports.
 quarkusHTTPServerLocal = "http://0.0.0.0:8080"
-quarkusHTTPServerLocalCluster = "http://localhost:%s" % \
-    utils.externalizedClusterPort
 
 # Can we create a Ray backend which has an external endpoint that has a handle
 # in Ray?
