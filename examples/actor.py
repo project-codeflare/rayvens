@@ -28,7 +28,7 @@ class Accumulator:
         self.name = name
         self.value = 0
 
-    def add(self, delta):
+    def append(self, delta):
         self.value += delta
         print(self.name, '=', self.value)
 
@@ -38,8 +38,8 @@ acc1 = Accumulator.remote('actor1')
 acc2 = Accumulator.remote('actor2')
 
 # subscribe actors to stream
-stream >> acc1.add
-stream >> acc2.add
+stream >> acc1.append
+stream >> acc2  # .append is implicit if no method name is provided
 
 # publish a few events
 for i in range(10):
