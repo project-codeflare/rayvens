@@ -2,7 +2,8 @@
   <img src="rayvens.png" />
 </p>
 
-[![Build Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/solsa/rayvens)
+[![Build
+Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/solsa/rayvens)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
@@ -10,7 +11,7 @@ applications can produce events, subscribe to event streams, and process events.
 Rayvens leverages [Apache Camel](https://camel.apache.org) to make it possible
 for data scientists to access hundreds data services with little effort.
 
-For example, one can periodically fetch data from a REST API with code:
+For example, we can periodically fetch data from a REST API with code:
 ```python
 source_config = dict(
     kind='http-source',
@@ -19,7 +20,7 @@ source_config = dict(
 source = client.create_stream('http', source=source_config)
 ```
 
-Publish messages to Slack with code:
+We can publish messages to Slack with code:
 ```python
 sink_config = dict(kind='slack-sink',
                    channel='#rayvens',
@@ -27,15 +28,18 @@ sink_config = dict(kind='slack-sink',
 sink = client.create_stream('slack', sink=sink_config)
 ```
 
-Connect the two together with code:
+We can pipe this source to this sink using code:
 ```python
 source >> sink
 ```
+This code delivers all events from the source to the sink in order.
 
-Or do some event processing with code:
+We can process these events using code:
 ```python
-source >> operator >> sink
+source >> processor >> sink
 ```
+This processor may be a simple Python function, a Ray task, or a Ray actor
+making possible to implement stateful processors.
 
 ## Setup Rayvens
 
@@ -87,25 +91,43 @@ client = rayvens.Client()
 
 stream = client.create_stream('example')
 
+# deliver all events to print
 stream >> print
 
+# append two events to the stream
 stream << 'hello' << 'world'
 ```
 
-This program initialize Ray and Rayvens and creates a `Stream`. Streams and events
-are the core facilities offered by Rayvens. Streams bridge event publishers and
-subscribers. Stream are currently implemented as Ray actors.
+This program initialize Ray and Rayvens and creates a `Stream`. Streams and
+events are the core facilities offered by Rayvens. Streams bridge event
+publishers and subscribers. Streams are implemented as Ray actors. All rules
+applicable to Ray actors (lifecycle, serialization, ordering) apply to streams.
+Streams can interface publishers and subscribers running on different Ray nodes.
 
-In this example, a subscriber is added to `stream` with the statement `stream >>
-print`. This subscriber simply invokes the Python `print` method on every event
-it receives. In general, subscribers can be Python callables, Ray tasks, or Ray
-actors.
+In this example, a subscriber is added to the stream using syntax `stream >>
+subscriber`. As a result, the Python `print` method is invoked on every event in
+the stream. In general, subscribers can be Python callables, Ray tasks, or Ray
+actors, as illustrated below. Multiple subscribers may be attached to the same
+stream. The `<<` operator is a shorthand for the `send_to` method:
+```python
+stream.send_to.remote(print)
+```
 
-A couple of events are then published to `stream` using the syntax `stream <<
+A couple of events are then published to the stream using the syntax `stream <<
 value`. As illustrate here, events are just arbitrary values in general, but of
 course publishers and subscribers can agree on specific event schemas. The `<<`
 operator has left-to-right associativity making it possible to send multiple
-events with one statement.
+events with one statement. The `>>` operator is a shorthand for the `append`
+method:
+```python
+stream.append.remote('hello')
+stream.append.remote('world')
+```
+
+The `<<` and `>>` operator are not symmetrical. The `send_to` method (resp. `<<`
+operator) invokes its argument (resp. right-hand side) for every event appended
+to the stream. The `append` method and `>>` operator only append one event to
+the stream.
 
 Run this program with:
 ```shell
@@ -184,7 +206,8 @@ ray submit rayvens/scripts/cluster.yaml rayvens/examples/pubsub.py
 
 ### Cluster.yaml
 
-Our example [cluster.yaml](scripts/cluster.yaml) configuration file is derived from Ray's
+Our example [cluster.yaml](scripts/cluster.yaml) configuration file is derived
+from Ray's
 [example-full.yaml](https://github.com/ray-project/ray/blob/master/python/ray/autoscaler/kubernetes/example-full.yaml)
 configuration file with some notable enhancements:
 - additional configuration parameters for the head and worker pods (RBAC rules
@@ -348,9 +371,9 @@ source >> comparator >> sink
 
 The `source >> comparator` expression implicitly produces a new stream of events
 derived from the source stream by invoking the append method of the comparator
-instance onto each source event. This stream consists of the values returned by the
-append method excluding the None values. In other words, the complete line of
-code is a shorthand for:
+instance onto each source event. This stream consists of the values returned by
+the append method excluding the None values. In other words, the complete line
+of code is a shorthand for:
 ```
 implicit_stream = source >> comparator
 implicit_stream >> sink
