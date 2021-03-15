@@ -2,6 +2,7 @@ import ray
 from ray import serve
 from rayvens.core.camel_anywhere import kamel
 from rayvens.core.camel_anywhere.tests import slack_sink_common
+from rayvens.core.camel_anywhere.mode import mode
 import time
 
 ray.init(num_cpus=4)
@@ -21,7 +22,7 @@ message = "This local Slack sink has been created by Ray."
 # actual kamel sink.
 # Input is a list of tokens comprising the command.
 integration_name = "my-simple-integration"
-kamelInvocation = kamel.localRun(["kamel/slack.yaml"])
+kamelInvocation = kamel.run(["kamel/slack.yaml"], mode, integration_name)
 
 slack_sink_common.sendMessageToSlackSink(client, message, route,
                                          integration_name)

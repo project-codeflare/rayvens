@@ -47,14 +47,19 @@ class KamelEventHandler:
 class KamelBackend:
     backendName = "kamel_backend"
 
-    def __init__(self, client, mode, topic=None, ray_actor_options={}):
-        # Create it as a normal backend.
+    def __init__(self, client, mode, topic=None):
+        # When the backend runs on a local machine we must allocate its
+        # actor at least 1 CPU.
+        actor_options = {'num_cpus': 0}
+        print("Use 1 CPU:", mode.isLocal() or mode.isMixed())
+        if mode.isLocal() or mode.isMixed():
+            actor_options = {'num_cpus': 1}
         client.create_backend(self.backendName,
                               KamelEventHandler,
                               mode,
                               topic,
                               config={'num_replicas': 1},
-                              ray_actor_options=ray_actor_options)
+                              ray_actor_options=actor_options)
         self.endpoint_to_event = {}
 
     def createProxyEndpoint(self, client, endpoint_name, route,

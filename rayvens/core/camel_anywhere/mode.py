@@ -49,7 +49,7 @@ class Execution:
             if source:
                 return "http://%s.%s.svc.cluster.local:%s" % (
                     integration_name, self.namespace,
-                    utils.internalClusterPort)
+                    utils.internalClusterPortForSource)
             return "http://%s.%s.svc.cluster.local:%s" % (
                 integration_name, self.namespace, utils.internalClusterPort)
         raise RuntimeError("unreachable")

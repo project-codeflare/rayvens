@@ -14,7 +14,7 @@ quarkusListenerPort = "8080"
 internalClusterPort = "80"
 
 # Cluster source port.
-internalClusterPort = "8000"
+internalClusterPortForSource = "8000"
 
 # Check if the executable exists in PATH. This method should work
 # in Windows, Linux and MacOS. Python >= 3.3 required.

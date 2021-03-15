@@ -75,24 +75,37 @@ def uninstall(installInvocation):
 def run(integration_files,
         mode,
         integration_name,
+        local=None,
         envVars=[],
         integration_as_files=True):
-    command = ["run"]
+    # Use the mode to determine if this is a local run or a run.
+    isLocal = mode.isLocal()
 
-    # Integration name.
-    command.append("--name")
-    command.append(integration_name)
+    # If the local argument is other than None use it to overwrite the
+    # mode.
+    if local is not None:
+        isLocal = local
 
-    # Namespace
-    command.append("-n")
-    command.append(mode.getNamespace())
+    # Invoke either kamel local run or kamel run.
+    if not isLocal:
+        command = ["run"]
 
-    for envVar in envVars:
-        if envVar not in os.environ:
-            raise RuntimeError("Variable %s not set in current environment" %
-                               envVar)
-        command.append("--env")
-        command.append("%s=%s" % (envVar, os.getenv('SLACK_WEBHOOK')))
+        # Integration name.
+        command.append("--name")
+        command.append(integration_name)
+
+        # Namespace
+        command.append("-n")
+        command.append(mode.getNamespace())
+
+        for envVar in envVars:
+            if envVar not in os.environ:
+                raise RuntimeError(
+                    "Variable %s not set in current environment" % envVar)
+            command.append("--env")
+            command.append("%s=%s" % (envVar, os.getenv(envVar)))
+    else:
+        command = ["local", "run"]
 
     # If files were provided then incorporate them inside the command.
     # Otherwise send the integration file content list to the invocation actor.
@@ -101,6 +114,11 @@ def run(integration_files,
         command.append(" ".join(integration_files))
     else:
         integration_content = integration_files
+
+    # If this is a kame local run, the behavior of the command is slightly
+    # different and needs to be handled separately.
+    if isLocal:
+        return kamel_utils.invokeLocalOngoingCmd(command, mode)
 
     return kamel_utils.invokeReturningCmd(command, mode, integration_name,
                                           integration_content)
@@ -126,13 +144,3 @@ def delete(runningIntegrationInvocation):
     return kamel_utils.invokeReturningCmd(
         command, ray.get(runningIntegrationInvocation.getMode.remote()),
         integrationName)
-
-
-# Invoke kamel local run on a given list of integration files.
-# TODO: Explore merging topics and invocation actors. Listen on a topic and
-# attach an external source/sink to it.
-
-
-def localRun(integrationFiles):
-    command = ["local", "run", " ".join(integrationFiles)]
-    return kamel_utils.invokeLocalOngoingCmd(command, mode)

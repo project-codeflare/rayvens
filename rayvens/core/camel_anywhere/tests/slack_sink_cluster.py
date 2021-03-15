@@ -44,7 +44,10 @@ integration_name = "my-simple-integration"
 
 # Note: careful with the names, for pod names, the integration name will be
 # modified by kamel to replace underscores with dashes.
-runInvocation = kamel.run(integrationFiles, mode, integration_name, envVars)
+runInvocation = kamel.run(integrationFiles,
+                          mode,
+                          integration_name,
+                          envVars=envVars)
 
 #
 # Start doing some work.

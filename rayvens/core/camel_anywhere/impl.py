@@ -11,15 +11,15 @@ def start(prefix, camel_mode):
     camel = None
     if camel_mode == 'local':
         mode.location = RayKamelExecLocation.LOCAL
-        camel = CamelAnyNode.remote(prefix, camel_mode, mode)
+        camel = CamelAnyNode.remote(prefix, mode)
     elif camel_mode == 'mixed':
         mode.location = RayKamelExecLocation.MIXED
-        camel = CamelAnyNode.remote(prefix, camel_mode, mode)
+        camel = CamelAnyNode.remote(prefix, mode)
     elif camel_mode == 'operator':
         mode.location = RayKamelExecLocation.CLUSTER
         camel = CamelAnyNode.options(resources={
             'head': 1
-        }).remote(prefix, camel_mode, mode)
+        }).remote(prefix, mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
 
@@ -30,13 +30,12 @@ def start(prefix, camel_mode):
 
 @ray.remote(num_cpus=0)
 class CamelAnyNode:
-    def __init__(self, prefix, camel_mode, mode):
+    def __init__(self, prefix, mode):
         self.client = serve.start(http_options={
             'host': '0.0.0.0',
             'location': 'EveryNode'
         })
         self.prefix = prefix
-        self.camel_mode = mode
         self.mode = mode
         self.kamel_backend = None
         self.endpoint_id = -1
@@ -62,24 +61,18 @@ class CamelAnyNode:
         integration_name = self._get_integration_name(name)
 
         # Create backend for this topic.
-        backend_options = {}
-        if self.camel_mode.isCluster:
-            backend_options = {'num_cpus': 0}
-        source_backend = KamelBackend(self.client,
-                                      self.mode,
-                                      topic=topic,
-                                      ray_actor_options=backend_options)
+        source_backend = KamelBackend(self.client, self.mode, topic=topic)
 
         # Create endpoint.
         source_backend.createProxyEndpoint(self.client, endpoint_name, route,
                                            integration_name)
 
-        if self.camel_mode.isCluster():
+        if self.mode.isCluster():
             server_pod_name = utils.get_server_pod_name()
 
         # Endpoint address.
-        endpoint_address = self.camel_mode.getQuarkusHTTPServer(
-            server_pod_name, source=True)
+        endpoint_address = self.mode.getQuarkusHTTPServer(server_pod_name,
+                                                          source=True)
         integration_content = [{
             'from': {
                 'uri': f'timer:tick?period={period}',
@@ -116,11 +109,7 @@ class CamelAnyNode:
 
         # Create backend if one hasn't been created so far.
         if self.kamel_backend is None:
-            backend_options = {}
-            if self.camel_mode.isCluster:
-                backend_options = {'num_cpus': 0}
-            self.kamel_backend = KamelBackend(
-                self.client, self.mode, ray_actor_options=backend_options)
+            self.kamel_backend = KamelBackend(self.client, self.mode)
 
         # Write integration code to file.
         # TODO: for now only support 1 integration content.
