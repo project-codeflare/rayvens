@@ -55,7 +55,7 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 def _start(camel_mode):
-    if camel_mode in ['anywhere', 'operator1']:
+    if camel_mode in ['anywhere']:
         return start_mode_1
     elif camel_mode == 'auto':
         return start_mode_1  # TODO

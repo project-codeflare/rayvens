@@ -9,20 +9,22 @@ from confluent_kafka import Consumer
 import threading
 
 
-def start(_, mode):
-    if os.getenv('KUBE_POD_NAMESPACE') is not None and mode != 'local':
-        camel = Camel.options(resources={'head': 1}).remote('operator')
-    else:
-        camel = Camel.remote('local')
+def start(prefix, mode):
+    camel = Camel.remote()
     atexit.register(camel.exit.remote)
     return camel
 
 
+def brokers():
+    host = os.getenv('KAFKA_SERVICE_HOST', 'localhost')
+    port = os.getenv('KAFKA_SERVICE_PORT', '31093')
+    return f'{host}:{port}'
+
+
 @ray.remote(num_cpus=0)
 class Camel:
-    def __init__(self, mode):
+    def __init__(self):
         self.integrations = []
-        self.mode = mode
 
     def add_source(self, name, stream, source):
         if source['kind'] is None:
@@ -32,25 +34,20 @@ class Camel:
         url = source['url']
         period = source.get('period', 1000)
 
-        brokers = 'localhost:31093'
-        if os.getenv('KUBE_POD_NAMESPACE') is not None:
-            brokers = 'kafka:9092'
-
-        integration = Integration(name, self.mode, [{
+        integration = Integration(name, [{
             'from': {
                 'uri': f'timer:tick?period={period}',
                 'steps': [{
                     'to': url
                 }, {
-                    'to': f'kafka:{name}?brokers=${brokers}'
+                    'to': f'kafka:{name}?brokers=${brokers()}'
                 }]
             }
-        }], stream)
+        }])
 
-        if self.integrations is None:
-            integration.cancel()
-        else:
-            self.integrations.append(integration)
+        integration.send_to(stream)
+
+        self.integrations.append(integration)
 
     def add_sink(self, name, stream, sink):
         if sink['kind'] is None:
@@ -59,22 +56,19 @@ class Camel:
             raise TypeError('Unsupported Camel sink.')
         channel = sink['channel']
         webhookUrl = sink['webhookUrl']
-        integration = Integration(name, self.mode, [{
+
+        integration = Integration(name, [{
             'from': {
                 'uri': f'platform-http:/{name}',
                 'steps': [{
                     'to': f'slack:{channel}?webhookUrl={webhookUrl}',
                 }]
             }
-        }], None)
+        }])
 
-        url = f'{integration.url}/{name}'
-        helper = Helper.remote(url)
-        stream.send_to.remote(helper, name)
-        if self.integrations is None:
-            integration.cancel()
-        else:
-            self.integrations.append(integration)
+        integration.recv_from(stream)
+
+        self.integrations.append(integration)
 
     def exit(self):
         integrations = self.integrations
@@ -94,42 +88,39 @@ class Helper:
 
 
 class Integration:
-    def __init__(self, name, mode, integration, stream):
+    def __init__(self, name, integration):
         self.name = name
-        self.url = 'http://localhost:8080'
         filename = f'{name}.yaml'
         with open(filename, 'w') as f:
             yaml.dump(integration, f)
         command = ['kamel', 'local', 'run', filename]
-        if mode == 'operator':
-            namespace = os.getenv('KUBE_POD_NAMESPACE')
-            self.url = f'http://{self.name}.{namespace}.svc.cluster.local:80'
-            command = ['kamel', 'run', '--dev', filename]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
 
-        if stream is not None:
-            brokers = 'localhost:31093'
-            if os.getenv('KUBE_POD_NAMESPACE') is not None:
-                brokers = 'kafka:9092'
+    def send_to(self, stream):
+        # use kafka consumer to push events from camel source to rayvens stream
+        consumer = Consumer({
+            'bootstrap.servers': brokers(),
+            'group.id': 'ray',
+            'auto.offset.reset': 'latest'
+        })
 
-            c = Consumer({
-                'bootstrap.servers': brokers,
-                'group.id': 'ray',
-                'auto.offset.reset': 'latest'
-            })
+        consumer.subscribe([self.name])
 
-            c.subscribe([name])
+        def append():
+            while True:
+                msg = consumer.poll()
+                if msg.error():
+                    print(f'consumer error: ${msg.error()}')
+                else:
+                    stream.append.remote(msg.value().decode('utf-8'))
 
-            def recv():
-                while True:
-                    msg = c.poll()
-                    if msg.error():
-                        print(f'consumer error: ${msg.error()}')
-                    else:
-                        stream.append.remote(msg.value().decode('utf-8'))
+        threading.Thread(target=append).start()
 
-            threading.Thread(target=recv).start()
+    def recv_from(self, stream):
+        # use helper actor to push events from rayvens stream to camel sink
+        helper = Helper.remote(f'http://localhost:8080/{self.name}')
+        stream.send_to.remote(helper, self.name)
 
     def cancel(self):
         try:
