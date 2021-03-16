@@ -1,9 +1,13 @@
 import asyncio
 import json
+import os
 import ray
 import rayvens
 
-ray.init(address='auto')
+if os.getenv('RAYVENS_TEST_MODE') == 'local':
+    ray.init(object_store_memory=78643200)
+else:
+    ray.init(address='auto')
 
 client = rayvens.Client()
 
