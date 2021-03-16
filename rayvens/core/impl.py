@@ -5,7 +5,7 @@ import requests
 import signal
 import subprocess
 import yaml
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, Producer
 import threading
 
 
@@ -59,7 +59,7 @@ class Camel:
 
         integration = Integration(name, [{
             'from': {
-                'uri': f'platform-http:/{name}',
+                'uri': f'kafka:{name}?brokers=${brokers()}',
                 'steps': [{
                     'to': f'slack:{channel}?webhookUrl={webhookUrl}',
                 }]
@@ -78,13 +78,22 @@ class Camel:
 
 
 @ray.remote(num_cpus=0)
-class Helper:
-    def __init__(self, url):
-        self.url = url
+class ProducerActor:
+    def __init__(self, name):
+        self.producer = ProducerHelper(name)
 
     def append(self, data):
+        self.producer.produce(data)
+
+
+class ProducerHelper:
+    def __init__(self, name):
+        self.name = name
+        self.producer = Producer({'bootstrap.servers': brokers()})
+
+    def produce(self, data):
         if data is not None:
-            requests.post(self.url, data)
+            self.producer.produce(self.name, data.encode('utf-8'))
 
 
 class Integration:
@@ -98,7 +107,7 @@ class Integration:
         self.pid = process.pid
 
     def send_to(self, stream):
-        # use kafka consumer to push events from camel source to rayvens stream
+        # use kafka consumer thread to push from camel source to rayvens stream
         consumer = Consumer({
             'bootstrap.servers': brokers(),
             'group.id': 'ray',
@@ -118,8 +127,8 @@ class Integration:
         threading.Thread(target=append).start()
 
     def recv_from(self, stream):
-        # use helper actor to push events from rayvens stream to camel sink
-        helper = Helper.remote(f'http://localhost:8080/{self.name}')
+        # use kafka producer actor to push from rayvens stream to camel sink
+        helper = ProducerActor.remote(self.name)
         stream.send_to.remote(helper, self.name)
 
     def cancel(self):
