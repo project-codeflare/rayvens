@@ -11,12 +11,11 @@ quarkusHTTPServerLocal = "http://0.0.0.0:8080"
 # the external endpoint which is not managed by Ray.
 
 
-class ExternalEvent:
-    def __init__(self, route, integration_name, source=False):
+class SinkEvent:
+    def __init__(self, route, integration_name):
         self.route = route
         self.integration_name = integration_name
         self.data = None
-        self.source = source
 
     def get_data(self):
         if self.data is None:
@@ -32,7 +31,7 @@ class KamelEventHandler:
 
     async def __call__(self, request):
         body = await request.body()
-        if isinstance(body, ExternalEvent):
+        if isinstance(body, SinkEvent):
             endpoint = self.mode.getQuarkusHTTPServer(
                 body.integration_name) + body.route
             requests.post(endpoint, data=body.get_data())
@@ -64,7 +63,7 @@ class KamelBackend:
 
     def createProxyEndpoint(self, client, endpoint_name, route,
                             integration_name):
-        self.endpoint_to_event[endpoint_name] = ExternalEvent(
+        self.endpoint_to_event[endpoint_name] = SinkEvent(
             route, integration_name)
         print("Create: Length of endpoint_to_event list:",
               len(self.endpoint_to_event))

@@ -1,4 +1,5 @@
 import atexit
+import requests
 import ray
 from ray import serve
 from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
@@ -106,9 +107,12 @@ class CamelAnyNode:
         if 'webhookUrl' not in sink:
             raise TypeError('webhookUrl field not provided for sink.')
         webhookUrl = sink['webhookUrl']
+        use_backend = False
+        if 'use_backend' in sink and sink['use_backend'] is not None:
+            use_backend = sink['use_backend']
 
         # Create backend if one hasn't been created so far.
-        if self.kamel_backend is None:
+        if use_backend and self.kamel_backend is None:
             self.kamel_backend = KamelBackend(self.client, self.mode)
 
         # Write integration code to file.
@@ -130,14 +134,19 @@ class CamelAnyNode:
                                     integration_as_files=False)
         self.invocations.append(sink_invocation)
 
-        endpoint_name = self._get_endpoint_name(name)
-        self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
-                                               route, integration_name)
+        # Start running the integration.
+        if use_backend:
+            endpoint_name = self._get_endpoint_name(name)
+            self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
+                                                   route, integration_name)
 
-        helper = EndpointHelper.remote(self.kamel_backend,
-                                       self.client.get_handle(endpoint_name),
-                                       endpoint_name)
-        topic.send_to.remote(helper, name)
+            helper = HelperWithBackend.remote(
+                self.kamel_backend, self.client.get_handle(endpoint_name),
+                endpoint_name)
+            topic.send_to.remote(helper, name)
+        else:
+            helper = Helper.remote(
+                self.mode.getQuarkusHTTPServer(integration_name) + route)
 
     def exit(self):
         # TODO: delete endpoints.
@@ -162,7 +171,7 @@ class CamelAnyNode:
 
 
 @ray.remote(num_cpus=0)
-class EndpointHelper:
+class HelperWithBackend:
     def __init__(self, backend, endpoint_handle, endpoint_name):
         self.backend = backend
         self.endpoint_name = endpoint_name
@@ -173,3 +182,13 @@ class EndpointHelper:
             answer = self.backend.postToProxyEndpointHandle(
                 self.endpoint_handle, self.endpoint_name, data)
             print(answer)
+
+
+@ray.remote(num_cpus=0)
+class Helper:
+    def __init__(self, url):
+        self.url = url
+
+    def append(self, data):
+        if data is not None:
+            requests.post(self.url, data)
