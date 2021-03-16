@@ -14,12 +14,17 @@ kind delete cluster
 kind create cluster --config kind.yaml
 docker network connect kind registry
 
-echo "--- starting ray cluster"
-ray up cluster.yaml --no-config-cache --yes
+echo "--- installing kafka"
+kubectl create namespace ray
+kubectl apply -n ray -f kafka.yaml
 
 echo "--- installing kamel operator"
-kubectl create namespace ray
 kubectl create serviceaccount kamel -n ray
 kubectl create clusterrolebinding kamel --clusterrole=cluster-admin --serviceaccount=ray:kamel
 kubectl run --rm -i -t kamel --image=apache/camel-k:1.3.1 --restart=Never --serviceaccount=kamel -n ray -- \
     kamel install --registry-insecure --namespace ray --registry registry:5000
+kubectl delete clusterrolebinding kamel
+kubectl delete serviceaccount kamel -n ray
+
+echo "--- starting ray cluster"
+ray up cluster.yaml --no-config-cache --yes

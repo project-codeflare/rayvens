@@ -12,4 +12,5 @@ COPY rayvens rayvens/rayvens/
 
 RUN sudo chown -R ray:users rayvens
 
+RUN pip install confluent_kafka==1.6.0
 RUN pip install -e ./rayvens

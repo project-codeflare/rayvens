@@ -11,6 +11,7 @@ click==7.1.2
 cloudpickle==1.6.0
 colorama==0.4.4
 colorful==0.5.4
+confluent-kafka==1.6.0
 filelock==3.0.12
 flake8==3.8.4
 Flask==1.1.2

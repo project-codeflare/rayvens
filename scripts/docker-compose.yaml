@@ -1,0 +1,24 @@
+version: "3"
+services:
+  zookeeper:
+    image: zookeeper:3.5
+    hostname: zookeeper
+    container_name: zookeeper
+    restart: ${RESTART_POLICY:-no}
+  kafka:
+    image: wurstmeister/kafka:2.13-2.6.0
+    hostname: kafka
+    container_name: kafka
+    command: [start-kafka.sh]
+    ports:
+      - "31093:9093"
+    environment:
+      HOSTNAME_COMMAND: "hostname -f"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ONBUS:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: ONBUS://:9092,EXTERNAL://:9093
+      KAFKA_ADVERTISED_LISTENERS: ONBUS://_{HOSTNAME_COMMAND}:9092,EXTERNAL://localhost:31093
+      KAFKA_INTER_BROKER_LISTENER_NAME: ONBUS
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    depends_on:
+      - "zookeeper"

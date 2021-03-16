@@ -1,30 +1,26 @@
 import atexit
 import os
 import ray
-from ray import serve
 import requests
 import signal
 import subprocess
 import yaml
+from confluent_kafka import Consumer
+import threading
 
 
-def start(prefix, mode):
+def start(_, mode):
     if os.getenv('KUBE_POD_NAMESPACE') is not None and mode != 'local':
-        camel = Camel.options(resources={'head': 1}).remote(prefix, 'operator')
+        camel = Camel.options(resources={'head': 1}).remote('operator')
     else:
-        camel = Camel.remote(prefix, 'local')
+        camel = Camel.remote('local')
     atexit.register(camel.exit.remote)
     return camel
 
 
 @ray.remote(num_cpus=0)
 class Camel:
-    def __init__(self, prefix, mode):
-        self.client = serve.start(http_options={
-            'host': '0.0.0.0',
-            'location': 'EveryNode'
-        })
-        self.prefix = prefix
+    def __init__(self, mode):
         self.integrations = []
         self.mode = mode
 
@@ -36,37 +32,21 @@ class Camel:
         url = source['url']
         period = source.get('period', 1000)
 
-        async def f(data):
-            stream.append.remote(await data.body())
+        brokers = 'localhost:31093'
+        if os.getenv('KUBE_POD_NAMESPACE') is not None:
+            brokers = 'kafka:9092'
 
-        self.client.create_backend(name,
-                                   f,
-                                   config={'num_replicas': 1},
-                                   ray_actor_options={'num_cpus': 0})
-        self.client.create_endpoint(name,
-                                    backend=name,
-                                    route=f'{self.prefix}/{name}',
-                                    methods=['POST'])
-        endpoint = 'http://localhost:8000'
-        if self.mode == 'operator':
-            namespace = os.getenv('KUBE_POD_NAMESPACE')
-            with open('/etc/podinfo/labels', 'r') as f:
-                for line in f:
-                    k, v = line.partition('=')[::2]
-                    if k == 'component':
-                        endpoint = (f'http://{v[1:-2]}.{namespace}'
-                                    '.svc.cluster.local:8000')
-                        break
         integration = Integration(name, self.mode, [{
             'from': {
                 'uri': f'timer:tick?period={period}',
                 'steps': [{
                     'to': url
                 }, {
-                    'to': f'{endpoint}{self.prefix}/{name}'
+                    'to': f'kafka:{name}?brokers=${brokers}'
                 }]
             }
-        }])
+        }], stream)
+
         if self.integrations is None:
             integration.cancel()
         else:
@@ -86,7 +66,7 @@ class Camel:
                     'to': f'slack:{channel}?webhookUrl={webhookUrl}',
                 }]
             }
-        }])
+        }], None)
 
         url = f'{integration.url}/{name}'
         helper = Helper.remote(url)
@@ -114,7 +94,7 @@ class Helper:
 
 
 class Integration:
-    def __init__(self, name, mode, integration):
+    def __init__(self, name, mode, integration, stream):
         self.name = name
         self.url = 'http://localhost:8080'
         filename = f'{name}.yaml'
@@ -127,6 +107,29 @@ class Integration:
             command = ['kamel', 'run', '--dev', filename]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
+
+        if stream is not None:
+            brokers = 'localhost:31093'
+            if os.getenv('KUBE_POD_NAMESPACE') is not None:
+                brokers = 'kafka:9092'
+
+            c = Consumer({
+                'bootstrap.servers': brokers,
+                'group.id': 'ray',
+                'auto.offset.reset': 'latest'
+            })
+
+            c.subscribe([name])
+
+            def recv():
+                while True:
+                    msg = c.poll()
+                    if msg.error():
+                        print(f'consumer error: ${msg.error()}')
+                    else:
+                        stream.append.remote(msg.value().decode('utf-8'))
+
+            threading.Thread(target=recv).start()
 
     def cancel(self):
         try:

@@ -9,6 +9,9 @@ containerdConfigPatches:
 nodes:
   - role: control-plane
     extraPortMappings:
+      - containerPort: 31093
+        hostPort: 31093
+        protocol: TCP
       - containerPort: 31095
         hostPort: 31095
         protocol: TCP

@@ -1,7 +1,7 @@
 import ray
 import rayvens
 
-ray.init(address='auto')
+ray.init(object_store_memory=78643200)
 
 client = rayvens.Client()
 

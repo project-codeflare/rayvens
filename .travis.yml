@@ -12,9 +12,9 @@ install:
   - pip install .
 
 script:
-  - python ./examples/travis/stream.py
-  - python ./examples/travis/source.py
   - ./scripts/start-kind.sh
+  - python ./examples/travis/stream-local.py
+  - python ./examples/travis/source-local.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/stream.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/source.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/source_operator.py
