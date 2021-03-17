@@ -1,4 +1,3 @@
-import ray
 import subprocess
 import os
 import signal
@@ -13,8 +12,7 @@ from rayvens.core.camel_anywhere import kubernetes_utils
 #
 
 
-@ray.remote(num_cpus=0)
-class KamelInvocationActor:
+class KamelInvocation:
     subprocessName = "Kamel"
 
     def __init__(self,
@@ -48,7 +46,6 @@ class KamelInvocationActor:
 
         print("Exec command => ", execCommand)
         # Add to PATH for case when this command is invoked in a cluster.
-        print("KamelInvocationActor Cluster mode:", mode.isCluster())
         if mode.isCluster():
             os.environ['PATH'] = ":".join(
                 ["/home/ray/rayvens/rayvens/linux-x86_64",

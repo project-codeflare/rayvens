@@ -29,4 +29,4 @@ slack_sink_common.sendMessageToSlackSink(client, message, route,
 time.sleep(10)
 
 # Kill all subprocesses associated with the kamel integration.
-kamelInvocation.kill.remote()
+kamelInvocation.kill()

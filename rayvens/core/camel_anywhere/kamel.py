@@ -1,4 +1,3 @@
-import ray
 from rayvens.core.camel_anywhere import kamel_utils
 from rayvens.core.camel_anywhere.mode import mode
 import os
@@ -63,9 +62,8 @@ def uninstall(installInvocation):
     command.append("-n")
     command.append(mode.getNamespace())
 
-    return kamel_utils.invokeReturningCmd(
-        command, ray.get(installInvocation.getMode.remote()),
-        "camel-k-operator")
+    return kamel_utils.invokeReturningCmd(command, installInvocation.getMode(),
+                                          "camel-k-operator")
 
 
 # Kamel run invocation.
@@ -136,10 +134,9 @@ def delete(runningIntegrationInvocation, integration_name):
 
     # Namespace
     command.append("-n")
-    command.append(ray.get(runningIntegrationInvocation.getNamespace.remote()))
+    command.append(runningIntegrationInvocation.getNamespace())
 
     command.append(integration_name)
 
     return kamel_utils.invokeReturningCmd(
-        command, ray.get(runningIntegrationInvocation.getMode.remote()),
-        integration_name)
+        command, runningIntegrationInvocation.getMode(), integration_name)

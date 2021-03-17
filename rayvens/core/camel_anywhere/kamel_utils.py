@@ -1,4 +1,3 @@
-import ray
 from enum import Enum
 from rayvens.core.camel_anywhere import invocation
 from rayvens.core.camel_anywhere import kubernetes
@@ -99,10 +98,10 @@ def deletesKubectlService(subcommandType):
 
 def invokeLocalOngoingCmd(command, mode):
     # Invoke command using the Kamel invocation actor.
-    kamelInvocation = invocation.KamelInvocationActor.remote(command, mode)
+    kamelInvocation = invocation.KamelInvocation(command, mode)
 
     # Wait for kamel command to finish launching the integration.
-    kamelIsReady = ray.get(kamelInvocation.isLocalOngoingKamelReady.remote())
+    kamelIsReady = kamelInvocation.isLocalOngoingKamelReady()
 
     # Log progress.
     print("kamel ongoing command is ready:", kamelIsReady)
@@ -123,18 +122,19 @@ def invokeReturningCmd(command,
                        integration_name,
                        integration_content=[],
                        await_start=False):
-    kamelInvocation = invocation.KamelInvocationActor.remote(
-        command, mode, integration_name, integration_content)
+    kamelInvocation = invocation.KamelInvocation(command, mode,
+                                                 integration_name,
+                                                 integration_content)
 
     # Wait for the kamel command to be invoked and retrieve status.
-    success = ray.get(kamelInvocation.isReturningKamelReady.remote())
+    success = kamelInvocation.isReturningKamelReady()
 
     # If command was no successful then exit early.
     if not success:
         return None
 
     if await_start:
-        subcommandType = ray.get(kamelInvocation.getSubcommandType.remote())
+        subcommandType = kamelInvocation.getSubcommandType()
         if createsKubectlService(subcommandType):
             # Ensure pod is running.
             pod_is_running, pod_name = kubernetes.getPodRunningStatus(
