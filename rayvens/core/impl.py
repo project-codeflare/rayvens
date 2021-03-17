@@ -7,11 +7,19 @@ import yaml
 from confluent_kafka import Consumer, Producer
 import threading
 
+integrations = []
+
+
+def killall():
+    global integrations
+    for integration in integrations:
+        integration.cancel()
+
 
 # instantiate camel actor manager and setup exit hook
 def start(prefix, mode):
-    camel = Camel.remote()
-    atexit.register(camel.exit.remote)
+    camel = Camel.remote(mode)
+    atexit.register(camel.killall.remote)
     return camel
 
 
@@ -58,26 +66,42 @@ def construct_sink(config):
 # the actor to manage camel
 @ray.remote(num_cpus=0)
 class Camel:
-    def __init__(self):
-        self.integrations = []
+    def __init__(self, mode):
+        self.streams = []
+        self.mode = mode
 
     def add_source(self, name, stream, config):
+        self.streams.append(stream)
         spec = construct_source(config)
-        integration = Integration(name, spec)
-        integration.send_to(stream)
-        self.integrations.append(integration)
+
+        def run():
+            integration = Integration(name, spec)
+            integration.send_to(stream)
+
+        if self.mode != 'spread':
+            run()
+        else:
+            stream._exec.remote(run)
 
     def add_sink(self, name, stream, config):
+        self.streams.append(stream)
         spec = construct_sink(config)
-        integration = Integration(name, spec)
-        integration.recv_from(stream)
-        self.integrations.append(integration)
 
-    def exit(self):
-        integrations = self.integrations
-        self.integrations = None
-        for i in integrations:
-            i.cancel()
+        def run():
+            integration = Integration(name, spec)
+            integration.recv_from(stream)
+
+        if self.mode != 'spread':
+            run()
+        else:
+            stream._exec.remote(run)
+
+    def killall(self):
+        if self.mode != 'spread':
+            killall()
+        else:
+            for stream in self.streams:
+                stream._exec.remote(killall)
 
 
 # the low-level implementation-specific stuff
@@ -117,6 +141,8 @@ class Integration:
         command = ['kamel', 'local', 'run', filename]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
+        global integrations
+        integrations.append(self)
 
     def send_to(self, stream):
         # use kafka consumer thread to push from camel source to rayvens stream

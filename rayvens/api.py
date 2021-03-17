@@ -1,3 +1,4 @@
+import os
 import ray
 
 from rayvens.core.impl import start as start_mode_1
@@ -24,6 +25,9 @@ class Stream:
 
     def add_operator(self, operator):
         self._operator = operator
+
+    def _exec(self, f, *args):
+        return f(*args)
 
 
 def _eval(f, data):
@@ -55,19 +59,20 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 def _start(camel_mode):
-    if camel_mode in ['anywhere']:
+    if camel_mode in ['pack', 'spread']:
         return start_mode_1
     elif camel_mode == 'auto':
         return start_mode_1  # TODO
     elif camel_mode in ['local', 'mixed', 'operator']:
         return start_mode_2
     else:
-        raise TypeError(
-            'Unsupported camel_mode. Must be one of auto, local, operator1.')
+        raise TypeError('Unsupported camel_mode.')
 
 
 class Client:
-    def __init__(self, prefix='/rayvens', camel_mode='auto'):
+    def __init__(self,
+                 prefix='/rayvens',
+                 camel_mode=os.getenv('RAYVENS_MODE', 'auto')):
         self._camel = _start(camel_mode)(prefix, camel_mode)
 
     def create_stream(self, name, source=None, sink=None, operator=None):
