@@ -21,16 +21,22 @@ except ConnectionError:
 # Start rayvens client in operator mode.
 client = rayvens.Client(camel_mode='operator')
 
-# Start event sink actor.
-# TODO: Why does the kind contain the substring `-sink` in it?
+# Create stream.
+stream = client.create_stream('slack')
+
+# Event sink config.
 sink_config = dict(kind='slack-sink',
                    route='/toslack',
                    channel=slack_channel,
                    webhookUrl=slack_webhook)
-sink = client.create_stream('slack', sink=sink_config)
 
-# Connect source to comparator to sink.
-# sink >> print
-time.sleep(30)
-sink << "Use API in ANY_NODE mode by sending message to Slack sink."
-time.sleep(10)
+# Add sink to stream.
+sink = client.add_sink(stream, sink_config)
+
+# Wait for sink to reach running state.
+client.await_start(sink)
+
+# Sends message to all sinks attached to this stream.
+stream << "Use API in ANY_NODE mode by sending message to Slack sink."
+
+time.sleep(5)

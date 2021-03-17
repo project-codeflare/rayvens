@@ -82,20 +82,16 @@ def isLocalCommand(subcommandType):
 
 
 def createsKubectlService(subcommandType):
-    createsService = subcommandType == KamelCommand.INSTALL \
+    return subcommandType == KamelCommand.INSTALL \
         or subcommandType == KamelCommand.RUN
-    return createsService
 
 
 # Command types which lead to the creation of a kubectl service.
 
 
 def deletesKubectlService(subcommandType):
-    return subcommandType == KamelCommand.DELETE
-
-
-def isUinstallCommand(subcommandType):
-    return subcommandType == KamelCommand.UNINSTALL
+    return subcommandType == KamelCommand.DELETE \
+        or subcommandType == KamelCommand.UNINSTALL
 
 
 # Helper for ongoing local commands like kamel local run.
@@ -119,22 +115,14 @@ def invokeLocalOngoingCmd(command, mode):
     return None
 
 
-# Helper for non-local ongoing commands like kamel run.
-# TODO: kubectl must be used to interact with the output of the process.
-# TODO: implement this method.
-
-
-def invokeOngoingCmd(command):
-    pass
-
-
 # Helper for returning kamel commands such as kamel install.
 
 
 def invokeReturningCmd(command,
                        mode,
                        integration_name,
-                       integration_content=[]):
+                       integration_content=[],
+                       await_start=False):
     kamelInvocation = invocation.KamelInvocationActor.remote(
         command, mode, integration_name, integration_content)
 
@@ -145,26 +133,23 @@ def invokeReturningCmd(command,
     if not success:
         return None
 
-    # If the command starts a service then check when the command has
-    # reached running state.
-    subcommandType = ray.get(kamelInvocation.getSubcommandType.remote())
-    if createsKubectlService(subcommandType):
-        # When pod is in running state add it to the list of existing pods.
-        podIsRunning, podName = kubernetes.getPodRunningStatus(
-            integration_name)
-        if podIsRunning:
-            print("Pod is running correctly. The full name of the pod is:",
-                  podName)
-            kubernetes.addActivePod(kamelInvocation, integration_name, podName)
-        else:
-            print("Pod did not run correctly.")
+    if await_start:
+        subcommandType = ray.get(kamelInvocation.getSubcommandType.remote())
+        if createsKubectlService(subcommandType):
+            # Ensure pod is running.
+            pod_is_running, pod_name = kubernetes.getPodRunningStatus(
+                mode, integration_name)
+            if pod_is_running:
+                print(f'Pod {pod_name} is running correctly.')
+            else:
+                print("Pod did not run correctly.")
 
-    if deletesKubectlService(subcommandType):
-        kubernetes.deleteActivePod(
-            kubernetes.getInvocationFromIntegrationName(integration_name))
-
-    if isUinstallCommand(subcommandType):
-        kubernetes.deleteActivePod(
-            kubernetes.getInvocationFromIntegrationName(integration_name))
+            # Ensure integration is running.
+            integration_is_running = kubernetes.getIntegrationStatus(
+                mode, pod_name)
+            if integration_is_running:
+                print(f'Integration {integration_name} is running.')
+            else:
+                print('Integration did not start correctly.')
 
     return kamelInvocation

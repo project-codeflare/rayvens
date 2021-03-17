@@ -14,15 +14,23 @@ except ConnectionError:
 # Start rayvens client.
 client = rayvens.Client(camel_mode='operator')
 
-# Start event source.
+# Create stream.
+stream = client.create_stream('http')
+
+# Event source config.
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_stream('http', source=source_config)
 
-# Log incoming events
-source >> (lambda event: print('LOG:', event))
+# Attach source to stream.
+source = client.add_source(stream, source_config)
+
+# Wait for source to start.
+client.await_start(source)
+
+# Log all events from stream-attached sources.
+stream >> (lambda event: print('LOG:', event))
 
 # Wait before ending program.
-time.sleep(300)
+time.sleep(10)

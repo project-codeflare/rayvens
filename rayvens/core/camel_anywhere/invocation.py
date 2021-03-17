@@ -86,7 +86,8 @@ class KamelInvocationActor:
             # TODO: We only show logs for start-up, can we show logs during
             # runtime?
             output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process)
+                                                  self.process,
+                                                  with_output=True)
 
             returnCode = self.process.poll()
             if returnCode is not None:
@@ -147,8 +148,7 @@ class KamelInvocationActor:
 #
 
 
-@ray.remote(num_cpus=0)
-class KubectlInvocationActor:
+class KubectlInvocation:
     subprocessName = "Kubectl"
 
     def __init__(self, commandOptions, k8sName=""):
@@ -181,11 +181,12 @@ class KubectlInvocationActor:
                                         shell=True,
                                         preexec_fn=os.setsid)
 
-    def executeKubectlCmd(self, serviceName):
+    def executeKubectlCmd(self, serviceName=None, with_output=False):
         success = False
         while True:
             output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process)
+                                                  self.process,
+                                                  with_output=with_output)
             if self.subcommandType == \
                kubernetes_utils.KubectlCommand.GET_SERVICES:
                 if kubernetes_utils.serviceNameMatches(output, serviceName):
@@ -197,6 +198,7 @@ class KubectlInvocationActor:
 
             returnCode = self.process.poll()
             if returnCode is not None:
+                print("Return code is not None!!")
                 break
 
         subcommand = kubernetes_utils.getKubectlCommandString(
@@ -209,18 +211,20 @@ class KubectlInvocationActor:
         return success
 
     def podIsInRunningState(self, integrationName):
+        isRunning = False
         while True:
             # Process output line by line until we find the pod we are looking
             # for.
             # There should only be one new pod.
             output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process)
+                                                  self.process,
+                                                  with_output=True)
             if self.podName == "":
                 self.podName = kubernetes_utils.extractPodFullName(
                     output, integrationName)
 
             if kubernetes_utils.isInRunningState(output, self.podName):
-                self.isRunning = True
+                isRunning = True
                 break
 
             if kubernetes_utils.isInErrorState(output, self.podName):
@@ -232,11 +236,11 @@ class KubectlInvocationActor:
                 break
 
         logMessage = "Pod with name `%s` is now Running." % self.podName
-        if not self.isRunning:
+        if not isRunning:
             logMessage = "Pod with name `%s` failed to start." % self.podName
         utils.printLog(self.subprocessName, logMessage)
 
-        return self.isRunning
+        return isRunning
 
     def getPodFullName(self):
         return self.podName

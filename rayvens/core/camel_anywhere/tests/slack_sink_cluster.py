@@ -47,7 +47,8 @@ integration_name = "my-simple-integration"
 runInvocation = kamel.run(integrationFiles,
                           mode,
                           integration_name,
-                          envVars=envVars)
+                          envVars=envVars,
+                          await_start=True)
 
 #
 # Start doing some work.
@@ -58,7 +59,7 @@ slack_sink_common.sendMessageToSlackSink(client, message, route,
 #
 # Stop kamel sink.
 #
-kamel.delete(runInvocation)
+kamel.delete(runInvocation, integration_name)
 
 #
 # Uinstall the kamel operator from the cluster.

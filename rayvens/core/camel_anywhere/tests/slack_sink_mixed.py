@@ -44,7 +44,8 @@ integration_name = "my-simple-integration"
 runInvocation = kamel.run(integrationFiles,
                           mode,
                           integration_name,
-                          envVars=envVars)
+                          envVars=envVars,
+                          await_start=True)
 
 #
 # Create service through which we can communicate with the kamel sink.
@@ -53,11 +54,7 @@ runInvocation = kamel.run(integrationFiles,
 # outside the cluster.
 #
 serviceName = "kind-external-connector"
-kubernetes.createExternalServiceForKamel(serviceName, integration_name)
-
-print("Length of active pod list after kamel run: ",
-      kubernetes.getNumActivePods())
-print("Name of integration pod is", kubernetes.getPodName(runInvocation))
+kubernetes.createExternalServiceForKamel(mode, serviceName, integration_name)
 
 #
 # Start doing some work
@@ -68,16 +65,14 @@ slack_sink_common.sendMessageToSlackSink(client, message, route,
 #
 # Stop kubectl service for externalizing the sink listener.
 #
-kubernetes.deleteService(serviceName)
+kubernetes.deleteService(mode, serviceName)
 
 #
 # Stop kamel sink.
 #
-kamel.delete(runInvocation)
+kamel.delete(runInvocation, integration_name)
 
 #
 # Uinstall the kamel operator from the cluster.
 #
 # kamel.uninstall(installInvocation)
-print("Length of active pod list after uninstall: ",
-      kubernetes.getNumActivePods())

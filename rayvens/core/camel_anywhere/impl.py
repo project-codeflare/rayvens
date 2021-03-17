@@ -4,6 +4,7 @@ import ray
 from ray import serve
 from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
 from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
+from rayvens.core.camel_anywhere import kubernetes
 from rayvens.core.camel_anywhere import kamel
 from rayvens.core.utils import utils
 
@@ -41,7 +42,7 @@ class CamelAnyNode:
         self.kamel_backend = None
         self.endpoint_id = -1
         self.integration_id = -1
-        self.invocations = []
+        self.invocations = {}
 
     def add_source(self, name, topic, source):
         if 'kind' in source:
@@ -90,7 +91,9 @@ class CamelAnyNode:
                                       self.mode,
                                       integration_name,
                                       integration_as_files=False)
-        self.invocations.append(source_invocation)
+        self.invocations[source_invocation] = integration_name
+
+        return integration_name
 
     def add_sink(self, name, topic, sink):
         if 'kind' in sink:
@@ -132,7 +135,7 @@ class CamelAnyNode:
                                     self.mode,
                                     integration_name,
                                     integration_as_files=False)
-        self.invocations.append(sink_invocation)
+        self.invocations[sink_invocation] = integration_name
 
         # Start running the integration.
         if use_backend:
@@ -143,23 +146,47 @@ class CamelAnyNode:
             helper = HelperWithBackend.remote(
                 self.kamel_backend, self.client.get_handle(endpoint_name),
                 endpoint_name)
-            topic.send_to.remote(helper, name)
         else:
             helper = Helper.remote(
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
+        topic.send_to.remote(helper, name)
+
+        return integration_name
 
     def exit(self):
         # TODO: delete endpoints.
         # This deletes all the integrations.
         for invocation in self.invocations:
             if self.mode.isCluster() or self.mode.isMixed():
-                kamel.delete(invocation)
+                kamel.delete(invocation, self.invocations[invocation])
             elif self.mode.isLocal():
                 invocation.kill.remote()
             else:
                 raise RuntimeError("Unreachable")
         # TODO: check that the invocation does not need to be killed when
         # running in the Cluster or Mixed modes.
+
+    def await_start(self, integration_name):
+        # Wait for pod to start.
+        pod_is_running, pod_name = kubernetes.getPodRunningStatus(
+            self.mode, integration_name)
+        if pod_is_running:
+            print(f'Pod {pod_name} is running.')
+        else:
+            print('Pod did not run correctly.')
+            return False
+
+        # Wait for integration to be installed. Since we now know that the pod
+        # is running we can use that to check that the integration is installed
+        # correctly.
+        integration_is_running = kubernetes.getIntegrationStatus(
+            self.mode, pod_name)
+        if integration_is_running:
+            print(f'Integration {integration_name} is running.')
+        else:
+            print('Integration did not start correctly.')
+
+        return integration_is_running
 
     def _get_endpoint_name(self, name):
         self.endpoint_id += 1

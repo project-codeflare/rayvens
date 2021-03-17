@@ -1,6 +1,5 @@
 import ray
 from rayvens.core.camel_anywhere import kamel_utils
-from rayvens.core.camel_anywhere import kubernetes
 from rayvens.core.camel_anywhere.mode import mode
 import os
 
@@ -77,7 +76,8 @@ def run(integration_files,
         integration_name,
         local=None,
         envVars=[],
-        integration_as_files=True):
+        integration_as_files=True,
+        await_start=False):
     # Use the mode to determine if this is a local run or a run.
     isLocal = mode.isLocal()
 
@@ -120,18 +120,17 @@ def run(integration_files,
     if isLocal:
         return kamel_utils.invokeLocalOngoingCmd(command, mode)
 
-    return kamel_utils.invokeReturningCmd(command, mode, integration_name,
-                                          integration_content)
+    return kamel_utils.invokeReturningCmd(command,
+                                          mode,
+                                          integration_name,
+                                          integration_content,
+                                          await_start=await_start)
 
 
 # Kamel delete invocation.
 
 
-def delete(runningIntegrationInvocation):
-    # Fetch integration name.
-    integrationName = kubernetes.getIntegrationName(
-        runningIntegrationInvocation)
-
+def delete(runningIntegrationInvocation, integration_name):
     # Compose command with integration name.
     command = ["delete"]
 
@@ -139,8 +138,8 @@ def delete(runningIntegrationInvocation):
     command.append("-n")
     command.append(ray.get(runningIntegrationInvocation.getNamespace.remote()))
 
-    command.append(integrationName)
+    command.append(integration_name)
 
     return kamel_utils.invokeReturningCmd(
         command, ray.get(runningIntegrationInvocation.getMode.remote()),
-        integrationName)
+        integration_name)

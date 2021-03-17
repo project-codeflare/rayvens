@@ -1,5 +1,6 @@
 import os
 import ray
+from collections import namedtuple
 
 from rayvens.core.impl import start as start_mode_http
 from rayvens.core.kafka import start as start_mode_kafka
@@ -70,22 +71,77 @@ def _start(camel_mode):
         raise TypeError('Unsupported camel_mode.')
 
 
+# Keep track of the Stream components of interest:
+# - the name of the stream;
+# - the list of integrations attached to the stream.
+StreamMetadata = namedtuple('StreamMetadata', 'name integrations')
+
+
 class Client:
     def __init__(self,
                  prefix='/rayvens',
                  camel_mode=os.getenv('RAYVENS_MODE', 'auto')):
         self._camel = _start(camel_mode)(prefix, camel_mode)
+        self._stream_metadata = {}
 
+    # Create a new stream.
     def create_stream(self, name, source=None, sink=None, operator=None):
         stream = Stream.remote(name, operator=operator)
+        self._stream_metadata[stream] = StreamMetadata(name, [])
         if source is not None:
-            self.add_source(name, stream, source)
+            self.add_source(stream, source)
         if sink is not None:
-            self.add_sink(name, stream, sink)
+            self.add_sink(stream, sink)
         return stream
 
-    def add_source(self, name, stream, source):
-        self._camel.add_source.remote(name, stream, source)
+    # Attach source to stream.
+    def add_source(self, stream, source):
+        # Check add source is valid.
+        if stream not in self._stream_metadata:
+            raise RuntimeError('Unknown stream for source.')
 
-    def add_sink(self, name, stream, sink):
-        self._camel.add_sink.remote(name, stream, sink)
+        # Launch and add the actual source as an integration.
+        integration_name = self._camel.add_source.remote(
+            self._stream_metadata[stream].name, stream, source)
+        self._stream_metadata[stream].integrations.append(integration_name)
+        return integration_name
+
+    # Attach sink to stream.
+    def add_sink(self, stream, sink):
+        # Check add sink is valid.
+        if stream not in self._stream_metadata:
+            raise RuntimeError('Unknown stream for sink.')
+
+        # Launch and add the actual sink as an integration.
+        integration_name = self._camel.add_sink.remote(
+            self._stream_metadata[stream].name, stream, sink)
+
+        self._stream_metadata[stream].integrations.append(integration_name)
+        return integration_name
+
+    # Wait for a particular integration to start.
+    def await_start(self, integration_name):
+        # Check integration is attached to this stream.
+        valid_integration = False
+        for stream in self._stream_metadata:
+            if integration_name in self._stream_metadata[stream].integrations:
+                valid_integration = True
+                break
+
+        if not valid_integration:
+            name = ray.get(integration_name)
+            raise RuntimeError(f'{name} not attached to a stream')
+
+        successful_await = ray.get(
+            self._camel.await_start.remote(integration_name))
+
+        if not successful_await:
+            raise RuntimeError('await_start command failed.')
+
+    # Wait for all integrations attached to a particular Stream to start.
+    def await_start_all(self, stream):
+        if stream not in self._stream_metadata:
+            raise RuntimeError('Unknown stream.')
+
+        for integration_name in self._stream_metadata[stream].intgrations:
+            self.await_start(integration_name)

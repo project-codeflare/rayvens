@@ -1,17 +1,11 @@
-from collections import namedtuple
 from rayvens.core.utils import utils
 from rayvens.core.camel_anywhere import kubernetes_utils
-from rayvens.core.camel_anywhere.mode import mode
 import os
-
-# List that holds the list of active pods.
-PodName = namedtuple('PodName', 'integrationName podName')
-activePods = {}
 
 # Wait for pod to reach running state.
 
 
-def getPodRunningStatus(integrationName):
+def getPodRunningStatus(mode, integration_name):
     # TODO: adapt this to support multiple namespaces.
     command = ["get", "pods", "-w"]
 
@@ -19,13 +13,30 @@ def getPodRunningStatus(integrationName):
     command.append("-n")
     command.append(mode.getNamespace())
 
-    return kubernetes_utils.getPodStatusCmd(command, integrationName)
+    return kubernetes_utils.getPodStatusCmd(command, integration_name)
+
+
+# Wait for integration to reach running state.
+
+
+def getIntegrationStatus(mode, pod_name):
+    # TODO: adapt this to support multiple namespaces.
+    command = ["logs", pod_name]
+
+    # Namespace
+    command.append("-n")
+    command.append(mode.getNamespace())
+
+    # Stream output from this command.
+    command.append("--follow=true")
+
+    return kubernetes_utils.executeOngoingKubectlCmd(command)
 
 
 # Create service that Ray can talk to from outside the cluster.
 
 
-def createExternalServiceForKamel(serviceName, integrationName):
+def createExternalServiceForKamel(mode, serviceName, integrationName):
     # Compose yaml file.
     yamlFile = """
 kind: Service
@@ -83,7 +94,7 @@ spec:
 # Delete service.
 
 
-def deleteService(serviceName):
+def deleteService(mode, serviceName):
     command = ["delete", "service", serviceName]
 
     # Namespace
@@ -91,30 +102,3 @@ def deleteService(serviceName):
     command.append(mode.getNamespace())
 
     kubernetes_utils.executeReturningKubectlCmd(command, serviceName)
-
-
-def getInvocationFromIntegrationName(integrationName):
-    for key in activePods:
-        if getIntegrationName(key) == integrationName:
-            return key
-    return None
-
-
-def getPodName(invocation):
-    return activePods[invocation].podName
-
-
-def getIntegrationName(invocation):
-    return activePods[invocation].integrationName
-
-
-def addActivePod(invocation, integrationName, podName):
-    activePods[invocation] = PodName(integrationName, podName)
-
-
-def deleteActivePod(invocation):
-    del activePods[invocation]
-
-
-def getNumActivePods():
-    return len(activePods)

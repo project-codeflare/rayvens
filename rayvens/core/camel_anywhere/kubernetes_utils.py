@@ -1,4 +1,3 @@
-import ray
 from enum import Enum
 from rayvens.core.camel_anywhere import invocation
 
@@ -9,6 +8,7 @@ class KubectlCommand(Enum):
     GET_DEPLOYMENTS = 3
     APPLY = 4
     DELETE_SERVICE = 5
+    LOGS = 6
 
 
 def getKubectlCommandType(command):
@@ -22,6 +22,8 @@ def getKubectlCommandType(command):
         return KubectlCommand.APPLY
     if command.startswith("delete service"):
         return KubectlCommand.DELETE_SERVICE
+    if command.startswith("logs"):
+        return KubectlCommand.LOGS
     raise RuntimeError('unsupported kubectl subcommand: %s' % command)
 
 
@@ -36,6 +38,8 @@ def getKubectlCommandString(commandType):
         return "apply"
     if commandType == KubectlCommand.DELETE_SERVICE:
         return "delete service"
+    if commandType == KubectlCommand.LOGS:
+        return "logs"
     raise RuntimeError('unsupported kubectl subcommand')
 
 
@@ -47,9 +51,15 @@ def getKubectlCommandEndCondition(subcommandType, serviceName):
     if subcommandType == KubectlCommand.GET_DEPLOYMENTS:
         return ""
     if subcommandType == KubectlCommand.APPLY:
+        if serviceName is None or serviceName == "":
+            raise RuntimeError("Invalid kubernetes service name.")
         return "%s created" % serviceName
     if subcommandType == KubectlCommand.DELETE_SERVICE:
+        if serviceName is None or serviceName == "":
+            raise RuntimeError("Invalid kubernetes service name.")
         return "service \"%s\" deleted" % serviceName
+    if subcommandType == KubectlCommand.LOGS:
+        return "Installed features:"
     raise RuntimeError('unsupported kubectl subcommand: %s' %
                        getKubectlCommandString(subcommandType))
 
@@ -112,15 +122,14 @@ def isInErrorState(line, fullPodName):
 
 def getPodStatusCmd(command, integrationName):
     # Invoke command using the Kubectl invocation actor.
-    kubectlInvocation = invocation.KubectlInvocationActor.remote(command)
+    kubectlInvocation = invocation.KubectlInvocation(command)
 
     # Wait for kubectl command to finish checking the integration.
-    podIsRunning = ray.get(
-        kubectlInvocation.podIsInRunningState.remote(integrationName))
-    podName = ray.get(kubectlInvocation.getPodFullName.remote())
+    podIsRunning = kubectlInvocation.podIsInRunningState(integrationName)
+    podName = kubectlInvocation.getPodFullName()
 
     # Stop kubectl command.
-    kubectlInvocation.kill.remote()
+    kubectlInvocation.kill()
 
     # Return pod status
     return podIsRunning, podName
@@ -129,13 +138,12 @@ def getPodStatusCmd(command, integrationName):
 # Helper for starting a service. Command returns immediately.
 
 
-def executeReturningKubectlCmd(command, serviceName):
+def executeReturningKubectlCmd(command, service_name=None, with_output=False):
     # Invoke command using the Kubectl invocation actor.
-    kubectlInvocation = invocation.KubectlInvocationActor.remote(
-        command, serviceName)
+    kubectl_invocation = invocation.KubectlInvocation(command, service_name)
 
     # Wait for kubectl command to return.
-    outcome = ray.get(kubectlInvocation.executeKubectlCmd.remote(serviceName))
+    outcome = kubectl_invocation.executeKubectlCmd(service_name, with_output)
 
     # Return outcome.
     return outcome
@@ -144,16 +152,15 @@ def executeReturningKubectlCmd(command, serviceName):
 # Helper for check that a service exists.
 
 
-def executeOngoingKubectlCmd(command, serviceName):
+def executeOngoingKubectlCmd(command, service_name=None, with_output=False):
     # Invoke command using the Kubectl invocation actor.
-    kubectlInvocation = invocation.KubectlInvocationActor.remote(
-        command, serviceName)
+    kubectl_invocation = invocation.KubectlInvocation(command, service_name)
 
     # Wait for kamel command to finish launching the integration.
-    outcome = ray.get(kubectlInvocation.executeKubectlCmd.remote(serviceName))
+    outcome = kubectl_invocation.executeKubectlCmd(service_name, with_output)
 
     # Stop kubectl command.
-    kubectlInvocation.kill.remote()
+    kubectl_invocation.kill()
 
     # Return service status
     return outcome
