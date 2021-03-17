@@ -4,10 +4,8 @@ import ray
 import signal
 import subprocess
 import yaml
-import time
+from confluent_kafka import Consumer, Producer
 import threading
-import requests
-import random
 
 integrations = []
 
@@ -34,20 +32,13 @@ def construct_source(config):
     url = config['url']
     period = config.get('period', 1000)
 
-    return [{
+    return lambda endpoint: [{
         'from': {
             'uri': f'timer:tick?period={period}',
             'steps': [{
                 'to': url
             }, {
-                'bean': 'addToQueue'
-            }]
-        },
-    }, {
-        'from': {
-            'uri': 'platform-http:/source',
-            'steps': [{
-                'bean': 'takeFromQueue'
+                'to': endpoint
             }]
         }
     }]
@@ -62,9 +53,9 @@ def construct_sink(config):
     channel = config['channel']
     webhookUrl = config['webhookUrl']
 
-    return [{
+    return lambda endpoint: [{
         'from': {
-            'uri': 'platform-http:/sink',
+            'uri': endpoint,
             'steps': [{
                 'to': f'slack:{channel}?webhookUrl={webhookUrl}',
             }]
@@ -115,24 +106,30 @@ class Camel:
 
 # the low-level implementation-specific stuff
 
-rayvens_random = random.Random()
-rayvens_random.seed()
-
-
-def random_port():
-    return rayvens_random.randint(49152, 65535)
-
 
 @ray.remote(num_cpus=0)
 class ProducerActor:
-    def __init__(self, url):
-        self.url = url
+    def __init__(self, name):
+        self.producer = ProducerHelper(name)
 
     def append(self, data):
-        try:
-            requests.post(self.url, data)
-        except requests.exceptions.ConnectionError:
-            pass
+        self.producer.produce(data)
+
+
+class ProducerHelper:
+    def __init__(self, name):
+        self.name = name
+        self.producer = Producer({'bootstrap.servers': brokers()})
+
+    def produce(self, data):
+        if data is not None:
+            self.producer.produce(self.name, data.encode('utf-8'))
+
+
+def brokers():
+    host = os.getenv('KAFKA_SERVICE_HOST', 'localhost')
+    port = os.getenv('KAFKA_SERVICE_PORT', '31093')
+    return f'{host}:{port}'
 
 
 class Integration:
@@ -140,36 +137,36 @@ class Integration:
         self.name = name
         filename = f'{name}.yaml'
         with open(filename, 'w') as f:
-            yaml.dump(spec, f)
-        self.port = random_port()
-        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-        command = [
-            'kamel', 'local', 'run', queue, '--property',
-            f'quarkus.http.port={self.port}', filename
-        ]
+            yaml.dump(spec(f'kafka:{name}?brokers=${brokers()}'), f)
+        command = ['kamel', 'local', 'run', filename]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
         global integrations
         integrations.append(self)
 
     def send_to(self, stream):
+        # use kafka consumer thread to push from camel source to rayvens stream
+        consumer = Consumer({
+            'bootstrap.servers': brokers(),
+            'group.id': 'ray',
+            'auto.offset.reset': 'latest'
+        })
+
+        consumer.subscribe([self.name])
+
         def append():
             while True:
-                try:
-                    response = requests.get(
-                        f'http://localhost:{self.port}/source')
-                    if response.status_code != 200:
-                        time.sleep(1)
-                        continue
-                    stream.append.remote(response.text)
-                except requests.exceptions.ConnectionError:
-                    time.sleep(1)
+                msg = consumer.poll()
+                if msg.error():
+                    print(f'consumer error: ${msg.error()}')
+                else:
+                    stream.append.remote(msg.value().decode('utf-8'))
 
         threading.Thread(target=append).start()
 
     def recv_from(self, stream):
         # use kafka producer actor to push from rayvens stream to camel sink
-        helper = ProducerActor.remote(f'http://localhost:{self.port}/sink')
+        helper = ProducerActor.remote(self.name)
         stream.send_to.remote(helper, self.name)
 
     def cancel(self):

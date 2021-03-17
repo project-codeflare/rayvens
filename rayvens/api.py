@@ -1,7 +1,8 @@
 import os
 import ray
 
-from rayvens.core.impl import start as start_mode_1
+from rayvens.core.impl import start as start_mode_http
+from rayvens.core.kafka import start as start_mode_kafka
 from rayvens.core.camel_anywhere.impl import start as start_mode_2
 
 
@@ -59,10 +60,10 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 def _start(camel_mode):
-    if camel_mode in ['pack', 'spread']:
-        return start_mode_1
-    elif camel_mode == 'auto':
-        return start_mode_1  # TODO
+    if camel_mode in ['kafka', 'kafka-spread']:
+        return start_mode_kafka
+    elif camel_mode in ['auto', 'spread']:
+        return start_mode_http
     elif camel_mode in ['local', 'mixed', 'operator']:
         return start_mode_2
     else:
