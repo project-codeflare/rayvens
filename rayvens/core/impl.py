@@ -8,6 +8,7 @@ import time
 import threading
 import requests
 import random
+import rayvens.core.catalog as catalog
 
 integrations = []
 
@@ -25,53 +26,6 @@ def start(prefix, mode):
     return camel
 
 
-# construct a camel source specification from a rayvens source config
-def construct_source(config):
-    if config['kind'] is None:
-        raise TypeError('A Camel source needs a kind.')
-    if config['kind'] not in ['http-source']:
-        raise TypeError('Unsupported Camel source.')
-    url = config['url']
-    period = config.get('period', 1000)
-
-    return [{
-        'from': {
-            'uri': f'timer:tick?period={period}',
-            'steps': [{
-                'to': url
-            }, {
-                'bean': 'addToQueue'
-            }]
-        },
-    }, {
-        'from': {
-            'uri': 'platform-http:/source',
-            'steps': [{
-                'bean': 'takeFromQueue'
-            }]
-        }
-    }]
-
-
-# construct a camel sink specification from a rayvens source config
-def construct_sink(config):
-    if config['kind'] is None:
-        raise TypeError('A Camel sink needs a kind.')
-    if config['kind'] not in ['slack-sink']:
-        raise TypeError('Unsupported Camel sink.')
-    channel = config['channel']
-    webhookUrl = config['webhookUrl']
-
-    return [{
-        'from': {
-            'uri': 'platform-http:/sink',
-            'steps': [{
-                'to': f'slack:{channel}?webhookUrl={webhookUrl}',
-            }]
-        }
-    }]
-
-
 # the actor to manage camel
 @ray.remote(num_cpus=0)
 class Camel:
@@ -81,7 +35,9 @@ class Camel:
 
     def add_source(self, name, stream, config):
         self.streams.append(stream)
-        spec = construct_source(config)
+        spec = catalog.construct_source(config,
+                                        'platform-http:/source',
+                                        inverted=True)
 
         def run():
             integration = Integration(name, spec)
@@ -94,7 +50,7 @@ class Camel:
 
     def add_sink(self, name, stream, config):
         self.streams.append(stream)
-        spec = construct_sink(config)
+        spec = catalog.construct_sink(config, 'platform-http:/sink')
 
         def run():
             integration = Integration(name, spec)
