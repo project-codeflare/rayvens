@@ -18,7 +18,7 @@ provider:
             name: autoscaler
         rules:
             - apiGroups: [""]
-              resources: ["pods", "pods/status", "pods/exec"]
+              resources: ["pods", "pods/status", "pods/exec", "pods/log"]
               verbs: ["get", "watch", "list", "create", "delete", "patch"]
             - apiGroups: ["camel.apache.org"]
               resources: ["integrations", "integrations/status"]
