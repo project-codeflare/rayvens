@@ -22,6 +22,7 @@ from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
 from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
 from rayvens.core.camel_anywhere import kubernetes
 from rayvens.core.camel_anywhere import kamel
+from rayvens.core.validation import Validation
 from rayvens.core.utils import utils
 
 
@@ -58,9 +59,20 @@ class CamelAnyNode:
         self.kamel_backend = None
         self.endpoint_id = -1
         self.integration_id = -1
+        self.validation = Validation()
         self.invocations = {}
 
-    def add_source(self, name, topic, source):
+    def add_stream(self, stream, name):
+        self.validation.add_stream(stream, name)
+
+    def add_source(self, stream, source):
+        # Get stream name.
+        name = self.validation.get_stream_name(stream)
+
+        # Get integration name.
+        integration_name = self._get_integration_name(name)
+
+        # Verify config.
         if 'kind' in source:
             if source['kind'] is None:
                 raise TypeError('A Camel source needs a kind.')
@@ -74,12 +86,14 @@ class CamelAnyNode:
             route = f'{self.prefix}' + source['route']
         period = source.get('period', 1000)
 
+        # Add source.
+        self.validation.add_source(stream, integration_name)
+
         # Set endpoint and integration names.
         endpoint_name = self._get_endpoint_name(name)
-        integration_name = self._get_integration_name(name)
 
         # Create backend for this topic.
-        source_backend = KamelBackend(self.client, self.mode, topic=topic)
+        source_backend = KamelBackend(self.client, self.mode, topic=stream)
 
         # Create endpoint.
         source_backend.createProxyEndpoint(self.client, endpoint_name, route,
@@ -111,7 +125,14 @@ class CamelAnyNode:
 
         return integration_name
 
-    def add_sink(self, name, topic, sink):
+    def add_sink(self, stream, sink):
+        # Get stream name.
+        name = self.validation.get_stream_name(stream)
+
+        # Compose integration name.
+        integration_name = self._get_integration_name(name)
+
+        # Verify config.
         if 'kind' in sink:
             if sink['kind'] is None:
                 raise TypeError('A Camel sink needs a kind.')
@@ -130,6 +151,9 @@ class CamelAnyNode:
         if 'use_backend' in sink and sink['use_backend'] is not None:
             use_backend = sink['use_backend']
 
+        # Add source.
+        self.validation.add_source(stream, integration_name)
+
         # Create backend if one hasn't been created so far.
         if use_backend and self.kamel_backend is None:
             self.kamel_backend = KamelBackend(self.client, self.mode)
@@ -145,8 +169,6 @@ class CamelAnyNode:
             }
         }]
 
-        # Start running the integration.
-        integration_name = self._get_integration_name(name)
         sink_invocation = kamel.run([integration_content],
                                     self.mode,
                                     integration_name,
@@ -165,7 +187,7 @@ class CamelAnyNode:
         else:
             helper = Helper.remote(
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
-        topic.send_to.remote(helper, name)
+        stream.send_to.remote(helper, name)
 
         return integration_name
 
@@ -183,6 +205,9 @@ class CamelAnyNode:
         # running in the Cluster or Mixed modes.
 
     def await_start(self, integration_name):
+        # Validate integration.
+        self.validation.validate_integration(integration_name)
+
         # Wait for pod to start.
         pod_is_running, pod_name = kubernetes.getPodRunningStatus(
             self.mode, integration_name)
@@ -203,6 +228,14 @@ class CamelAnyNode:
             print('Integration did not start correctly.')
 
         return integration_is_running
+
+    def await_start_all(self, stream):
+        # Await for all sinks to start.
+        for sink_name in self.validation.get_sinks(stream):
+            self.await_start(sink_name)
+        # Await for all sources to start.
+        for source_name in self.validation.get_sources(stream):
+            self.await_start(source_name)
 
     def _get_endpoint_name(self, name):
         self.endpoint_id += 1
