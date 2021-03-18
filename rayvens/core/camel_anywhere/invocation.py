@@ -29,21 +29,21 @@ from rayvens.core.camel_anywhere import kubernetes_utils
 
 
 class KamelInvocation:
-    subprocessName = "Kamel"
+    subprocess_name = "Kamel"
 
     def __init__(self,
-                 commandOptions,
+                 command_options,
                  mode,
                  integration_name="",
                  integration_content=[]):
         self.mode = mode
 
         # If list is porvided, join it.
-        if isinstance(commandOptions, list):
-            commandOptions = " ".join(commandOptions)
+        if isinstance(command_options, list):
+            command_options = " ".join(command_options)
 
         # Create final kamel command.
-        final_command = ["exec", "kamel", commandOptions]
+        final_command = ["exec", "kamel", command_options]
 
         # If integration content is not null then we have files to create and
         # write to.
@@ -55,12 +55,12 @@ class KamelInvocation:
             final_command.append(os.path.abspath(filename))
 
         # Get subcommand type.
-        self.subcommandType = kamel_utils.getKamelCommandType(commandOptions)
+        self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
 
         # Create the kamel command.
-        execCommand = " ".join(final_command)
+        exec_command = " ".join(final_command)
 
-        print("Exec command => ", execCommand)
+        print("Exec command => ", exec_command)
         # Add to PATH for case when this command is invoked in a cluster.
         if mode.isCluster():
             os.environ['PATH'] = ":".join(
@@ -72,77 +72,72 @@ class KamelInvocation:
             raise RuntimeError('kamel executable not found in PATH')
 
         # Fail if this is not a local command and kubectl is not found.
-        if not kamel_utils.isLocalCommand(self.subcommandType) and \
+        if not kamel_utils.isLocalCommand(self.subcommand_type) and \
            not utils.executableIsAvailable("kubectl"):
             raise RuntimeError(
                 "kubectl executable not found in PATH for non-local kamel"
                 "command")
 
         # Get end condition or fail if command type is not supported.
-        self.endCondition = kamel_utils.getKamelCommandEndCondition(
-            self.subcommandType, integration_name)
+        self.end_condition = kamel_utils.getKamelCommandEndCondition(
+            self.subcommand_type, integration_name)
 
         # TODO: Does this work for Windows? Linux? Cloud?
         # Launch kamel command in a new process.
-        self.process = subprocess.Popen(execCommand,
+        self.process = subprocess.Popen(exec_command,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE,
                                         shell=True,
                                         preexec_fn=os.setsid)
 
-    def isLocalOngoingKamelReady(self):
+    def ongoing_command(self):
         # Check if kamel instance launched correctly.
-        instantiationFailed = False
+        success = False
         while True:
             # Log progress of kamel subprocess.
-            # TODO: better logging. Merge logs?
-            # TODO: We only show logs for start-up, can we show logs during
-            # runtime?
-            output = utils.printLogFromSubProcess(self.subprocessName,
+            output = utils.printLogFromSubProcess(self.subprocess_name,
                                                   self.process,
                                                   with_output=True)
 
-            returnCode = self.process.poll()
-            if returnCode is not None:
-                instantiationFailed = True
+            if self.process.poll() is not None:
                 break
             # Some form of completion signal is received.
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.
-            # TODO: brittle, check process completion by checking if it has
+            # TODO: check process completion by checking if it has
             # started listening on the host:port.
-            if self.endCondition in output:
+            if self.end_condition in output:
+                success = True
                 break
 
         # Emit success/fail message.
-        logMessage = "Kamel integration is ready."
-        if instantiationFailed:
-            logMessage = "Kamel integration failed to start."
+        log = "Kamel integration is ready."
+        if not success:
+            log = "Kamel integration failed to start."
+        utils.printLog(self.subprocess_name, log)
 
-        utils.printLog(self.subprocessName, logMessage)
+        return success
 
-        return not instantiationFailed
-
-    def isReturningKamelReady(self):
+    def returning_command(self):
         success = False
         for line in io.TextIOWrapper(self.process.stdout, encoding="utf-8"):
             line = line.strip()
-            # Only output non-emoty lines.
+            # Only output non-empty lines.
             if line != "":
-                utils.printLog(self.subprocessName, line)
-            if self.endCondition in line:
+                utils.printLog(self.subprocess_name, line)
+            if self.end_condition in line:
                 success = True
 
         # Log outcome.
-        subcommand = kamel_utils.getKamelCommandString(self.subcommandType)
-        logMessage = "Kamel `%s` command finished successfully." % subcommand
+        subcommand = kamel_utils.getKamelCommandString(self.subcommand_type)
+        log = "Kamel `%s` command finished successfully." % subcommand
         if not success:
-            logMessage = "Kamel `%s` command failed." % subcommand
-        utils.printLog(self.subprocessName, logMessage)
+            log = "Kamel `%s` command failed." % subcommand
+        utils.printLog(self.subprocess_name, log)
         return success
 
     def getSubcommandType(self):
-        return self.subcommandType
+        return self.subcommand_type
 
     def getNamespace(self):
         return self.mode.getNamespace()

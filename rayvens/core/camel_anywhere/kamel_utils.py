@@ -114,18 +114,18 @@ def deletesKubectlService(subcommandType):
 
 def invokeLocalOngoingCmd(command, mode):
     # Invoke command using the Kamel invocation actor.
-    kamelInvocation = invocation.KamelInvocation(command, mode)
+    kamel_invocation = invocation.KamelInvocation(command, mode)
 
     # Wait for kamel command to finish launching the integration.
-    kamelIsReady = kamelInvocation.isLocalOngoingKamelReady()
+    kamel_is_ready = kamel_invocation.ongoing_command()
 
     # Log progress.
-    print("kamel ongoing command is ready:", kamelIsReady)
+    print("kamel ongoing command is ready:", kamel_is_ready)
 
     # Invocation object is required later for stopping the integration.
     # TODO: find a better way to do invocation object management.
-    if kamelIsReady:
-        return kamelInvocation
+    if kamel_is_ready:
+        return kamel_invocation
 
     return None
 
@@ -138,19 +138,19 @@ def invokeReturningCmd(command,
                        integration_name,
                        integration_content=[],
                        await_start=False):
-    kamelInvocation = invocation.KamelInvocation(command, mode,
-                                                 integration_name,
-                                                 integration_content)
+    kamel_invocation = invocation.KamelInvocation(command, mode,
+                                                  integration_name,
+                                                  integration_content)
 
     # Wait for the kamel command to be invoked and retrieve status.
-    success = kamelInvocation.isReturningKamelReady()
+    success = kamel_invocation.returning_command()
 
     # If command was no successful then exit early.
     if not success:
         return None
 
     if await_start:
-        subcommandType = kamelInvocation.getSubcommandType()
+        subcommandType = kamel_invocation.getSubcommandType()
         if createsKubectlService(subcommandType):
             # Ensure pod is running.
             pod_is_running, pod_name = kubernetes.getPodRunningStatus(
@@ -168,4 +168,4 @@ def invokeReturningCmd(command,
             else:
                 print('Integration did not start correctly.')
 
-    return kamelInvocation
+    return kamel_invocation
