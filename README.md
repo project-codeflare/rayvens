@@ -15,7 +15,7 @@
 -->
 
 <p align="center">
-  <img src="rayvens.png" />
+  <img src="resources/logo.png" />
 </p>
 
 [![Build
