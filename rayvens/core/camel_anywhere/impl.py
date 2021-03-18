@@ -24,21 +24,20 @@ from rayvens.core.camel_anywhere import kubernetes
 from rayvens.core.camel_anywhere import kamel
 from rayvens.core.validation import Validation
 from rayvens.core.utils import utils
+from rayvens.core.catalog import construct_source, construct_sink
 
 
 def start(prefix, camel_mode):
     camel = None
     if camel_mode == 'local':
         mode.location = RayKamelExecLocation.LOCAL
-        camel = CamelAnyNode.remote(prefix, mode)
+        camel = CamelAnyNode.remote(mode)
     elif camel_mode == 'mixed':
         mode.location = RayKamelExecLocation.MIXED
-        camel = CamelAnyNode.remote(prefix, mode)
+        camel = CamelAnyNode.remote(mode)
     elif camel_mode == 'operator':
         mode.location = RayKamelExecLocation.CLUSTER
-        camel = CamelAnyNode.options(resources={
-            'head': 1
-        }).remote(prefix, mode)
+        camel = CamelAnyNode.options(resources={'head': 1}).remote(mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
 
@@ -49,12 +48,11 @@ def start(prefix, camel_mode):
 
 @ray.remote(num_cpus=0)
 class CamelAnyNode:
-    def __init__(self, prefix, mode):
+    def __init__(self, mode):
         self.client = serve.start(http_options={
             'host': '0.0.0.0',
             'location': 'EveryNode'
         })
-        self.prefix = prefix
         self.mode = mode
         self.kamel_backend = None
         self.endpoint_id = -1
@@ -72,21 +70,22 @@ class CamelAnyNode:
         # Get integration name.
         integration_name = self._get_integration_name(name)
 
-        # Verify config.
-        if 'kind' in source:
-            if source['kind'] is None:
-                raise TypeError('A Camel source needs a kind.')
-            if source['kind'] not in ['http-source']:
-                raise TypeError('Unsupported Camel source.')
-        if 'url' not in source:
-            raise TypeError('url field not provided.')
-        source_url = source['url']
-        route = f'{self.prefix}/{name}'
+        # Construct endpoint.
+        route = f'/{name}'
         if 'route' in source and source['route'] is not None:
-            route = f'{self.prefix}' + source['route']
-        period = source.get('period', 1000)
+            route = source['route']
 
-        # Add source.
+        server_pod_name = ""
+        if self.mode.isCluster():
+            server_pod_name = utils.get_server_pod_name()
+        endpoint_base = self.mode.getQuarkusHTTPServer(server_pod_name,
+                                                       source=True)
+        endpoint = f'{endpoint_base}{route}'
+
+        # Construct integration source code.
+        integration_content = construct_source(source, endpoint)
+
+        # Add source after integration configuration has been validated.
         self.validation.add_source(stream, integration_name)
 
         # Set endpoint and integration names.
@@ -98,23 +97,6 @@ class CamelAnyNode:
         # Create endpoint.
         source_backend.createProxyEndpoint(self.client, endpoint_name, route,
                                            integration_name)
-
-        if self.mode.isCluster():
-            server_pod_name = utils.get_server_pod_name()
-
-        # Endpoint address.
-        endpoint_address = self.mode.getQuarkusHTTPServer(server_pod_name,
-                                                          source=True)
-        integration_content = [{
-            'from': {
-                'uri': f'timer:tick?period={period}',
-                'steps': [{
-                    'to': source_url
-                }, {
-                    'to': f'{endpoint_address}{route}'
-                }]
-            }
-        }]
 
         # Start running the source integration.
         source_invocation = kamel.run([integration_content],
@@ -132,42 +114,24 @@ class CamelAnyNode:
         # Compose integration name.
         integration_name = self._get_integration_name(name)
 
-        # Verify config.
-        if 'kind' in sink:
-            if sink['kind'] is None:
-                raise TypeError('A Camel sink needs a kind.')
-            if sink['kind'] not in ['slack-sink']:
-                raise TypeError('Unsupported Camel sink.')
+        # Extract config.
         route = f'/{name}'
         if 'route' in sink and sink['route'] is not None:
             route = sink['route']
-        if 'channel' not in sink:
-            raise TypeError('channel field not provided for sink.')
-        channel = sink['channel']
-        if 'webhookUrl' not in sink:
-            raise TypeError('webhookUrl field not provided for sink.')
-        webhookUrl = sink['webhookUrl']
+
         use_backend = False
         if 'use_backend' in sink and sink['use_backend'] is not None:
             use_backend = sink['use_backend']
 
-        # Add source.
-        self.validation.add_source(stream, integration_name)
+        # Get integration source code.
+        integration_content = construct_sink(sink, f'platform-http:{route}')
+
+        # Add sink after integration configuration has been validated.
+        self.validation.add_sink(stream, integration_name)
 
         # Create backend if one hasn't been created so far.
         if use_backend and self.kamel_backend is None:
             self.kamel_backend = KamelBackend(self.client, self.mode)
-
-        # Write integration code to file.
-        # TODO: for now only support 1 integration content.
-        integration_content = [{
-            'from': {
-                'uri': f'platform-http:{route}',
-                'steps': [{
-                    'to': f'slack:{channel}?webhookUrl={webhookUrl}',
-                }]
-            }
-        }]
 
         sink_invocation = kamel.run([integration_content],
                                     self.mode,

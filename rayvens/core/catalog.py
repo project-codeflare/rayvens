@@ -44,17 +44,17 @@ def construct_source(config, endpoint, inverted=False):
                 }]
             }
         }]
-    else:
-        return [{
-            'from': {
-                'uri': f'timer:tick?period={period}',
-                'steps': [{
-                    'to': url
-                }, {
-                    'to': endpoint
-                }]
-            }
-        }]
+
+    return [{
+        'from': {
+            'uri': f'timer:tick?period={period}',
+            'steps': [{
+                'to': url
+            }, {
+                'to': endpoint
+            }]
+        }
+    }]
 
 
 # construct a camel sink specification from a rayvens sink config

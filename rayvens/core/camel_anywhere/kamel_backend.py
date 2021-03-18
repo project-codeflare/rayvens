@@ -66,7 +66,6 @@ class KamelBackend:
         # When the backend runs on a local machine we must allocate its
         # actor at least 1 CPU.
         actor_options = {'num_cpus': 0}
-        print("Use 1 CPU:", mode.isLocal() or mode.isMixed())
         if mode.isLocal() or mode.isMixed():
             actor_options = {'num_cpus': 1}
         client.create_backend(self.backendName,
@@ -81,8 +80,6 @@ class KamelBackend:
                             integration_name):
         self.endpoint_to_event[endpoint_name] = SinkEvent(
             route, integration_name)
-        print("Create: Length of endpoint_to_event list:",
-              len(self.endpoint_to_event))
 
         # Create endpoint with method as POST.
         client.create_endpoint(endpoint_name,
@@ -91,9 +88,7 @@ class KamelBackend:
                                methods=["POST"])
 
     def _post_event(self, endpointHandle, endpoint_name, data):
-        # Get partial event.
-        print("Post: Length of endpoint_to_event list:",
-              len(self.endpoint_to_event))
+        # Get partial event.s
         event = self.endpoint_to_event[endpoint_name]
 
         # Populate data field.
