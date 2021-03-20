@@ -72,15 +72,8 @@ spec:
            utils.quarkusListenerPort, utils.quarkusListenerPort,
            integrationName)
 
-    # Directory to output yaml file for the external connector.
-    outputDirName = os.path.join(os.getcwd(), "kubernetes")
-
-    # Check that the directory does not already exist.
-    if not os.path.isfile(outputDirName) and not os.path.isdir(outputDirName):
-        os.mkdir(outputDirName)
-
     # Write to output yaml file.
-    outputFileName = os.path.join(outputDirName, serviceName + ".yaml")
+    outputFileName = os.path.abspath(serviceName + ".yaml")
     outputFile = open(outputFileName, "w")
     outputFile.write(yamlFile)
     outputFile.close()
@@ -105,6 +98,10 @@ spec:
 
     if serviceHasBeenStarted:
         print("Service %s has been started succesfully." % serviceName)
+
+    # Remove intermediate file.
+    if outputFileName is not None:
+        os.remove(outputFileName)
 
 
 # Delete service.

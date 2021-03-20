@@ -19,22 +19,13 @@ import json
 import ray
 import rayvens
 
-try:
-    ray.init(address='auto')
-    camel_mode = 'operator'
-except ConnectionError:
-    ray.init(object_store_memory=78643200)
-    camel_mode = 'local'
-
-client = rayvens.Client(camel_mode=camel_mode)
-
-source_config = dict(
-    kind='http-source',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
-    period=3000)
-source = client.create_stream('http', source=source_config)
+# Initialize ray based on where ray will run inside the cluster using the
+# kamel operator.
+ray.init(address='auto')
+camel_mode = 'cluster.operator'
 
 
+# Actor class for processing the events from the source.
 @ray.remote
 class Counter:
     def __init__(self):
@@ -51,8 +42,30 @@ class Counter:
         await self.ready.wait()
 
 
+# Start the test.
+
+# Create client.
+client = rayvens.Client(camel_mode=camel_mode)
+
+# Config for the source.
+source_config = dict(
+    kind='http-source',
+    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    period=3000)
+
+# Create stream where we can attach sinks, sources and operators.
+stream = client.create_stream('http')
+
+# Attach a source to the stream.
+source = client.add_source(stream, source_config)
+
+# Instantiate the processor class for the events.
 counter = Counter.remote()
 
-source >> counter
+# Await source to be ready.
+client.await_start(source)
+
+# Send all events from the source to the processor.
+stream >> counter
 
 ray.get(counter.wait.remote(), timeout=180)

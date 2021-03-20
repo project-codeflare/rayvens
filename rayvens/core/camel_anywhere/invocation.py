@@ -48,11 +48,13 @@ class KamelInvocation:
         # If integration content is not null then we have files to create and
         # write to.
         # TODO: support multiple contents.
+        self.filename = None
         for file_content in integration_content:
-            filename = f'{integration_name}.yaml'
-            with open(filename, 'w') as f:
+            self.filename = f'{integration_name}.yaml'
+            with open(self.filename, 'w') as f:
                 yaml.dump(file_content, f)
-            final_command.append(os.path.abspath(filename))
+            self.filename = os.path.abspath(self.filename)
+            final_command.append(self.filename)
 
         # Get subcommand type.
         self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
@@ -116,6 +118,10 @@ class KamelInvocation:
             log = "Kamel integration failed to start."
         utils.printLog(self.subprocess_name, log)
 
+        # Delete intermediate file.
+        if self.filename is not None:
+            os.remove(self.filename)
+
         return success
 
     def returning_command(self):
@@ -134,6 +140,11 @@ class KamelInvocation:
         if not success:
             log = "Kamel `%s` command failed." % subcommand
         utils.printLog(self.subprocess_name, log)
+
+        # Delete intermediate file.
+        if self.filename is not None:
+            os.remove(self.filename)
+
         return success
 
     def getSubcommandType(self):

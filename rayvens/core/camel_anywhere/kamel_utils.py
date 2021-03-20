@@ -112,9 +112,14 @@ def deletesKubectlService(subcommandType):
 # Helper for ongoing local commands like kamel local run.
 
 
-def invokeLocalOngoingCmd(command, mode):
+def invokeLocalOngoingCmd(command,
+                          mode,
+                          integration_name,
+                          integration_content=[]):
     # Invoke command using the Kamel invocation actor.
-    kamel_invocation = invocation.KamelInvocation(command, mode)
+    kamel_invocation = invocation.KamelInvocation(command, mode,
+                                                  integration_name,
+                                                  integration_content)
 
     # Wait for kamel command to finish launching the integration.
     kamel_is_ready = kamel_invocation.ongoing_command()

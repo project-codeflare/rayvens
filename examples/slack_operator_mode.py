@@ -21,21 +21,24 @@ import time
 
 # Send message to Slack sink using the kamel anywhere operator implementation.
 
-# Command line arguments:
-if len(sys.argv) < 3:
-    print(f'usage: {sys.argv[0]} <slack_channel> <slack_webhook>')
+# Command line arguments and validation:
+if len(sys.argv) < 4:
+    print(f'usage: {sys.argv[0]} <slack_channel> <slack_webhook> <run_mode>')
     sys.exit(1)
 slack_channel = sys.argv[1]
 slack_webhook = sys.argv[2]
+run_mode = sys.argv[3]
+if run_mode not in ['local', 'mixed.operator', 'cluster.operator']:
+    raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 
 # Initialize ray either on the cluster or locally otherwise.
-try:
+if run_mode == 'cluster.operator':
     ray.init(address='auto')
-except ConnectionError:
+else:
     ray.init()
 
 # Start rayvens client in operator mode.
-client = rayvens.Client(camel_mode='operator')
+client = rayvens.Client(camel_mode=run_mode)
 
 # Create stream.
 stream = client.create_stream('slack')
@@ -53,6 +56,6 @@ sink = client.add_sink(stream, sink_config)
 client.await_start(sink)
 
 # Sends message to all sinks attached to this stream.
-stream << "Use API in ANY_NODE mode by sending message to Slack sink."
+stream << f'Sending message to Slack sink in run mode {run_mode}.'
 
 time.sleep(5)

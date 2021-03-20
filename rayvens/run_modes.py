@@ -1,0 +1,41 @@
+#
+# Run modes.
+#
+# Note: Kamel Operator) needs a cluster to run in.
+# Note: Ray Operator) needs a cluster to run in.
+#
+# Legend:
+#
+#  clstr i.e. cluster : Kamel/Ray run inside or outside the cluster.
+#  oprtr i.e. operator: Kamel/Ray run using their Kubernetes operator
+#                       implementation.
+#
+#  Running outside the cluster means that no operator can be used hence
+#  the use of the `-` for those table entries.
+#  When running inside the cluster (i.e. clstr:yes) then there is a choice:
+#  - use the operator (i.e. oprtr:yes)
+#  - run local to the container (i.e. oprtr:no). For kamel this is
+#  equivalent to doing a `kamel local run` inside the container.
+#
+#  Connector types between sources/sinks and Ray:
+#     - RS   : Ray Serve for sources and HTTP requests for sinks.
+#     - P2P  : HTTP requests on both source and sink side.
+#     - P2PS : Like P2P but with location spread enabled.
+#     - K    : Kafka for both sources and sinks.
+#     - KS   : Kafka + location spread enabled.
+#
+#
+#
+# Mode              |      Ray      |     Kamel     || Supported Connectors
+#                   | clstr | oprtr | clstr | oprtr || RS | P2P | P2PS | K | KS
+# ------------------|-------|-------|-------|-------||----|-----|------|---|---
+# local             | no    | -     | no    | -     || v  |     |      |   |
+# ------------------|-------|-------|-------|-------||----|-----|------|---|---
+# mixed.local       | no    | -     | yes   | no    ||    |     |      |   |
+# mixed.operator    | no    | -     | yes   | yes   || v  |     |      |   |
+# ------------------|-------|-------|-------|-------||----|-----|------|---|---
+# cluster.local     | yes   | no    | yes   | no    ||    | v   | v    | v | v
+# cluster.operator  | yes   | no    | yes   | yes   || v  |     |      |   |
+# operator.local    | yes   | yes   | yes   | no    ||    |     |      |   |
+# operator.operator | yes   | yes   | yes   | yes   ||    |     |      |   |
+#

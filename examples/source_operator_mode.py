@@ -17,18 +17,28 @@
 import ray
 import rayvens
 import time
+import sys
 
 # Receive message from stock price source and print it to console using the
 # operator implementation.
 
 # Initialize ray.
-try:
-    ray.init(address='auto')  # try to connect to cluster first
-except ConnectionError:
-    ray.init()  # fallback to local execution
+if len(sys.argv) < 2:
+    print(f'usage: {sys.argv[0]} <run_mode>')
+    sys.exit(1)
+run_mode = sys.argv[1]
+# TODO enable 'local', 'mixed.operator' modes.
+if run_mode not in ['cluster.operator']:
+    raise RuntimeError(f'Invalid run mode provided: {run_mode}')
+
+# Initialize ray either on the cluster or locally otherwise.
+if run_mode == 'cluster.operator':
+    ray.init(address='auto')
+else:
+    ray.init()
 
 # Start rayvens client.
-client = rayvens.Client(camel_mode='operator')
+client = rayvens.Client(camel_mode=run_mode)
 
 # Create stream.
 stream = client.create_stream('http')

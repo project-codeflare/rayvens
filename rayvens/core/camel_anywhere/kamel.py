@@ -132,7 +132,9 @@ def run(integration_files,
     # If this is a kame local run, the behavior of the command is slightly
     # different and needs to be handled separately.
     if isLocal:
-        return kamel_utils.invokeLocalOngoingCmd(command, mode)
+        return kamel_utils.invokeLocalOngoingCmd(command, mode,
+                                                 integration_name,
+                                                 integration_content)
 
     return kamel_utils.invokeReturningCmd(command,
                                           mode,

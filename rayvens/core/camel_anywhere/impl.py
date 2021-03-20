@@ -32,10 +32,10 @@ def start(prefix, camel_mode):
     if camel_mode == 'local':
         mode.location = RayKamelExecLocation.LOCAL
         camel = CamelAnyNode.remote(mode)
-    elif camel_mode == 'mixed':
+    elif camel_mode == 'mixed.operator':
         mode.location = RayKamelExecLocation.MIXED
         camel = CamelAnyNode.remote(mode)
-    elif camel_mode == 'operator':
+    elif camel_mode == 'cluster.operator':
         mode.location = RayKamelExecLocation.CLUSTER
         camel = CamelAnyNode.options(resources={'head': 1}).remote(mode)
     else:
@@ -49,16 +49,21 @@ def start(prefix, camel_mode):
 @ray.remote(num_cpus=0)
 class CamelAnyNode:
     def __init__(self, mode):
-        self.client = serve.start(http_options={
-            'host': '0.0.0.0',
-            'location': 'EveryNode'
-        })
         self.mode = mode
+        if self.mode.isCluster():
+            self.client = serve.start(http_options={
+                'host': '0.0.0.0',
+                'location': 'EveryNode'
+            })
+        else:
+            self.client = serve.start()
         self.kamel_backend = None
         self.endpoint_id = -1
         self.integration_id = -1
+        self.service_id = -1
         self.validation = Validation()
         self.invocations = {}
+        self.services = []
 
     def add_stream(self, stream, name):
         self.validation.add_stream(stream, name)
@@ -133,13 +138,22 @@ class CamelAnyNode:
         if use_backend and self.kamel_backend is None:
             self.kamel_backend = KamelBackend(self.client, self.mode)
 
+        # Start running the integration.
         sink_invocation = kamel.run([integration_content],
                                     self.mode,
                                     integration_name,
                                     integration_as_files=False)
         self.invocations[sink_invocation] = integration_name
 
-        # Start running the integration.
+        # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
+        # then we have to also start a service the allows outside processes to
+        # send data to the sink.
+        if self.mode.isMixed():
+            service_name = self._get_service_name("kind-external-connector")
+            kubernetes.createExternalServiceForKamel(mode, service_name,
+                                                     integration_name)
+            self.services.append(service_name)
+
         if use_backend:
             endpoint_name = self._get_endpoint_name(name)
             self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
@@ -156,19 +170,26 @@ class CamelAnyNode:
         return integration_name
 
     def exit(self):
-        # TODO: delete endpoints.
+        # TODO: delete endpoints from Ray server.
+        # This deletes all the additional services.
+        for service in self.services:
+            kubernetes.deleteService(self.mode, service)
         # This deletes all the integrations.
         for invocation in self.invocations:
             if self.mode.isCluster() or self.mode.isMixed():
                 kamel.delete(invocation, self.invocations[invocation])
             elif self.mode.isLocal():
-                invocation.kill.remote()
+                invocation.kill()
             else:
                 raise RuntimeError("Unreachable")
         # TODO: check that the invocation does not need to be killed when
         # running in the Cluster or Mixed modes.
 
     def await_start(self, integration_name):
+        # TODO: remove this once we enable this for local mode.
+        if self.mode.isLocal():
+            return True
+
         # Validate integration.
         self.validation.validate_integration(integration_name)
 
@@ -208,6 +229,10 @@ class CamelAnyNode:
     def _get_integration_name(self, name):
         self.integration_id += 1
         return "-".join(["integration", name, str(self.integration_id)])
+
+    def _get_service_name(self, name):
+        self.service_id += 1
+        return "-".join(["service", name, str(self.service_id)])
 
 
 @ray.remote(num_cpus=0)

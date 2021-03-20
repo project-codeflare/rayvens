@@ -80,7 +80,7 @@ def _start(camel_mode):
         return start_mode_kafka
     elif camel_mode in ['auto', 'spread']:
         return start_mode_http
-    elif camel_mode in ['local', 'mixed', 'operator']:
+    elif camel_mode in ['local', 'mixed.operator', 'cluster.operator']:
         return start_mode_2
     else:
         raise TypeError('Unsupported camel_mode.')
