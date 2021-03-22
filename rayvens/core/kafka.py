@@ -23,6 +23,7 @@ import yaml
 from confluent_kafka import Consumer, Producer
 import threading
 import rayvens.core.catalog as catalog
+from rayvens.core.wrapper import Wrapper
 
 integrations = []
 
@@ -37,7 +38,7 @@ def killall():
 def start(prefix, mode):
     camel = Camel.remote(mode)
     atexit.register(camel.killall.remote)
-    return camel
+    return Wrapper(camel)
 
 
 # the actor to manage camel

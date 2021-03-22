@@ -26,6 +26,7 @@ import requests
 import random
 from rayvens.core.validation import Validation
 import rayvens.core.catalog as catalog
+from rayvens.core.wrapper import Wrapper
 
 integrations = []
 
@@ -40,7 +41,7 @@ def killall():
 def start(prefix, mode):
     camel = Camel.remote(mode)
     atexit.register(camel.killall.remote)
-    return camel
+    return Wrapper(camel)
 
 
 # the actor to manage camel

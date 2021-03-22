@@ -25,6 +25,7 @@ from rayvens.core.camel_anywhere import kamel
 from rayvens.core.validation import Validation
 from rayvens.core.utils import utils
 from rayvens.core.catalog import construct_source, construct_sink
+from rayvens.core.wrapper import Wrapper
 
 
 def start(prefix, camel_mode):
@@ -43,7 +44,7 @@ def start(prefix, camel_mode):
 
     # Setup what happens at exit.
     atexit.register(camel.exit.remote)
-    return camel
+    return Wrapper(camel)
 
 
 @ray.remote(num_cpus=0)

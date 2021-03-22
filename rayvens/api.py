@@ -95,7 +95,7 @@ class Client:
     # Create a new stream.
     def create_stream(self, name, source=None, sink=None, operator=None):
         stream = Stream.remote(name, operator=operator)
-        self._camel.add_stream.remote(stream, name)
+        self._camel.add_stream(stream, name)
         if source is not None:
             self.add_source(stream, source)
         if sink is not None:
@@ -104,21 +104,20 @@ class Client:
 
     # Attach source to stream.
     def add_source(self, stream, source):
-        return self._camel.add_source.remote(stream, source)
+        return self._camel.add_source(stream, source)
 
     # Attach sink to stream.
     def add_sink(self, stream, sink):
-        return self._camel.add_sink.remote(stream, sink)
+        return self._camel.add_sink(stream, sink)
 
     # Wait for a particular integration to start.
     def await_start(self, integration_name):
-        successful_await = ray.get(
-            self._camel.await_start.remote(integration_name))
+        successful_await = self._camel.await_start(integration_name)
         if not successful_await:
             raise RuntimeError('await_start command failed.')
 
     # Wait for all integrations attached to a particular Stream to start.
     def await_start_all(self, stream):
-        successful_await = ray.get(self._camel.await_start_all.remote(stream))
+        successful_await = self._camel.await_start_all(stream)
         if not successful_await:
             raise RuntimeError('await_start_all command failed.')
