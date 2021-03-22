@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-import atexit
 import os
 import ray
 import signal
@@ -26,20 +25,12 @@ import requests
 import random
 from rayvens.core.validation import Validation
 import rayvens.core.catalog as catalog
-
-integrations = []
-
-
-def killall():
-    global integrations
-    for integration in integrations:
-        integration.cancel()
+import sys
 
 
 # instantiate camel actor manager and setup exit hook
 def start(prefix, mode):
     camel = Camel(mode)
-    atexit.register(camel.killall)
     return camel
 
 
@@ -92,10 +83,6 @@ class Camel:
     def await_start_all(self, stream):
         return True
 
-    def killall(self):
-        for stream in self.streams:
-            stream._exec.remote(killall)
-
 
 # the low-level implementation-specific stuff
 
@@ -126,15 +113,14 @@ class Integration:
         with open(filename, 'w') as f:
             yaml.dump(spec, f)
         self.port = random_port()
+        harness = os.path.join(os.path.dirname(__file__), 'harness.py')
         queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
         command = [
-            'kamel', 'local', 'run', queue, '--property',
-            f'quarkus.http.port={self.port}', filename
+            sys.executable, harness, 'kamel', 'local', 'run', queue,
+            '--property', f'quarkus.http.port={self.port}', filename
         ]
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
-        global integrations
-        integrations.append(self)
 
     def send_to(self, stream):
         def append():
@@ -158,6 +144,6 @@ class Integration:
 
     def cancel(self):
         try:
-            os.killpg(os.getpgid(self.pid), signal.SIGTERM)
+            os.kill(self.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
