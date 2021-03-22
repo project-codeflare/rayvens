@@ -22,8 +22,8 @@ import subprocess
 import yaml
 from confluent_kafka import Consumer, Producer
 import threading
+from rayvens.core.validation import Validation
 import rayvens.core.catalog as catalog
-from rayvens.core.wrapper import Wrapper
 
 integrations = []
 
@@ -36,19 +36,24 @@ def killall():
 
 # instantiate camel actor manager and setup exit hook
 def start(prefix, mode):
-    camel = Camel.remote(mode)
-    atexit.register(camel.killall.remote)
-    return Wrapper(camel)
+    camel = Camel(mode)
+    atexit.register(camel.killall)
+    return camel
 
 
-# the actor to manage camel
-@ray.remote(num_cpus=0)
 class Camel:
     def __init__(self, mode):
         self.streams = []
         self.mode = mode
+        self.validation = Validation()
 
-    def add_source(self, name, stream, config):
+    def add_stream(self, stream, name):
+        self.validation.add_stream(stream, name)
+
+    def add_source(self, stream, config):
+        # Get stream name.
+        name = self.validation.get_stream_name(stream)
+
         self.streams.append(stream)
         spec = catalog.construct_source(config,
                                         f'kafka:{name}?brokers=${brokers()}')
@@ -57,12 +62,12 @@ class Camel:
             integration = Integration(name, spec)
             integration.send_to(stream)
 
-        if 'spread' not in self.mode:
-            run()
-        else:
-            stream._exec.remote(run)
+        stream._exec.remote(run)
 
-    def add_sink(self, name, stream, config):
+    def add_sink(self, stream, config):
+        # Get stream name.
+        name = self.validation.get_stream_name(stream)
+
         self.streams.append(stream)
         spec = catalog.construct_sink(config,
                                       f'kafka:{name}?brokers=${brokers()}')
@@ -71,17 +76,17 @@ class Camel:
             integration = Integration(name, spec)
             integration.recv_from(stream)
 
-        if 'spread' not in self.mode:
-            run()
-        else:
-            stream._exec.remote(run)
+        stream._exec.remote(run)
+
+    def await_start(self, integration_name):
+        return True
+
+    def await_start_all(self, stream):
+        return True
 
     def killall(self):
-        if 'spread' not in self.mode:
-            killall()
-        else:
-            for stream in self.streams:
-                stream._exec.remote(killall)
+        for stream in self.streams:
+            stream._exec.remote(killall)
 
 
 # the low-level implementation-specific stuff

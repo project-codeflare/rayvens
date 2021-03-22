@@ -21,6 +21,8 @@ setup(name='rayvens',
           'rayvens', 'rayvens.core', 'rayvens.core.camel_anywhere',
           'rayvens.core.utils'
       ],
+      package_data={'rayvens.core': ['Queue.java']},
+      include_package_data=True,
       version='0.1',
       description='Ray eventing',
       license='apache-2.0',

@@ -76,9 +76,9 @@ setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
 
 def _start(camel_mode):
-    if camel_mode in ['kafka', 'kafka-spread']:
+    if camel_mode in ['kafka']:
         return start_mode_kafka
-    elif camel_mode in ['auto', 'spread']:
+    elif camel_mode in ['auto']:
         return start_mode_http
     elif camel_mode in ['local', 'mixed.operator', 'cluster.operator']:
         return start_mode_2

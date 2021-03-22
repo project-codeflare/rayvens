@@ -31,6 +31,7 @@ script:
   - ./scripts/start-kind.sh
   - RAYVENS_TEST_MODE=local python ./examples/travis/stream.py
   - RAYVENS_TEST_MODE=local python ./examples/travis/source.py
+  - RAYVENS_TEST_MODE=local RAYVENS_MODE=kafka python ./examples/travis/source.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/stream.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/source.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/source_operator.py
