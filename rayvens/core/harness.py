@@ -27,7 +27,10 @@ process = subprocess.Popen(sys.argv[1:], start_new_session=True)
 psutil.wait_procs([psutil.Process().parent()])
 
 # kill child process
-os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+if sys.platform == "win32":
+    os.kill(process.pid, signal.CTRL_C_EVENT)
+else:
+    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
 
 # delete integration file
 os.remove(sys.argv[-1])
