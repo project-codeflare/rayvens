@@ -29,7 +29,6 @@ colorama==0.4.4
 colorful==0.5.4
 confluent-kafka==1.6.0
 filelock==3.0.12
-flake8==3.8.4
 Flask==1.1.2
 google-api-core==1.26.1
 google-auth==1.27.1
@@ -44,7 +43,6 @@ Jinja2==2.11.3
 jsonschema==3.2.0
 kubernetes==12.0.1
 MarkupSafe==1.1.1
-mccabe==0.6.1
 msgpack==1.0.2
 multidict==5.1.0
 numpy==1.20.1
@@ -59,9 +57,7 @@ psutil==5.8.0
 py-spy==0.3.4
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
-pycodestyle==2.6.0
 pydantic==1.6.1
-pyflakes==2.2.0
 pyparsing==2.4.7
 pyrsistent==0.17.3
 python-dateutil==2.8.1
@@ -79,5 +75,4 @@ urllib3==1.26.3
 uvicorn==0.13.4
 websocket-client==0.58.0
 Werkzeug==1.0.1
-yapf==0.30.0
 yarl==1.6.3
