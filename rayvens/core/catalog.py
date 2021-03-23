@@ -15,27 +15,36 @@
 #
 
 
-# construct a camel source specification from a rayvens source config
-def construct_source(config, endpoint, inverted=False):
-    if 'kind' not in config:
-        raise TypeError('A Camel source needs a kind.')
-    if config['kind'] not in ['http-source']:
-        raise TypeError('Unsupported Camel source.')
+def http_source(config):
     if 'url' not in config:
         raise TypeError('Kind http-source requires a url.')
     url = config['url']
     period = config.get('period', 1000)
+    return {'uri': f'timer:tick?period={period}', 'steps': [{'to': url}]}
 
+
+def generic_source(config):
+    if 'spec' not in config:
+        raise TypeError('Kind generic-source requires a spec.')
+    return config['spec']
+
+
+sources = {'http-source': http_source, 'generic-source': generic_source}
+
+
+# construct a camel source specification from a rayvens source config
+def construct_source(config, endpoint, inverted=False):
+    if 'kind' not in config:
+        raise TypeError('A Camel source needs a kind.')
+    kind = config['kind']
+    f = sources.get(kind)
+    if f is None:
+        raise TypeError(f'Unsupported Camel source: {kind}.')
+    spec = f(config)
     if inverted:
-        return [{
-            'from': {
-                'uri': f'timer:tick?period={period}',
-                'steps': [{
-                    'to': url
-                }, {
-                    'bean': 'addToQueue'
-                }]
-            },
+        spec['steps'].append({'bean': 'addToQueue'})
+        spec = [{
+            'from': spec
         }, {
             'from': {
                 'uri': endpoint,
@@ -44,25 +53,14 @@ def construct_source(config, endpoint, inverted=False):
                 }]
             }
         }]
-
-    return [{
-        'from': {
-            'uri': f'timer:tick?period={period}',
-            'steps': [{
-                'to': url
-            }, {
-                'to': endpoint
-            }]
-        }
-    }]
+    else:
+        spec['steps'].append({'to': endpoint})
+        spec = [{'from': spec}]
+    print(spec)
+    return spec
 
 
-# construct a camel sink specification from a rayvens sink config
-def construct_sink(config, endpoint):
-    if 'kind' not in config:
-        raise TypeError('A Camel sink needs a kind.')
-    if config['kind'] not in ['slack-sink']:
-        raise TypeError('Unsupported Camel sink.')
+def slack_sink(config):
     if 'channel' not in config:
         raise TypeError('Kind slack-sink requires a channel.')
     if 'webhookUrl' not in config:
@@ -70,11 +68,33 @@ def construct_sink(config, endpoint):
     channel = config['channel']
     webhookUrl = config['webhookUrl']
 
-    return [{
-        'from': {
-            'uri': endpoint,
-            'steps': [{
-                'to': f'slack:{channel}?webhookUrl={webhookUrl}',
-            }]
-        }
-    }]
+    return {
+        'steps': [{
+            'to': f'slack:{channel}?webhookUrl={webhookUrl}',
+        }]
+    }
+
+
+def generic_sink(config):
+    if 'spec' not in config:
+        raise TypeError('Kind generic-sink requires a spec.')
+    return config['spec']
+
+
+sinks = {'slack-sink': slack_sink, 'generic-sink': generic_sink}
+
+
+# construct a camel sink specification from a rayvens sink config
+def construct_sink(config, endpoint):
+    if 'kind' not in config:
+        raise TypeError('A Camel sink needs a kind.')
+    kind = config['kind']
+    f = sinks.get(kind)
+    if f is None:
+        raise TypeError(f'Unsupported Camel sink: {kind}.')
+
+    spec = f(config)
+    spec['uri'] = endpoint
+    spec = [{'from': spec}]
+    print(spec)
+    return spec
