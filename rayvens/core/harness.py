@@ -28,3 +28,6 @@ psutil.wait_procs([psutil.Process().parent()])
 
 # kill child process
 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+
+# delete integration file
+os.remove(sys.argv[-1])
