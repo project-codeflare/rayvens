@@ -56,7 +56,6 @@ def construct_source(config, endpoint, inverted=False):
     else:
         spec['steps'].append({'to': endpoint})
         spec = [{'from': spec}]
-    print(spec)
     return spec
 
 
@@ -96,5 +95,4 @@ def construct_sink(config, endpoint):
     spec = f(config)
     spec['uri'] = endpoint
     spec = [{'from': spec}]
-    print(spec)
     return spec
