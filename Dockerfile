@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-FROM rayproject/ray:6d5511-py38
+FROM rayproject/ray:9053be-py38
 
 COPY --from=docker.io/apache/camel-k:1.3.1 /usr/local/bin/kamel /usr/local/bin/
 

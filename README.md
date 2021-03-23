@@ -69,10 +69,10 @@ Install Ray and Ray Serve with Kubernetes support:
 pip install --upgrade pip
 
 # for osx
-pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/6d5511cf8079f04d4f70ac724de8b62437adf0e7/ray-2.0.0.dev0-cp38-cp38-macosx_10_13_x86_64.whl
+pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/9053be0e639cf35a1b113ca8a4fc378d209ecb75/ray-2.0.0.dev0-cp38-cp38-macosx_10_13_x86_64.whl
 
 # for linux
-pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/6d5511cf8079f04d4f70ac724de8b62437adf0e7/ray-2.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
+pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/9053be0e639cf35a1b113ca8a4fc378d209ecb75/ray-2.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
 
 # for both
 pip install "ray[serve]"
