@@ -46,6 +46,7 @@ class Execution:
                  kamelExecMode=CamelOperatorMode.ANY_NODE):
         self.location = location
         self.kamelExecMode = kamelExecMode
+        self.connector = 'http'
         self.namespace = "ray"
 
     def setNamespace(self, namespace):
@@ -54,7 +55,7 @@ class Execution:
     def getNamespace(self):
         return self.namespace
 
-    def getQuarkusHTTPServer(self, integration_name, source=False):
+    def getQuarkusHTTPServer(self, integration_name, serve_source=False):
         if self.location == RayKamelExecLocation.LOCAL:
             return "http://0.0.0.0:8080"
         if self.location == RayKamelExecLocation.MIXED:
@@ -62,7 +63,7 @@ class Execution:
         if self.location == RayKamelExecLocation.CLUSTER:
             if integration_name == "":
                 raise RuntimeError("integration name is not set")
-            if source:
+            if serve_source:
                 return "http://%s.%s.svc.cluster.local:%s" % (
                     integration_name, self.namespace,
                     utils.internalClusterPortForSource)
@@ -78,6 +79,12 @@ class Execution:
 
     def isCluster(self):
         return self.location == RayKamelExecLocation.CLUSTER
+
+    def hasHTTPConnector(self):
+        return self.connector == 'http'
+
+    def hasRayServeConnector(self):
+        return self.connector == 'ray-serve'
 
 
 # Default execution mode.

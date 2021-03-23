@@ -17,6 +17,8 @@
 import atexit
 import requests
 import ray
+import time
+import threading
 from ray import serve
 from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
 from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
@@ -25,46 +27,54 @@ from rayvens.core.camel_anywhere import kamel
 from rayvens.core.validation import Validation
 from rayvens.core.utils import utils
 from rayvens.core.catalog import construct_source, construct_sink
-from rayvens.core.wrapper import Wrapper
 
 
 def start(prefix, camel_mode):
     camel = None
+    mode.connector = 'http'
     if camel_mode == 'local':
         mode.location = RayKamelExecLocation.LOCAL
-        camel = CamelAnyNode.remote(mode)
+        camel = CamelAnyNode(mode)
     elif camel_mode == 'mixed.operator':
         mode.location = RayKamelExecLocation.MIXED
-        camel = CamelAnyNode.remote(mode)
+        camel = CamelAnyNode(mode)
     elif camel_mode == 'cluster.operator':
         mode.location = RayKamelExecLocation.CLUSTER
-        camel = CamelAnyNode.options(resources={'head': 1}).remote(mode)
+        camel = CamelAnyNode(mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
 
     # Setup what happens at exit.
-    atexit.register(camel.exit.remote)
-    return Wrapper(camel)
+    atexit.register(camel.exit)
+    return camel
 
 
-@ray.remote(num_cpus=0)
 class CamelAnyNode:
     def __init__(self, mode):
         self.mode = mode
-        if self.mode.isCluster():
-            self.client = serve.start(http_options={
-                'host': '0.0.0.0',
-                'location': 'EveryNode'
-            })
-        else:
-            self.client = serve.start()
-        self.kamel_backend = None
+
+        # TODO: add node and process id to unique name of integrations and
+        # services.
         self.endpoint_id = -1
         self.integration_id = -1
         self.service_id = -1
+
+        # Initialize validation of endpoints.
         self.validation = Validation()
+
+        # List of command invocations used to clean-up the environment.
         self.invocations = {}
+
+        # List of services used to clean-up the environment.
         self.services = []
+
+        # The Ray Serve backend used for Sinks. Sink are a special case and
+        # can use one backend to support multiple sinks.
+        self.kamel_backend = None
+
+        # Start server is using a backend.
+        if self.mode.hasRayServeConnector():
+            serve.start()
 
     def add_stream(self, stream, name):
         self.validation.add_stream(stream, name)
@@ -81,35 +91,61 @@ class CamelAnyNode:
         if 'route' in source and source['route'] is not None:
             route = source['route']
 
-        server_pod_name = ""
-        if self.mode.isCluster():
-            server_pod_name = utils.get_server_pod_name()
-        endpoint_base = self.mode.getQuarkusHTTPServer(server_pod_name,
-                                                       source=True)
+        # Determine the `to` endpoint value made up of a base address and
+        # a custom route provided by the user. The computation depends on
+        # the connector type used for the implementation.
+        if self.mode.hasRayServeConnector():
+            # TODO: move this code inside the Execution class.
+            server_pod_name = ""
+            if self.mode.isCluster():
+                server_pod_name = utils.get_server_pod_name()
+            endpoint_base = self.mode.getQuarkusHTTPServer(server_pod_name,
+                                                           serve_source=True)
+        elif self.mode.hasHTTPConnector():
+            endpoint_base = "platform-http:"
+        else:
+            raise RuntimeError(
+                f'{self.mode.connector} connector is unsupported')
         endpoint = f'{endpoint_base}{route}'
 
-        # Construct integration source code.
-        integration_content = construct_source(source, endpoint)
+        # Construct integration source code. When the ray serve connector is
+        # not enabled, use an HTTP inverted connection.
+        inverted = self.mode.hasHTTPConnector()
+        integration_content = construct_source(source,
+                                               endpoint,
+                                               inverted=inverted)
 
         # Add source after integration configuration has been validated.
         self.validation.add_source(stream, integration_name)
 
-        # Set endpoint and integration names.
-        endpoint_name = self._get_endpoint_name(name)
+        if self.mode.hasRayServeConnector():
+            # Set endpoint and integration names.
+            endpoint_name = self._get_endpoint_name(name)
 
-        # Create backend for this topic.
-        source_backend = KamelBackend(self.client, self.mode, topic=stream)
+            # Create backend for this topic.
+            source_backend = KamelBackend(self.mode, topic=stream)
 
-        # Create endpoint.
-        source_backend.createProxyEndpoint(self.client, endpoint_name, route,
-                                           integration_name)
+            # Create endpoint.
+            source_backend.createProxyEndpoint(endpoint_name, route,
+                                               integration_name)
 
         # Start running the source integration.
         source_invocation = kamel.run([integration_content],
                                       self.mode,
                                       integration_name,
-                                      integration_as_files=False)
+                                      integration_as_files=False,
+                                      inverted_http=inverted)
         self.invocations[source_invocation] = integration_name
+
+        # Set up source for the HTTP connector case.
+        if self.mode.hasHTTPConnector():
+            server_address = self.mode.getQuarkusHTTPServer(integration_name)
+
+            def run():
+                send_to_helper = SendToHelper()
+                send_to_helper.send_to(stream, server_address, route)
+
+            stream._exec.remote(run)
 
         return integration_name
 
@@ -137,7 +173,7 @@ class CamelAnyNode:
 
         # Create backend if one hasn't been created so far.
         if use_backend and self.kamel_backend is None:
-            self.kamel_backend = KamelBackend(self.client, self.mode)
+            self.kamel_backend = KamelBackend(self.mode)
 
         # Start running the integration.
         sink_invocation = kamel.run([integration_content],
@@ -157,12 +193,12 @@ class CamelAnyNode:
 
         if use_backend:
             endpoint_name = self._get_endpoint_name(name)
-            self.kamel_backend.createProxyEndpoint(self.client, endpoint_name,
-                                                   route, integration_name)
+            self.kamel_backend.createProxyEndpoint(endpoint_name, route,
+                                                   integration_name)
 
-            helper = HelperWithBackend.remote(
-                self.kamel_backend, self.client.get_handle(endpoint_name),
-                endpoint_name)
+            helper = HelperWithBackend.remote(self.kamel_backend,
+                                              serve.get_handle(endpoint_name),
+                                              endpoint_name)
         else:
             helper = Helper.remote(
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
@@ -234,6 +270,22 @@ class CamelAnyNode:
     def _get_service_name(self, name):
         self.service_id += 1
         return "-".join(["service", name, str(self.service_id)])
+
+
+class SendToHelper:
+    def send_to(self, stream, server_address, route):
+        def append():
+            while True:
+                try:
+                    response = requests.get(f'{server_address}{route}')
+                    if response.status_code != 200:
+                        time.sleep(1)
+                        continue
+                    stream.append.remote(response.text)
+                except requests.exceptions.ConnectionError:
+                    time.sleep(1)
+
+        threading.Thread(target=append).start()
 
 
 @ray.remote(num_cpus=0)

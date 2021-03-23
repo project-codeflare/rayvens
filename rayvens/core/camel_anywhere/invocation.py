@@ -35,8 +35,21 @@ class KamelInvocation:
                  command_options,
                  mode,
                  integration_name="",
-                 integration_content=[]):
+                 integration_content=[],
+                 inverted_http=False):
         self.mode = mode
+        self.integration_name = integration_name
+
+        if inverted_http:
+            # Add Queue.java file.
+            queue_file = os.path.join(os.path.dirname(__file__),
+                                      '../Queue.java')
+            command_options.append(queue_file)
+
+            # TODO: Add random port for local run case.
+            # self.port = utils.random_port()
+            # command_options.append("--property")
+            # command_options.append(f'quarkus.http.port={self.port}')
 
         # If list is porvided, join it.
         if isinstance(command_options, list):
@@ -50,7 +63,7 @@ class KamelInvocation:
         # TODO: support multiple contents.
         self.filename = None
         for file_content in integration_content:
-            self.filename = f'{integration_name}.yaml'
+            self.filename = f'{self.integration_name}.yaml'
             with open(self.filename, 'w') as f:
                 yaml.dump(file_content, f)
             self.filename = os.path.abspath(self.filename)
@@ -82,7 +95,7 @@ class KamelInvocation:
 
         # Get end condition or fail if command type is not supported.
         self.end_condition = kamel_utils.getKamelCommandEndCondition(
-            self.subcommand_type, integration_name)
+            self.subcommand_type, self.integration_name)
 
         # TODO: Does this work for Windows? Linux? Cloud?
         # Launch kamel command in a new process.

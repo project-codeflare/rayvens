@@ -91,7 +91,8 @@ def run(integration_files,
         local=None,
         envVars=[],
         integration_as_files=True,
-        await_start=False):
+        await_start=False,
+        inverted_http=False):
     # Use the mode to determine if this is a local run or a run.
     isLocal = mode.isLocal()
 
@@ -129,18 +130,23 @@ def run(integration_files,
     else:
         integration_content = integration_files
 
-    # If this is a kame local run, the behavior of the command is slightly
+    # If this is a kamel local run, the behavior of the command is slightly
     # different and needs to be handled separately.
     if isLocal:
-        return kamel_utils.invokeLocalOngoingCmd(command, mode,
-                                                 integration_name,
-                                                 integration_content)
+        return kamel_utils.invokeLocalOngoingCmd(
+            command,
+            mode,
+            integration_name,
+            integration_content=integration_content,
+            inverted_http=inverted_http)
 
-    return kamel_utils.invokeReturningCmd(command,
-                                          mode,
-                                          integration_name,
-                                          integration_content,
-                                          await_start=await_start)
+    return kamel_utils.invokeReturningCmd(
+        command,
+        mode,
+        integration_name,
+        integration_content=integration_content,
+        await_start=await_start,
+        inverted_http=inverted_http)
 
 
 # Kamel delete invocation.

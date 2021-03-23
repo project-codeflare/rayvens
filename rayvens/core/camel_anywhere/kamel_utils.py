@@ -115,11 +115,15 @@ def deletesKubectlService(subcommandType):
 def invokeLocalOngoingCmd(command,
                           mode,
                           integration_name,
-                          integration_content=[]):
+                          integration_content=[],
+                          inverted_http=False):
     # Invoke command using the Kamel invocation actor.
-    kamel_invocation = invocation.KamelInvocation(command, mode,
-                                                  integration_name,
-                                                  integration_content)
+    kamel_invocation = invocation.KamelInvocation(
+        command,
+        mode,
+        integration_name=integration_name,
+        integration_content=integration_content,
+        inverted_http=inverted_http)
 
     # Wait for kamel command to finish launching the integration.
     kamel_is_ready = kamel_invocation.ongoing_command()
@@ -142,10 +146,14 @@ def invokeReturningCmd(command,
                        mode,
                        integration_name,
                        integration_content=[],
-                       await_start=False):
-    kamel_invocation = invocation.KamelInvocation(command, mode,
-                                                  integration_name,
-                                                  integration_content)
+                       await_start=False,
+                       inverted_http=False):
+    kamel_invocation = invocation.KamelInvocation(
+        command,
+        mode,
+        integration_name=integration_name,
+        integration_content=integration_content,
+        inverted_http=inverted_http)
 
     # Wait for the kamel command to be invoked and retrieve status.
     success = kamel_invocation.returning_command()

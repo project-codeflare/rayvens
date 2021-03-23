@@ -16,6 +16,7 @@
 
 import ray
 import requests
+from ray import serve
 
 # Default value for Quarkus HTTP server.
 # TODO: multiple sinks will require multiple ports.
@@ -55,6 +56,7 @@ class KamelEventHandler:
 
         if self.topic is None:
             return {"message": "Failure"}
+        print("Body:", body)
         self.topic.append.remote(body)
         return {"message": "Success"}
 
@@ -62,30 +64,24 @@ class KamelEventHandler:
 class KamelBackend:
     backendName = "kamel_backend"
 
-    def __init__(self, client, mode, topic=None):
+    def __init__(self, mode, topic=None):
         # When the backend runs on a local machine we must allocate its
         # actor at least 1 CPU.
-        actor_options = {'num_cpus': 0}
-        if mode.isLocal() or mode.isMixed():
-            actor_options = {'num_cpus': 1}
-        client.create_backend(self.backendName,
-                              KamelEventHandler,
-                              mode,
-                              topic,
-                              config={'num_replicas': 1},
-                              ray_actor_options=actor_options)
+        # actor_options = {'num_cpus': 0}
+        # if mode.isLocal() or mode.isMixed():
+        #     actor_options = {'num_cpus': 1}
+        serve.create_backend(self.backendName, KamelEventHandler, mode, topic)
         self.endpoint_to_event = {}
 
-    def createProxyEndpoint(self, client, endpoint_name, route,
-                            integration_name):
+    def createProxyEndpoint(self, endpoint_name, route, integration_name):
         self.endpoint_to_event[endpoint_name] = SinkEvent(
             route, integration_name)
 
         # Create endpoint with method as POST.
-        client.create_endpoint(endpoint_name,
-                               backend=self.backendName,
-                               route=route,
-                               methods=["POST"])
+        serve.create_endpoint(endpoint_name,
+                              backend=self.backendName,
+                              route=route,
+                              methods=["POST"])
 
     def _post_event(self, endpointHandle, endpoint_name, data):
         # Get partial event.s
@@ -97,15 +93,15 @@ class KamelBackend:
         # Send request to backend.
         return ray.get(endpointHandle.remote(event))
 
-    def postToProxyEndpoint(self, client, endpoint_name, data):
-        return self._post_event(client.get_handle(endpoint_name),
-                                endpoint_name, data)
+    def postToProxyEndpoint(self, endpoint_name, data):
+        return self._post_event(serve.get_handle(endpoint_name), endpoint_name,
+                                data)
 
     def postToProxyEndpointHandle(self, endpointHandle, endpoint_name, data):
         return self._post_event(endpointHandle, endpoint_name, data)
 
-    def removeProxyEndpoint(self, client, endpoint_name):
-        client.delete_endpoint(endpoint_name)
+    def removeProxyEndpoint(self, endpoint_name):
+        serve.delete_endpoint(endpoint_name)
         self.endpoint_to_event.pop(endpoint_name)
 
 

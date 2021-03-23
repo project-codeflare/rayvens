@@ -51,6 +51,7 @@ client = rayvens.Client(camel_mode=camel_mode)
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    route='/test-from-http',
     period=3000)
 
 # Create stream where we can attach sinks, sources and operators.

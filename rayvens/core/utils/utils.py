@@ -15,6 +15,7 @@
 #
 
 import os
+import random
 
 # Port externalized by the cluster.
 # TODO: randomize this port as part of the supported list of ports.
@@ -34,6 +35,13 @@ internalClusterPortForSource = "8000"
 
 # Check if the executable exists in PATH. This method should work
 # in Windows, Linux and MacOS. Python >= 3.3 required.
+
+rayvens_random = random.Random()
+rayvens_random.seed()
+
+
+def random_port():
+    return rayvens_random.randint(49152, 65535)
 
 
 def executableIsAvailable(executableNameOrPath):
