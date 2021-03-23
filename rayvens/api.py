@@ -50,12 +50,12 @@ class Stream:
         return _global_camel.add_sink(self, sink, self._handle)
 
     def await_start(self, integration_name):
-        successful_await = self._camel.await_start(integration_name)
+        successful_await = _global_camel.await_start(integration_name)
         if not successful_await:
             raise RuntimeError('await_start command failed.')
 
     def await_start_all(self):
-        successful_await = self._camel.await_start_all(self._handle)
+        successful_await = _global_camel.await_start_all(self._handle)
         if not successful_await:
             raise RuntimeError('await_start_all command failed.')
 
@@ -63,6 +63,7 @@ class Stream:
         return f(*args)
 
     def _set(self, handle):
+        _global_camel.add_stream(handle, self.name)
         self._handle = handle
 
 
@@ -113,7 +114,6 @@ def create_stream(name, source=None, sink=None, operator=None):
     if _global_camel is None:
         raise TypeError('Rayvens has not been started.')
     stream = Stream.remote(name, operator=operator)
-    _global_camel.add_stream(stream, name)
     stream._set.remote(stream)
     if source is not None:
         stream.add_source.remote(source)

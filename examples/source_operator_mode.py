@@ -27,6 +27,7 @@ if len(sys.argv) < 2:
     print(f'usage: {sys.argv[0]} <run_mode>')
     sys.exit(1)
 run_mode = sys.argv[1]
+
 # TODO enable 'local', 'mixed.operator' modes.
 if run_mode not in ['cluster.operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
@@ -37,11 +38,11 @@ if run_mode == 'cluster.operator':
 else:
     ray.init()
 
-# Start rayvens client.
-client = rayvens.Client(camel_mode=run_mode)
+# Start rayvens in the desired mode.
+rayvens.init(mode=run_mode)
 
 # Create stream.
-stream = client.create_stream('http')
+stream = rayvens.create_stream('http')
 
 # Event source config.
 source_config = dict(
@@ -51,7 +52,7 @@ source_config = dict(
     period=3000)
 
 # Attach source to stream.
-source = client.add_source(stream, source_config)
+source = stream.add_source.remote(source_config)
 
 # Event source config.
 another_source_config = dict(
@@ -61,11 +62,11 @@ another_source_config = dict(
     period=5000)
 
 # Attach source to stream.
-another_source = client.add_source(stream, another_source_config)
+another_source = stream.add_source.remote(another_source_config)
 
 # Wait for source to start.
-client.await_start(source)
-client.await_start(another_source)
+stream.await_start.remote(source)
+stream.await_start.remote(another_source)
 
 # Log all events from stream-attached sources.
 stream >> (lambda event: print('LOG:', event))

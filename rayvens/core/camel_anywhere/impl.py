@@ -76,18 +76,15 @@ class CamelAnyNode:
         if self.mode.hasRayServeConnector():
             serve.start()
 
-    def add_stream(self, stream, name):
-        self.validation.add_stream(stream, name)
+    def add_stream(self, handle, name):
+        self.validation.add_stream(handle, name)
 
-    def add_source(self, stream, source):
-        # Get stream name.
-        name = self.validation.get_stream_name(stream)
-
+    def add_source(self, stream, source, handle):
         # Get integration name.
-        integration_name = self._get_integration_name(name)
+        integration_name = self._get_integration_name(stream.name)
 
         # Construct endpoint.
-        route = f'/{name}'
+        route = f'/{stream.name}'
         if 'route' in source and source['route'] is not None:
             route = source['route']
 
@@ -116,14 +113,14 @@ class CamelAnyNode:
                                                inverted=inverted)
 
         # Add source after integration configuration has been validated.
-        self.validation.add_source(stream, integration_name)
+        self.validation.add_source(handle, integration_name)
 
         if self.mode.hasRayServeConnector():
             # Set endpoint and integration names.
-            endpoint_name = self._get_endpoint_name(name)
+            endpoint_name = self._get_endpoint_name(stream.name)
 
             # Create backend for this topic.
-            source_backend = KamelBackend(self.mode, topic=stream)
+            source_backend = KamelBackend(self.mode, topic=handle)
 
             # Create endpoint.
             source_backend.createProxyEndpoint(endpoint_name, route,
@@ -140,24 +137,17 @@ class CamelAnyNode:
         # Set up source for the HTTP connector case.
         if self.mode.hasHTTPConnector():
             server_address = self.mode.getQuarkusHTTPServer(integration_name)
-
-            def run():
-                send_to_helper = SendToHelper()
-                send_to_helper.send_to(stream, server_address, route)
-
-            stream._exec.remote(run)
+            send_to_helper = SendToHelper()
+            send_to_helper.send_to(handle, server_address, route)
 
         return integration_name
 
-    def add_sink(self, stream, sink):
-        # Get stream name.
-        name = self.validation.get_stream_name(stream)
-
+    def add_sink(self, stream, sink, handle):
         # Compose integration name.
-        integration_name = self._get_integration_name(name)
+        integration_name = self._get_integration_name(stream.name)
 
         # Extract config.
-        route = f'/{name}'
+        route = f'/{stream.name}'
         if 'route' in sink and sink['route'] is not None:
             route = sink['route']
 
@@ -192,7 +182,7 @@ class CamelAnyNode:
             self.services.append(service_name)
 
         if use_backend:
-            endpoint_name = self._get_endpoint_name(name)
+            endpoint_name = self._get_endpoint_name(stream.name)
             self.kamel_backend.createProxyEndpoint(endpoint_name, route,
                                                    integration_name)
 
@@ -202,7 +192,7 @@ class CamelAnyNode:
         else:
             helper = Helper.remote(
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
-        stream.send_to.remote(helper, name)
+        handle.send_to.remote(helper, stream.name)
 
         return integration_name
 
@@ -273,7 +263,7 @@ class CamelAnyNode:
 
 
 class SendToHelper:
-    def send_to(self, stream, server_address, route):
+    def send_to(self, handle, server_address, route):
         def append():
             while True:
                 try:
@@ -281,7 +271,7 @@ class SendToHelper:
                     if response.status_code != 200:
                         time.sleep(1)
                         continue
-                    stream.append.remote(response.text)
+                    handle.append.remote(response.text)
                 except requests.exceptions.ConnectionError:
                     time.sleep(1)
 

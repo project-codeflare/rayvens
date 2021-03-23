@@ -22,7 +22,7 @@ import rayvens
 # Initialize ray based on where ray will run inside the cluster using the
 # kamel operator.
 ray.init(address='auto')
-camel_mode = 'cluster.operator'
+run_mode = 'cluster.operator'
 
 
 # Actor class for processing the events from the source.
@@ -44,8 +44,8 @@ class Counter:
 
 # Start the test.
 
-# Create client.
-client = rayvens.Client(camel_mode=camel_mode)
+# Start rayvens in the desired mode.
+rayvens.init(mode=run_mode)
 
 # Config for the source.
 source_config = dict(
@@ -55,16 +55,16 @@ source_config = dict(
     period=3000)
 
 # Create stream where we can attach sinks, sources and operators.
-stream = client.create_stream('http')
+stream = rayvens.create_stream('http')
 
 # Attach a source to the stream.
-source = client.add_source(stream, source_config)
+source = stream.add_source.remote(source_config)
 
 # Instantiate the processor class for the events.
 counter = Counter.remote()
 
 # Await source to be ready.
-client.await_start(source)
+stream.await_start.remote(source)
 
 # Send all events from the source to the processor.
 stream >> counter
