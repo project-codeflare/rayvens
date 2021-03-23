@@ -18,9 +18,9 @@ import ray
 import rayvens
 
 ray.init()
-client = rayvens.Client()
+rayvens.init()
 
-stream = client.create_stream('example')
+stream = rayvens.create_stream('example')
 
 # deliver all events to print
 stream >> print

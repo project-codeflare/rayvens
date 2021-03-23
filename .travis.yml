@@ -34,4 +34,4 @@ script:
   - RAYVENS_TEST_MODE=local RAYVENS_MODE=kafka python ./examples/travis/source.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/stream.py
   - ray submit ./scripts/cluster.yaml ./examples/travis/source.py
-  - ray submit ./scripts/cluster.yaml ./examples/travis/source_operator.py
+# - ray submit ./scripts/cluster.yaml ./examples/travis/source_operator.py

@@ -23,59 +23,29 @@ import time
 import threading
 import requests
 import random
-from rayvens.core.validation import Validation
 import rayvens.core.catalog as catalog
 import sys
 
 
-# instantiate camel actor manager and setup exit hook
 def start(prefix, mode):
-    camel = Camel(mode)
-    return camel
+    return Camel()
 
 
 class Camel:
-    def __init__(self, mode):
-        self.streams = []
-        self.mode = mode
-        self.validation = Validation()
-
     def add_stream(self, stream, name):
-        self.validation.add_stream(stream, name)
+        pass
 
-    def add_source(self, stream, config):
-        # Get stream name.
-        name = self.validation.get_stream_name(stream)
-
-        # TODO: add sink
-        self.validation.validate_stream(stream)
-
-        self.streams.append(stream)
+    def add_source(self, stream, config, handle):
         spec = catalog.construct_source(config,
                                         'platform-http:/source',
                                         inverted=True)
+        integration = Integration(stream.name, spec)
+        integration.send_to(handle)
 
-        def run():
-            integration = Integration(name, spec)
-            integration.send_to(stream)
-
-        stream._exec.remote(run)
-
-    def add_sink(self, stream, config):
-        # Get stream name.
-        name = self.validation.get_stream_name(stream)
-
-        # TODO: add sink
-        self.validation.validate_stream(stream)
-
-        self.streams.append(stream)
+    def add_sink(self, stream, config, handle):
         spec = catalog.construct_sink(config, 'platform-http:/sink')
-
-        def run():
-            integration = Integration(name, spec)
-            integration.recv_from(stream)
-
-        stream._exec.remote(run)
+        integration = Integration(stream.name, spec)
+        integration.recv_from(handle)
 
     def await_start(self, integration_name):
         return True
@@ -83,8 +53,6 @@ class Camel:
     def await_start_all(self, stream):
         return True
 
-
-# the low-level implementation-specific stuff
 
 rayvens_random = random.Random()
 rayvens_random.seed()
@@ -122,7 +90,7 @@ class Integration:
         process = subprocess.Popen(command, start_new_session=True)
         self.pid = process.pid
 
-    def send_to(self, stream):
+    def send_to(self, handle):
         def append():
             while True:
                 try:
@@ -131,16 +99,15 @@ class Integration:
                     if response.status_code != 200:
                         time.sleep(1)
                         continue
-                    stream.append.remote(response.text)
+                    handle.append.remote(response.text)
                 except requests.exceptions.ConnectionError:
                     time.sleep(1)
 
         threading.Thread(target=append).start()
 
-    def recv_from(self, stream):
-        # use kafka producer actor to push from rayvens stream to camel sink
+    def recv_from(self, handle):
         helper = ProducerActor.remote(f'http://localhost:{self.port}/sink')
-        stream.send_to.remote(helper, self.name)
+        handle.send_to.remote(helper, self.name)
 
     def cancel(self):
         try:

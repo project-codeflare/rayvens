@@ -31,11 +31,10 @@ try:
 except ConnectionError:
     ray.init()  # fallback to local execution
 
-# start rayvens client
-client = rayvens.Client()
+rayvens.init()
 
 # create a stream actor
-stream = client.create_stream('example')
+stream = rayvens.create_stream('example')
 
 
 # define a first event handler

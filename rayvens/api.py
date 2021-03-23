@@ -43,8 +43,27 @@ class Stream:
     def add_operator(self, operator):
         self._operator = operator
 
+    def add_source(self, source):
+        return _global_camel.add_source(self, source, self._handle)
+
+    def add_sink(self, sink):
+        return _global_camel.add_sink(self, sink, self._handle)
+
+    def await_start(self, integration_name):
+        successful_await = self._camel.await_start(integration_name)
+        if not successful_await:
+            raise RuntimeError('await_start command failed.')
+
+    def await_start_all(self):
+        successful_await = self._camel.await_start_all(self._handle)
+        if not successful_await:
+            raise RuntimeError('await_start_all command failed.')
+
     def _exec(self, f, *args):
         return f(*args)
+
+    def _set(self, handle):
+        self._handle = handle
 
 
 def _eval(f, data):
@@ -74,50 +93,30 @@ def _lshift(stream, data):
 setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
 setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
 
+_global_camel = None
 
-def _start(camel_mode):
-    if camel_mode in ['kafka']:
-        return start_mode_kafka
-    elif camel_mode in ['auto']:
-        return start_mode_http
-    elif camel_mode in ['local', 'mixed.operator', 'cluster.operator']:
-        return start_mode_2
+
+def init(mode=os.getenv('RAYVENS_MODE', 'auto')):
+    global _global_camel
+    if mode in ['kafka']:
+        _global_camel = start_mode_kafka(None, mode)
+    elif mode in ['auto']:
+        _global_camel = start_mode_http(None, mode)
+    elif mode in ['local', 'mixed.operator', 'cluster.operator']:
+        _global_camel = start_mode_2(None, mode)
     else:
-        raise TypeError('Unsupported camel_mode.')
+        raise TypeError('Unsupported mode.')
 
 
-class Client:
-    def __init__(self,
-                 prefix='/rayvens',
-                 camel_mode=os.getenv('RAYVENS_MODE', 'auto')):
-        self._camel = _start(camel_mode)(prefix, camel_mode)
-
-    # Create a new stream.
-    def create_stream(self, name, source=None, sink=None, operator=None):
-        stream = Stream.remote(name, operator=operator)
-        self._camel.add_stream(stream, name)
-        if source is not None:
-            self.add_source(stream, source)
-        if sink is not None:
-            self.add_sink(stream, sink)
-        return stream
-
-    # Attach source to stream.
-    def add_source(self, stream, source):
-        return self._camel.add_source(stream, source)
-
-    # Attach sink to stream.
-    def add_sink(self, stream, sink):
-        return self._camel.add_sink(stream, sink)
-
-    # Wait for a particular integration to start.
-    def await_start(self, integration_name):
-        successful_await = self._camel.await_start(integration_name)
-        if not successful_await:
-            raise RuntimeError('await_start command failed.')
-
-    # Wait for all integrations attached to a particular Stream to start.
-    def await_start_all(self, stream):
-        successful_await = self._camel.await_start_all(stream)
-        if not successful_await:
-            raise RuntimeError('await_start_all command failed.')
+# Create a new stream.
+def create_stream(name, source=None, sink=None, operator=None):
+    if _global_camel is None:
+        raise TypeError('Rayvens has not been started.')
+    stream = Stream.remote(name, operator=operator)
+    _global_camel.add_stream(stream, name)
+    stream._set.remote(stream)
+    if source is not None:
+        stream.add_source.remote(source)
+    if sink is not None:
+        stream.add_sink.remote(sink)
+    return stream

@@ -42,15 +42,14 @@ try:
 except ConnectionError:
     ray.init()  # fallback to local execution
 
-# start rayvens client
-client = rayvens.Client()
+rayvens.init()
 
 # start event source actor
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_stream('http', source=source_config)
+source = rayvens.create_stream('http', source=source_config)
 
 # log incoming events
 source >> (lambda event: print('LOG:', event))
@@ -59,7 +58,7 @@ source >> (lambda event: print('LOG:', event))
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
                    webhookUrl=slack_webhook)
-sink = client.create_stream('slack', sink=sink_config)
+sink = rayvens.create_stream('slack', sink=sink_config)
 
 
 # Actor to compare APPL quote with last quote

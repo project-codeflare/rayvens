@@ -23,9 +23,9 @@ if os.getenv('RAYVENS_TEST_MODE') == 'local':
 else:
     ray.init(address='auto')
 
-client = rayvens.Client()
+rayvens.init()
 
-stream = client.create_stream('example')
+stream = rayvens.create_stream('example')
 
 
 def handler1(event):
