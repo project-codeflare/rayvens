@@ -140,7 +140,7 @@ class CamelAnyNode:
             send_to_helper = SendToHelper()
             send_to_helper.send_to(handle, server_address, route)
 
-        return integration_name
+        return self.await_start(integration_name)
 
     def add_sink(self, stream, sink, handle):
         # Compose integration name.
@@ -194,7 +194,7 @@ class CamelAnyNode:
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
         handle.send_to.remote(helper, stream.name)
 
-        return integration_name
+        return self.await_start(integration_name)
 
     def exit(self):
         # TODO: delete endpoints from Ray server.

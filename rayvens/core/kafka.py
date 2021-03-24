@@ -45,9 +45,6 @@ class Camel:
         integration = Integration(stream.name, spec)
         integration.recv_from(handle)
 
-    def await_start(self, integration_name):
-        return True
-
     def await_start_all(self, stream):
         return True
 

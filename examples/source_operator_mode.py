@@ -65,8 +65,8 @@ another_source_config = dict(
 another_source = stream.add_source.remote(another_source_config)
 
 # Wait for source to start.
-stream.await_start.remote(source)
-stream.await_start.remote(another_source)
+ray.get(source)
+ray.get(another_source)
 
 # Log all events from stream-attached sources.
 stream >> (lambda event: print('LOG:', event))

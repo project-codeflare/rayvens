@@ -49,11 +49,6 @@ class Stream:
     def add_sink(self, sink):
         return _global_camel.add_sink(self, sink, self._handle)
 
-    def await_start(self, integration_name):
-        successful_await = _global_camel.await_start(integration_name)
-        if not successful_await:
-            raise RuntimeError('await_start command failed.')
-
     def await_start_all(self):
         successful_await = _global_camel.await_start_all(self._handle)
         if not successful_await:

@@ -64,7 +64,7 @@ source = stream.add_source.remote(source_config)
 counter = Counter.remote()
 
 # Await source to be ready.
-stream.await_start.remote(source)
+ray.get(source)
 
 # Send all events from the source to the processor.
 stream >> counter
