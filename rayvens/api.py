@@ -17,7 +17,7 @@
 import os
 import ray
 
-from rayvens.core.impl import start as start_mode_http
+from rayvens.core.local import start as start_mode_http
 from rayvens.core.kafka import start as start_mode_kafka
 from rayvens.core.camel_anywhere.impl import start as start_mode_2
 
