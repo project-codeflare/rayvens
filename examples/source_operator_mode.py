@@ -69,3 +69,5 @@ stream >> (lambda event: print('LOG:', event))
 
 # Wait before ending program.
 time.sleep(20)
+
+stream.disconnect_all()

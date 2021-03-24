@@ -57,6 +57,12 @@ class Stream:
     def add_sink(self, sink_config):
         return ray.get(self.actor.add_sink.remote(sink_config))
 
+    def disconnect(self, integration):
+        ray.get(self.actor.disconnect.remote(integration))
+
+    def disconnect_all(self):
+        ray.get(self.actor.disconnect_all.remote())
+
 
 @ray.remote(num_cpus=0)
 class StreamActor:
@@ -75,6 +81,7 @@ class StreamActor:
             self.add_source(source_config)
 
     def send_to(self, subscriber, name=None):
+        # TODO: make name mandatory and use it to remove subscribers.
         self._subscribers.append({'subscriber': subscriber, 'name': name})
 
     def append(self, data):
@@ -97,6 +104,29 @@ class StreamActor:
         sink = _global_camel.add_sink(self, sink_config, self._handle)
         self._sinks.append(sink)
         return sink
+
+    def disconnect(self, integration):
+        is_sink = integration in self._sinks
+        is_source = integration in self._sources
+
+        if not is_sink and not is_source:
+            raise RuntimeError(f'{integration} is not a valid source or sink')
+
+        success = _global_camel.disconnect(integration)
+        # TODO: remove subscribers
+        if success:
+            if is_source:
+                self._sources.remove(integration)
+            else:
+                self._sinks.remove(integration)
+
+    def disconnect_all(self):
+        success = _global_camel.disconnect_all()
+        # TODO: remove subscribers
+        if success:
+            self._subscribers = []
+            self._sources = []
+            self._sinks = []
 
 
 def _eval(f, data):

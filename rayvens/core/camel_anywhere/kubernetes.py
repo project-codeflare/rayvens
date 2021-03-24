@@ -114,4 +114,4 @@ def deleteService(mode, serviceName):
     command.append("-n")
     command.append(mode.getNamespace())
 
-    kubernetes_utils.executeReturningKubectlCmd(command, serviceName)
+    return kubernetes_utils.executeReturningKubectlCmd(command, serviceName)

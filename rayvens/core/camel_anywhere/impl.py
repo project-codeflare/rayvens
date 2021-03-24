@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-import atexit
 import requests
 import ray
 import time
@@ -42,9 +41,6 @@ def start(camel_mode):
         camel = CamelAnyNode(mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
-
-    # Setup what happens at exit.
-    atexit.register(camel.exit)
     return camel
 
 
@@ -62,7 +58,7 @@ class CamelAnyNode:
         self.invocations = {}
 
         # List of services used to clean-up the environment.
-        self.services = []
+        self.services = {}
 
         # The Ray Serve backend used for Sinks. Sink are a special case and
         # can use one backend to support multiple sinks.
@@ -122,7 +118,8 @@ class CamelAnyNode:
                                       integration_name,
                                       integration_as_files=False,
                                       inverted_http=inverted)
-        self.invocations[source_invocation] = integration_name
+        # self.invocations[source_invocation] = integration_name
+        self.invocations[integration_name] = source_invocation
 
         # Set up source for the HTTP connector case.
         if self.mode.hasHTTPConnector():
@@ -157,7 +154,8 @@ class CamelAnyNode:
                                     self.mode,
                                     integration_name,
                                     integration_as_files=False)
-        self.invocations[sink_invocation] = integration_name
+        # self.invocations[sink_invocation] = integration_name
+        self.invocations[integration_name] = sink_invocation
 
         # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
         # then we have to also start a service the allows outside processes to
@@ -166,7 +164,7 @@ class CamelAnyNode:
             service_name = self._get_service_name("kind-external-connector")
             kubernetes.createExternalServiceForKamel(mode, service_name,
                                                      integration_name)
-            self.services.append(service_name)
+            self.services[integration_name] = service_name
 
         if use_backend:
             endpoint_name = self._get_endpoint_name(stream.name)
@@ -183,21 +181,50 @@ class CamelAnyNode:
 
         return self._await_start(integration_name)
 
-    def exit(self):
-        # TODO: delete endpoints from Ray server.
-        # This deletes all the additional services.
-        for service in self.services:
-            kubernetes.deleteService(self.mode, service)
-        # This deletes all the integrations.
-        for invocation in self.invocations:
-            if self.mode.isCluster() or self.mode.isMixed():
-                kamel.delete(invocation, self.invocations[invocation])
-            elif self.mode.isLocal():
-                invocation.kill()
-            else:
-                raise RuntimeError("Unreachable")
-        # TODO: check that the invocation does not need to be killed when
-        # running in the Cluster or Mixed modes.
+    def disconnect(self, integration_name):
+        # Check integration name is valid.
+        if integration_name not in self.invocations:
+            raise RuntimeError(f'{integration_name} is invalid')
+
+        # Retrieve invocation.
+        invocation = self.invocations[integration_name]
+
+        # If kamel is running the cluster then use kamel delete to
+        # terminate the integration.
+        if self.mode.isCluster() or self.mode.isMixed():
+            outcome = True
+
+            # First we terminate any services associated with the integration.
+            if integration_name in self.services:
+                outcome = kubernetes.deleteService(
+                    self.mode, self.services[integration_name])
+            if not outcome:
+                raise RuntimeWarning(
+                    f'{self.services[integration_name]} for {integration_name}'
+                    'could not be terminated')
+
+            # Terminate the integration itself.
+            if not kamel.delete(invocation, integration_name):
+                outcome = False
+
+            return outcome
+
+        # If integration is running locally we only need to kill the
+        # process that runs it.
+        if self.mode.isLocal():
+            invocation.kill()
+            return True
+
+        return False
+
+    def disconnect_all(self):
+        # Disconnect all the integrations.
+        outcome = True
+        for integration_name in self.invocations:
+            if not self.disconnect(integration_name):
+                outcome = False
+
+        return outcome
 
     def _await_start(self, integration_name):
         # TODO: remove this once we enable this for local mode.

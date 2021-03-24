@@ -37,11 +37,11 @@ if run_mode == 'cluster.operator':
 else:
     ray.init()
 
-# Start rayvens client in operator mode.
-client = rayvens.Client(camel_mode=run_mode)
+# Start rayvens in operator mode.
+rayvens.init(mode=run_mode)
 
 # Create stream.
-stream = client.Stream('slack')
+stream = rayvens.Stream('slack')
 
 # Event sink config.
 sink_config = dict(kind='slack-sink',
@@ -50,9 +50,14 @@ sink_config = dict(kind='slack-sink',
                    webhookUrl=slack_webhook)
 
 # Add sink to stream.
-sink = client.add_sink(stream, sink_config)
+sink = stream.actor.add_sink.remote(sink_config)
+
+# Wait for sink to reach running state.
+ray.get(sink)
 
 # Sends message to all sinks attached to this stream.
 stream << f'Sending message to Slack sink in run mode {run_mode}.'
 
 time.sleep(5)
+
+ray.get(stream.actor.disconnect_all.remote())

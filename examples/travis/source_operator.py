@@ -67,3 +67,6 @@ counter = Counter.remote()
 stream >> counter
 
 ray.get(counter.wait.remote(), timeout=180)
+
+# Delete all integrations from stream.
+stream.disconnect_all()
