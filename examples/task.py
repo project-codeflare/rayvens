@@ -32,7 +32,7 @@ except ConnectionError:
 rayvens.init()
 
 # create a stream actor
-stream = rayvens.create_stream('example')
+stream = rayvens.Stream('example')
 
 
 # define a first event handling task

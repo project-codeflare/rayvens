@@ -20,7 +20,7 @@ import rayvens
 ray.init()
 rayvens.init()
 
-stream = rayvens.create_stream('example')
+stream = rayvens.Stream('example')
 
 # deliver all events to print
 stream >> print

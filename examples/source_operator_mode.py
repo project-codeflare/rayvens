@@ -42,7 +42,7 @@ else:
 rayvens.init(mode=run_mode)
 
 # Create stream.
-stream = rayvens.create_stream('http')
+stream = rayvens.Stream('http')
 
 # Event source config.
 source_config = dict(
@@ -52,7 +52,7 @@ source_config = dict(
     period=3000)
 
 # Attach source to stream.
-source = stream.add_source.remote(source_config)
+source = stream.add_source(source_config)
 
 # Event source config.
 another_source_config = dict(
@@ -62,11 +62,7 @@ another_source_config = dict(
     period=5000)
 
 # Attach source to stream.
-another_source = stream.add_source.remote(another_source_config)
-
-# Wait for source to start.
-ray.get(source)
-ray.get(another_source)
+another_source = stream.add_source(another_source_config)
 
 # Log all events from stream-attached sources.
 stream >> (lambda event: print('LOG:', event))

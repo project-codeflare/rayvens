@@ -22,8 +22,44 @@ from rayvens.core.kafka import start as start_mode_kafka
 from rayvens.core.camel_anywhere.impl import start as start_mode_2
 
 
-@ray.remote(num_cpus=0)
 class Stream:
+    def __init__(self,
+                 name,
+                 actor_options=None,
+                 operator=None,
+                 source_config=None,
+                 sink_config=None):
+        if _global_camel is None:
+            raise TypeError('Rayvens has not been started.')
+        self.name = name
+        self.actor = StreamActor.options(actor_options).remote(
+            name, operator=operator)
+        ray.wait(
+            [self.actor._init.remote(self.actor, source_config, sink_config)])
+
+    def send_to(self, subscriber, name=None):
+        if (isinstance(subscriber, ray.actor.ActorHandle)) and getattr(
+                subscriber, 'send_to', None) is None:
+            subscriber = Stream('implicit', operator=subscriber)
+        ray.wait([self.actor.send_to.remote(subscriber, name)])
+        return subscriber
+
+    def append(self, data):
+        self.actor.append.remote(data)
+        return self
+
+    def add_operator(self, operator):
+        ray.wait([self.actor.add_operator.remote(operator)])
+
+    def add_source(self, source_config):
+        return ray.get(self.actor.add_source.remote(source_config))
+
+    def add_sink(self, sink_config):
+        return ray.get(self.actor.add_sink.remote(sink_config))
+
+
+@ray.remote(num_cpus=0)
+class StreamActor:
     def __init__(self, name, operator=None):
         self.name = name
         self._subscribers = []
@@ -64,7 +100,9 @@ class Stream:
 
 
 def _eval(f, data):
-    if isinstance(f, ray.actor.ActorHandle):
+    if isinstance(f, Stream):
+        return f.append(data)
+    elif isinstance(f, ray.actor.ActorHandle):
         return f.append.remote(data)
     elif isinstance(f, ray.actor.ActorMethod) or isinstance(
             f, ray.remote_function.RemoteFunction):
@@ -73,22 +111,8 @@ def _eval(f, data):
         return f(data)
 
 
-def _rshift(stream, subscriber):
-    if (not isinstance(subscriber, ray.actor.ActorHandle)) or getattr(
-            subscriber, 'send_to', None) is None:
-        # wrap subscriber with stream
-        subscriber = create_stream('implicit', operator=subscriber)
-    stream.send_to.remote(subscriber)
-    return subscriber
-
-
-def _lshift(stream, data):
-    stream.append.remote(data)
-    return stream
-
-
-setattr(ray.actor.ActorHandle, '__rshift__', _rshift)
-setattr(ray.actor.ActorHandle, '__lshift__', _lshift)
+setattr(Stream, '__rshift__', Stream.send_to)
+setattr(Stream, '__lshift__', Stream.append)
 
 _global_camel = None
 
@@ -103,16 +127,3 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto')):
         _global_camel = start_mode_2(mode)
     else:
         raise TypeError('Unsupported mode.')
-
-
-# Create a new stream.
-def create_stream(name,
-                  actor_options=None,
-                  source=None,
-                  sink=None,
-                  operator=None):
-    if _global_camel is None:
-        raise TypeError('Rayvens has not been started.')
-    stream = Stream.options(actor_options).remote(name, operator=operator)
-    ray.get(stream._init.remote(stream, source, sink))
-    return stream

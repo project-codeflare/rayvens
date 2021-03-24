@@ -25,7 +25,7 @@ else:
 
 rayvens.init()
 
-stream = rayvens.create_stream('example')
+stream = rayvens.Stream('example')
 
 
 def handler1(event):

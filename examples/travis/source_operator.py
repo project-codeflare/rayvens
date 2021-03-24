@@ -55,16 +55,13 @@ source_config = dict(
     period=3000)
 
 # Create stream where we can attach sinks, sources and operators.
-stream = rayvens.create_stream('http')
+stream = rayvens.Stream('http')
 
 # Attach a source to the stream.
-source = stream.add_source.remote(source_config)
+source = stream.add_source(source_config)
 
 # Instantiate the processor class for the events.
 counter = Counter.remote()
-
-# Await source to be ready.
-ray.get(source)
 
 # Send all events from the source to the processor.
 stream >> counter

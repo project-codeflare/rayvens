@@ -49,7 +49,7 @@ source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = rayvens.create_stream('http', source=source_config)
+source = rayvens.Stream('http', source_config=source_config)
 
 # log incoming events
 source >> (lambda event: print('LOG:', event))
@@ -58,7 +58,7 @@ source >> (lambda event: print('LOG:', event))
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
                    webhookUrl=slack_webhook)
-sink = rayvens.create_stream('slack', sink=sink_config)
+sink = rayvens.Stream('slack', sink_config=sink_config)
 
 
 # Actor to compare APPL quote with last quote
