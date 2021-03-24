@@ -27,7 +27,7 @@ import rayvens.core.catalog as catalog
 import sys
 
 
-def start(prefix, mode):
+def start(mode):
     return Camel()
 
 

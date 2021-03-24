@@ -100,11 +100,11 @@ _global_camel = None
 def init(mode=os.getenv('RAYVENS_MODE', 'auto')):
     global _global_camel
     if mode in ['kafka']:
-        _global_camel = start_mode_kafka(None, mode)
+        _global_camel = start_mode_kafka(mode)
     elif mode in ['auto']:
-        _global_camel = start_mode_http(None, mode)
+        _global_camel = start_mode_http(mode)
     elif mode in ['local', 'mixed.operator', 'cluster.operator']:
-        _global_camel = start_mode_2(None, mode)
+        _global_camel = start_mode_2(mode)
     else:
         raise TypeError('Unsupported mode.')
 

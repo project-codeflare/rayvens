@@ -29,7 +29,7 @@ from rayvens.core.utils import utils
 from rayvens.core.catalog import construct_source, construct_sink
 
 
-def start(prefix, camel_mode):
+def start(camel_mode):
     camel = None
     mode.connector = 'http'
     if camel_mode == 'local':
