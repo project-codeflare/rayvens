@@ -31,6 +31,14 @@ class Stream:
         self._sources = []
         self._sinks = []
 
+    def _init(self, handle, source_config, sink_config):
+        self._handle = handle
+        _global_camel.add_stream(handle, self.name)
+        if sink_config is not None:
+            self.add_sink(sink_config)
+        if source_config is not None:
+            self.add_source(source_config)
+
     def send_to(self, subscriber, name=None):
         self._subscribers.append({'subscriber': subscriber, 'name': name})
 
@@ -54,18 +62,6 @@ class Stream:
         sink = _global_camel.add_sink(self, sink_config, self._handle)
         self._sinks.append(sink)
         return sink
-
-    def await_start_all(self):
-        successful_await = _global_camel.await_start_all(self._handle)
-        if not successful_await:
-            raise RuntimeError('await_start_all command failed.')
-
-    def _exec(self, f, *args):
-        return f(*args)
-
-    def _set(self, handle):
-        _global_camel.add_stream(handle, self.name)
-        self._handle = handle
 
 
 def _eval(f, data):
@@ -119,9 +115,5 @@ def create_stream(name,
     if _global_camel is None:
         raise TypeError('Rayvens has not been started.')
     stream = Stream.options(actor_options).remote(name, operator=operator)
-    stream._set.remote(stream)
-    if source is not None:
-        stream.add_source.remote(source)
-    if sink is not None:
-        stream.add_sink.remote(sink)
+    ray.get(stream._init.remote(stream, source, sink))
     return stream

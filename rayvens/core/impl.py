@@ -47,9 +47,6 @@ class Camel:
         integration = Integration(stream.name, spec)
         integration.recv_from(handle)
 
-    def await_start_all(self, stream):
-        return True
-
 
 rayvens_random = random.Random()
 rayvens_random.seed()

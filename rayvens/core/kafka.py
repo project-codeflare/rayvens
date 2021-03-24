@@ -45,9 +45,6 @@ class Camel:
         integration = Integration(stream.name, spec)
         integration.recv_from(handle)
 
-    def await_start_all(self, stream):
-        return True
-
 
 @ray.remote(num_cpus=0)
 class ProducerActor:
