@@ -28,6 +28,8 @@ class Stream:
         self.name = name
         self._subscribers = []
         self._operator = operator
+        self._sources = []
+        self._sinks = []
 
     def send_to(self, subscriber, name=None):
         self._subscribers.append({'subscriber': subscriber, 'name': name})
@@ -43,11 +45,15 @@ class Stream:
     def add_operator(self, operator):
         self._operator = operator
 
-    def add_source(self, source):
-        return _global_camel.add_source(self, source, self._handle)
+    def add_source(self, source_config):
+        source = _global_camel.add_source(self, source_config, self._handle)
+        self._sources.append(source)
+        return source
 
-    def add_sink(self, sink):
-        return _global_camel.add_sink(self, sink, self._handle)
+    def add_sink(self, sink_config):
+        sink = _global_camel.add_sink(self, sink_config, self._handle)
+        self._sinks.append(sink)
+        return sink
 
     def await_start_all(self):
         successful_await = _global_camel.await_start_all(self._handle)
