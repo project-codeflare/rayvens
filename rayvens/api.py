@@ -33,7 +33,6 @@ class Stream:
 
     def _init(self, handle, source_config, sink_config):
         self._handle = handle
-        _global_camel.add_stream(handle, self.name)
         if sink_config is not None:
             self.add_sink(sink_config)
         if source_config is not None:

@@ -24,7 +24,6 @@ from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
 from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
 from rayvens.core.camel_anywhere import kubernetes
 from rayvens.core.camel_anywhere import kamel
-from rayvens.core.validation import Validation
 from rayvens.core.utils import utils
 from rayvens.core.catalog import construct_source, construct_sink
 
@@ -59,9 +58,6 @@ class CamelAnyNode:
         self.integration_id = -1
         self.service_id = -1
 
-        # Initialize validation of endpoints.
-        self.validation = Validation()
-
         # List of command invocations used to clean-up the environment.
         self.invocations = {}
 
@@ -75,9 +71,6 @@ class CamelAnyNode:
         # Start server is using a backend.
         if self.mode.hasRayServeConnector():
             serve.start()
-
-    def add_stream(self, handle, name):
-        self.validation.add_stream(handle, name)
 
     def add_source(self, stream, source, handle):
         # Get integration name.
@@ -112,9 +105,6 @@ class CamelAnyNode:
                                                endpoint,
                                                inverted=inverted)
 
-        # Add source after integration configuration has been validated.
-        self.validation.add_source(handle, integration_name)
-
         if self.mode.hasRayServeConnector():
             # Set endpoint and integration names.
             endpoint_name = self._get_endpoint_name(stream.name)
@@ -140,7 +130,7 @@ class CamelAnyNode:
             send_to_helper = SendToHelper()
             send_to_helper.send_to(handle, server_address, route)
 
-        return self.await_start(integration_name)
+        return self._await_start(integration_name)
 
     def add_sink(self, stream, sink, handle):
         # Compose integration name.
@@ -157,9 +147,6 @@ class CamelAnyNode:
 
         # Get integration source code.
         integration_content = construct_sink(sink, f'platform-http:{route}')
-
-        # Add sink after integration configuration has been validated.
-        self.validation.add_sink(stream, integration_name)
 
         # Create backend if one hasn't been created so far.
         if use_backend and self.kamel_backend is None:
@@ -194,7 +181,7 @@ class CamelAnyNode:
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
         handle.send_to.remote(helper, stream.name)
 
-        return self.await_start(integration_name)
+        return self._await_start(integration_name)
 
     def exit(self):
         # TODO: delete endpoints from Ray server.
@@ -212,13 +199,10 @@ class CamelAnyNode:
         # TODO: check that the invocation does not need to be killed when
         # running in the Cluster or Mixed modes.
 
-    def await_start(self, integration_name):
+    def _await_start(self, integration_name):
         # TODO: remove this once we enable this for local mode.
         if self.mode.isLocal():
             return True
-
-        # Validate integration.
-        self.validation.validate_integration(integration_name)
 
         # Wait for pod to start.
         pod_is_running, pod_name = kubernetes.getPodRunningStatus(
@@ -243,11 +227,11 @@ class CamelAnyNode:
 
     def await_start_all(self, stream):
         # Await for all sinks to start.
-        for sink_name in self.validation.get_sinks(stream):
-            self.await_start(sink_name)
+        for sink_name in stream._sinks:
+            self._await_start(sink_name)
         # Await for all sources to start.
-        for source_name in self.validation.get_sources(stream):
-            self.await_start(source_name)
+        for source_name in stream._sources:
+            self._await_start(source_name)
 
     def _get_endpoint_name(self, name):
         self.endpoint_id += 1
