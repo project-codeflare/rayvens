@@ -81,7 +81,7 @@ def _rshift(stream, subscriber):
     if (not isinstance(subscriber, ray.actor.ActorHandle)) or getattr(
             subscriber, 'send_to', None) is None:
         # wrap subscriber with stream
-        subscriber = Stream.remote('implicit', operator=subscriber)
+        subscriber = create_stream('implicit', operator=subscriber)
     stream.send_to.remote(subscriber)
     return subscriber
 
