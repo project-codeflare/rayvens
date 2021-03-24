@@ -17,10 +17,7 @@
 from setuptools import setup
 
 setup(name='rayvens',
-      packages=[
-          'rayvens', 'rayvens.core', 'rayvens.core.camel_anywhere',
-          'rayvens.core.utils'
-      ],
+      packages=['rayvens', 'rayvens.core'],
       package_data={'rayvens.core': ['Queue.java']},
       include_package_data=True,
       version='0.1',

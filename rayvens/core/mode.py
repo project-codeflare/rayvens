@@ -15,7 +15,7 @@
 #
 
 from enum import Enum
-from rayvens.core.utils import utils
+from rayvens.core import utils
 
 
 class CamelOperatorMode(Enum):

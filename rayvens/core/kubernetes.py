@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-from rayvens.core.utils import utils
-from rayvens.core.camel_anywhere import kubernetes_utils
 import os
+from rayvens.core import utils
+from rayvens.core import kubernetes_utils
 
 # Wait for pod to reach running state.
 

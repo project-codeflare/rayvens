@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-from rayvens.core.camel_anywhere import kamel_utils
-from rayvens.core.camel_anywhere.mode import mode
 import os
+from rayvens.core import kamel_utils
+from rayvens.core.mode import mode
 
 # Method to install kamel in a cluster.
 # The cluster needs to be already started. An operator image, and a registry

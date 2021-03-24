@@ -19,9 +19,9 @@ import os
 import signal
 import io
 import yaml
-from rayvens.core.utils import utils
-from rayvens.core.camel_anywhere import kamel_utils
-from rayvens.core.camel_anywhere import kubernetes_utils
+from rayvens.core import utils
+from rayvens.core import kamel_utils
+from rayvens.core import kubernetes_utils
 
 #
 # Wrap invocation as actor. This is an invocation for kamel local run.
@@ -42,8 +42,7 @@ class KamelInvocation:
 
         if inverted_http:
             # Add Queue.java file.
-            queue_file = os.path.join(os.path.dirname(__file__),
-                                      '../Queue.java')
+            queue_file = os.path.join(os.path.dirname(__file__), 'Queue.java')
             command_options.append(queue_file)
 
             # TODO: Add random port for local run case.

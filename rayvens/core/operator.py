@@ -19,11 +19,11 @@ import ray
 import time
 import threading
 from ray import serve
-from rayvens.core.camel_anywhere.kamel_backend import KamelBackend
-from rayvens.core.camel_anywhere.mode import mode, RayKamelExecLocation
-from rayvens.core.camel_anywhere import kubernetes
-from rayvens.core.camel_anywhere import kamel
-from rayvens.core.utils import utils
+from rayvens.core.kamel_backend import KamelBackend
+from rayvens.core.mode import mode, RayKamelExecLocation
+from rayvens.core import kubernetes
+from rayvens.core import kamel
+from rayvens.core import utils
 from rayvens.core.catalog import construct_source, construct_sink
 
 
