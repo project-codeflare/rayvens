@@ -35,13 +35,13 @@ class Camel:
 
     def add_source(self, stream, config, handle):
         spec = catalog.construct_source(
-            config, f'kafka:{stream.name}?brokers=${brokers()}')
+            config, f'kafka:{stream.name}?brokers={brokers()}')
         integration = Integration(stream.name, spec)
         integration.send_to(handle)
 
     def add_sink(self, stream, config, handle):
         spec = catalog.construct_sink(
-            config, f'kafka:{stream.name}?brokers=${brokers()}')
+            config, f'kafka:{stream.name}?brokers={brokers()}')
         integration = Integration(stream.name, spec)
         integration.recv_from(handle)
 
@@ -99,7 +99,7 @@ class Integration:
             while True:
                 msg = consumer.poll()
                 if msg.error():
-                    print(f'consumer error: ${msg.error()}')
+                    print(f'consumer error: {msg.error()}')
                 else:
                     handle.append.remote(msg.value().decode('utf-8'))
 
