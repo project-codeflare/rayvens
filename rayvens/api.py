@@ -110,10 +110,14 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto')):
 
 
 # Create a new stream.
-def create_stream(name, source=None, sink=None, operator=None):
+def create_stream(name,
+                  actor_options=None,
+                  source=None,
+                  sink=None,
+                  operator=None):
     if _global_camel is None:
         raise TypeError('Rayvens has not been started.')
-    stream = Stream.remote(name, operator=operator)
+    stream = Stream.options(actor_options).remote(name, operator=operator)
     stream._set.remote(stream)
     if source is not None:
         stream.add_source.remote(source)
