@@ -25,6 +25,7 @@ from rayvens.core import kubernetes
 from rayvens.core import kamel
 from rayvens.core import utils
 from rayvens.core.catalog import construct_source, construct_sink
+from rayvens.core.common import await_start
 
 
 def start(camel_mode):
@@ -127,7 +128,7 @@ class CamelAnyNode:
             send_to_helper = SendToHelper()
             send_to_helper.send_to(stream.actor, server_address, route)
 
-        return self._await_start(integration_name)
+        return await_start(self.mode, integration_name)
 
     def add_sink(self, stream, sink):
         # Compose integration name.
@@ -179,7 +180,16 @@ class CamelAnyNode:
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
         stream.actor.send_to.remote(helper, stream.name)
 
-        return self._await_start(integration_name)
+        return await_start(self.mode, integration_name)
+
+    def await_start_all(self, stream):
+        # Await for all sinks to start.
+        for sink_name in stream._sinks:
+            await_start(sink_name)
+
+        # Await for all sources to start.
+        for source_name in stream._sources:
+            await_start(source_name)
 
     def disconnect(self, integration_name):
         # Check integration name is valid.
@@ -225,40 +235,6 @@ class CamelAnyNode:
                 outcome = False
 
         return outcome
-
-    def _await_start(self, integration_name):
-        # TODO: remove this once we enable this for local mode.
-        if self.mode.isLocal():
-            return True
-
-        # Wait for pod to start.
-        pod_is_running, pod_name = kubernetes.getPodRunningStatus(
-            self.mode, integration_name)
-        if pod_is_running:
-            print(f'Pod {pod_name} is running.')
-        else:
-            print('Pod did not run correctly.')
-            return False
-
-        # Wait for integration to be installed. Since we now know that the pod
-        # is running we can use that to check that the integration is installed
-        # correctly.
-        integration_is_running = kubernetes.getIntegrationStatus(
-            self.mode, pod_name)
-        if integration_is_running:
-            print(f'Integration {integration_name} is running.')
-        else:
-            print('Integration did not start correctly.')
-
-        return integration_is_running
-
-    def await_start_all(self, stream):
-        # Await for all sinks to start.
-        for sink_name in stream._sinks:
-            self._await_start(sink_name)
-        # Await for all sources to start.
-        for source_name in stream._sources:
-            self._await_start(source_name)
 
     def _get_endpoint_name(self, name):
         self.endpoint_id += 1
