@@ -17,9 +17,9 @@
 import os
 import ray
 
-from rayvens.core.local import start as start_mode_http
-from rayvens.core.kafka import start as start_mode_kafka
-from rayvens.core.operator import start as start_mode_2
+from rayvens.core.local import Camel as start_http
+from rayvens.core.kafka import Camel as start_kafka
+from rayvens.core.operator import start as start_operator
 
 
 class Stream:
@@ -30,7 +30,8 @@ class Stream:
                  source_config=None,
                  sink_config=None):
         if _global_camel is None:
-            raise TypeError('Rayvens has not been started.')
+            raise RuntimeError(
+                "Rayvens has not been started. Start with 'rayvens.init()'.")
         self.name = name
         self.actor = StreamActor.options(actor_options).remote(
             name, operator=operator)
@@ -147,13 +148,24 @@ setattr(Stream, '__lshift__', Stream.append)
 _global_camel = None
 
 
-def init(mode=os.getenv('RAYVENS_MODE', 'auto')):
+def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
+         transport=os.getenv('RAYVENS_TRANSPORT', 'auto')):
+    modes = ['auto', 'local', 'mixed.operator', 'cluster.operator']
+    transports = ['auto', 'http', 'kafka']
+
+    if mode not in modes:
+        raise RuntimeError(
+            f'Unsupported Rayvens mode. Must be one of {modes}.')
+    if transport not in transports:
+        raise RuntimeError(
+            f'Unsupported Rayvens transport. Must be one of {transports}.')
+
     global _global_camel
-    if mode in ['kafka']:
-        _global_camel = start_mode_kafka(mode)
-    elif mode in ['auto']:
-        _global_camel = start_mode_http(mode)
-    elif mode in ['local', 'mixed.operator', 'cluster.operator']:
-        _global_camel = start_mode_2(mode)
+
+    if mode in ['auto', 'local']:
+        if transport in ['auto', 'http']:
+            _global_camel = start_http()
+        else:
+            _global_camel = start_kafka()
     else:
-        raise TypeError('Unsupported mode.')
+        _global_camel = start_operator(mode)

@@ -31,7 +31,7 @@ script:
   - ./scripts/start-kind.sh
   - RAYVENS_TEST_MODE=local python ./tests/stream.py
   - RAYVENS_TEST_MODE=local python ./tests/source.py
-  - RAYVENS_TEST_MODE=local RAYVENS_MODE=kafka python ./tests/source.py
+  - RAYVENS_TEST_MODE=local RAYVENS_TRANSPORT=kafka python ./tests/source.py
   - ray submit ./scripts/cluster.yaml ./tests/stream.py
   - ray submit ./scripts/cluster.yaml ./tests/source.py
   - ray submit ./scripts/cluster.yaml ./tests/source_operator.py

@@ -27,14 +27,7 @@ import rayvens.core.catalog as catalog
 import sys
 
 
-def start(mode):
-    return Camel()
-
-
 class Camel:
-    def add_stream(self, stream, name):
-        pass
-
     def add_source(self, stream, config, handle):
         spec = catalog.construct_source(config,
                                         'platform-http:/source',
