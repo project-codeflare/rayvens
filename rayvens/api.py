@@ -49,7 +49,7 @@ class Stream:
         return self
 
     def add_operator(self, operator):
-        ray.get(self.actor.add_operator.remote(operator))
+        return ray.get(self.actor.add_operator.remote(operator))
 
     def add_source(self, source_config):
         return ray.get(self.actor.add_source.remote(self, source_config))
