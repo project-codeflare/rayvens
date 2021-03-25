@@ -14,4 +14,6 @@
 # limitations under the License.
 #
 
-from rayvens.api import init, Stream  # noqa: F401
+from rayvens.api import init, Stream
+
+__all__ = ['init', 'Stream']
