@@ -18,34 +18,32 @@ from enum import Enum
 from rayvens.core import utils
 
 
-class CamelOperatorMode(Enum):
-    # The Kamel operator can only be run on the Ray head node.
-    HEAD_NODE = 1
-
-    # Kamel operator can run anywhere in the cluster.
-    ANY_NODE = 2
-
-    # No Kamel operator needed just kamel running local command in a container.
-    CONTAINERIZED = 3
-
-
 class RayKamelExecLocation(Enum):
     # Ray and Kamel running locally.
     LOCAL = 1
 
-    # Ray running locally, Kamel running in the cluster.
-    MIXED = 2
+    # Ray running locally, Kamel local running in a container in the cluster.
+    MIXED_LOCAL = 2
 
-    # Ray and Kamel running in the cluster.
-    CLUSTER = 3
+    # Ray running locally, Kamel operator running in the cluster.
+    MIXED_OPERATOR = 3
+
+    # Ray in cluster, Kamel local running in a container in the cluster.
+    CLUSTER_LOCAL = 4
+
+    # Ray in cluster, Kamel operator running in the cluster.
+    CLUSTER_OPERATOR = 5
+
+    # Ray operator in cluster, Kamel local running in a container in cluster.
+    OPERATOR_LOCAL = 6
+
+    # Ray operator in cluster, Kamel operator running in the cluster.
+    OPERATOR_OPERATOR = 7
 
 
 class Execution:
-    def __init__(self,
-                 location=RayKamelExecLocation.LOCAL,
-                 kamelExecMode=CamelOperatorMode.ANY_NODE):
+    def __init__(self, location=RayKamelExecLocation.LOCAL):
         self.location = location
-        self.kamelExecMode = kamelExecMode
         self.connector = 'http'
         self.namespace = "ray"
 
@@ -58,9 +56,9 @@ class Execution:
     def getQuarkusHTTPServer(self, integration_name, serve_source=False):
         if self.location == RayKamelExecLocation.LOCAL:
             return "http://0.0.0.0:8080"
-        if self.location == RayKamelExecLocation.MIXED:
+        if self.location == RayKamelExecLocation.MIXED_OPERATOR:
             return "http://localhost:%s" % utils.externalizedClusterPort
-        if self.location == RayKamelExecLocation.CLUSTER:
+        if self.location == RayKamelExecLocation.CLUSTER_OPERATOR:
             if integration_name == "":
                 raise RuntimeError("integration name is not set")
             if serve_source:
@@ -75,10 +73,10 @@ class Execution:
         return self.location == RayKamelExecLocation.LOCAL
 
     def isMixed(self):
-        return self.location == RayKamelExecLocation.MIXED
+        return self.location == RayKamelExecLocation.MIXED_OPERATOR
 
     def isCluster(self):
-        return self.location == RayKamelExecLocation.CLUSTER
+        return self.location == RayKamelExecLocation.CLUSTER_OPERATOR
 
     def hasHTTPConnector(self):
         return self.connector == 'http'

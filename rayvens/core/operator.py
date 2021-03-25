@@ -34,10 +34,10 @@ def start(camel_mode):
         mode.location = RayKamelExecLocation.LOCAL
         camel = CamelAnyNode(mode)
     elif camel_mode == 'mixed.operator':
-        mode.location = RayKamelExecLocation.MIXED
+        mode.location = RayKamelExecLocation.MIXED_OPERATOR
         camel = CamelAnyNode(mode)
     elif camel_mode == 'cluster.operator':
-        mode.location = RayKamelExecLocation.CLUSTER
+        mode.location = RayKamelExecLocation.CLUSTER_OPERATOR
         camel = CamelAnyNode(mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
