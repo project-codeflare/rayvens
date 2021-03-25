@@ -35,8 +35,10 @@ class Stream:
         self.name = name
         self.actor = StreamActor.options(actor_options).remote(
             name, operator=operator)
-        ray.wait(
-            [self.actor._init.remote(self.actor, source_config, sink_config)])
+        if sink_config is not None:
+            self.add_sink(sink_config)
+        if source_config is not None:
+            self.add_source(source_config)
 
     def send_to(self, subscriber, name=None):
         if (isinstance(subscriber, ray.actor.ActorHandle)) and getattr(
@@ -53,10 +55,10 @@ class Stream:
         ray.wait([self.actor.add_operator.remote(operator)])
 
     def add_source(self, source_config):
-        return ray.get(self.actor.add_source.remote(source_config))
+        return ray.get(self.actor.add_source.remote(self, source_config))
 
     def add_sink(self, sink_config):
-        return ray.get(self.actor.add_sink.remote(sink_config))
+        return ray.get(self.actor.add_sink.remote(self, sink_config))
 
     def disconnect(self, integration):
         ray.get(self.actor.disconnect.remote(integration))
@@ -74,13 +76,6 @@ class StreamActor:
         self._sources = []
         self._sinks = []
 
-    def _init(self, handle, source_config, sink_config):
-        self._handle = handle
-        if sink_config is not None:
-            self.add_sink(sink_config)
-        if source_config is not None:
-            self.add_source(source_config)
-
     def send_to(self, subscriber, name=None):
         # TODO: make name mandatory and use it to remove subscribers.
         self._subscribers.append({'subscriber': subscriber, 'name': name})
@@ -96,13 +91,13 @@ class StreamActor:
     def add_operator(self, operator):
         self._operator = operator
 
-    def add_source(self, source_config):
-        source = _global_camel.add_source(self, source_config, self._handle)
+    def add_source(self, stream, source_config):
+        source = _global_camel.add_source(stream, source_config)
         self._sources.append(source)
         return source
 
-    def add_sink(self, sink_config):
-        sink = _global_camel.add_sink(self, sink_config, self._handle)
+    def add_sink(self, stream, sink_config):
+        sink = _global_camel.add_sink(stream, sink_config)
         self._sinks.append(sink)
         return sink
 

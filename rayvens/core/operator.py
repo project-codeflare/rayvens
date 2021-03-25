@@ -68,7 +68,7 @@ class CamelAnyNode:
         if self.mode.hasRayServeConnector():
             serve.start()
 
-    def add_source(self, stream, source, handle):
+    def add_source(self, stream, source):
         # Get integration name.
         integration_name = self._get_integration_name(stream.name)
 
@@ -106,7 +106,7 @@ class CamelAnyNode:
             endpoint_name = self._get_endpoint_name(stream.name)
 
             # Create backend for this topic.
-            source_backend = KamelBackend(self.mode, topic=handle)
+            source_backend = KamelBackend(self.mode, topic=stream.actor)
 
             # Create endpoint.
             source_backend.createProxyEndpoint(endpoint_name, route,
@@ -125,11 +125,11 @@ class CamelAnyNode:
         if self.mode.hasHTTPConnector():
             server_address = self.mode.getQuarkusHTTPServer(integration_name)
             send_to_helper = SendToHelper()
-            send_to_helper.send_to(handle, server_address, route)
+            send_to_helper.send_to(stream.actor, server_address, route)
 
         return self._await_start(integration_name)
 
-    def add_sink(self, stream, sink, handle):
+    def add_sink(self, stream, sink):
         # Compose integration name.
         integration_name = self._get_integration_name(stream.name)
 
@@ -177,7 +177,7 @@ class CamelAnyNode:
         else:
             helper = Helper.remote(
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
-        handle.send_to.remote(helper, stream.name)
+        stream.actor.send_to.remote(helper, stream.name)
 
         return self._await_start(integration_name)
 
