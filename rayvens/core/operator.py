@@ -37,7 +37,7 @@ def start(camel_mode):
     elif camel_mode == 'mixed.operator':
         mode.run_mode = RayvensMode.MIXED_OPERATOR
         camel = Camel(mode)
-    elif camel_mode == 'cluster.operator':
+    elif camel_mode == 'operator':
         mode.run_mode = RayvensMode.CLUSTER_OPERATOR
         camel = Camel(mode)
     else:

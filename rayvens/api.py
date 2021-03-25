@@ -157,9 +157,7 @@ _global_camel = None
 
 def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
          transport=os.getenv('RAYVENS_TRANSPORT', 'auto')):
-    modes = [
-        'auto', 'local', 'local.local', 'mixed.operator', 'cluster.operator'
-    ]
+    modes = ['auto', 'local', 'local.local', 'mixed.operator', 'operator']
     transports = ['auto', 'http', 'kafka']
 
     if mode not in modes:
@@ -177,4 +175,7 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
         else:
             _global_camel = start_kafka()
     else:
-        _global_camel = start_operator(mode)
+        if transport in ['auto', 'http']:
+            _global_camel = start_operator(mode)
+        else:
+            raise RuntimeError('Unsupported transport type.')

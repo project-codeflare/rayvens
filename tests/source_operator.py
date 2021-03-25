@@ -22,7 +22,7 @@ import rayvens
 # Initialize ray based on where ray will run inside the cluster using the
 # kamel operator.
 ray.init(address='auto')
-run_mode = 'cluster.operator'
+run_mode = 'operator'
 
 
 # Actor class for processing the events from the source.

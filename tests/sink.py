@@ -22,7 +22,7 @@ from rayvens.core.verify import verify_log
 # Initialize ray based on where ray will run inside the cluster using the
 # kamel operator.
 ray.init(address='auto')
-run_mode = 'cluster.operator'
+run_mode = 'operator'
 
 # Start the test.
 

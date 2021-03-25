@@ -47,7 +47,7 @@
 # mixed.operator    | no    | -     | yes   | yes   ||    | v   |   |
 # ------------------|-------|-------|-------|-------||----|-----|---|
 # cluster.local     | yes   | no    | yes   | no    ||    | v   | v |
-# cluster.operator  | yes   | no    | yes   | yes   ||    | v   |   |
+# operator          | yes   | no    | yes   | yes   ||    | v   |   |
 # operator.local    | yes   | yes   | yes   | no    ||    |     |   |
 # operator.operator | yes   | yes   | yes   | yes   ||    |     |   |
 #
