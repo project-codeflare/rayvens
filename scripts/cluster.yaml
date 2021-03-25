@@ -84,6 +84,7 @@ available_node_types:
             metadata:
                 generateName: rayvens-cluster-worker-
             spec:
+                serviceAccountName: rayvens
                 restartPolicy: Never
                 volumes:
                     - name: dshm
