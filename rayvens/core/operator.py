@@ -128,8 +128,7 @@ class Camel:
             send_to_helper = SendToHelper()
             send_to_helper.send_to(stream.actor, server_address, route)
 
-        successful_start = await_start(self.mode, integration_name)
-        if successful_start:
+        if await_start(self.mode, integration_name):
             return integration_name
         return None
 
@@ -184,8 +183,7 @@ class Camel:
         stream.actor.send_to.remote(helper, stream.name)
 
         # Wait for integration to finish.
-        successful_start = await_start(self.mode, integration_name)
-        if successful_start:
+        if await_start(self.mode, integration_name):
             return integration_name
         return None
 
