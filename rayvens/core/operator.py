@@ -30,7 +30,7 @@ from rayvens.core.catalog import construct_source, construct_sink
 def start(camel_mode):
     camel = None
     mode.connector = 'http'
-    if camel_mode == 'local':
+    if camel_mode == 'local.local':
         mode.location = RayKamelExecLocation.LOCAL
         camel = CamelAnyNode(mode)
     elif camel_mode == 'mixed.operator':

@@ -145,7 +145,9 @@ _global_camel = None
 
 def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
          transport=os.getenv('RAYVENS_TRANSPORT', 'auto')):
-    modes = ['auto', 'local', 'mixed.operator', 'cluster.operator']
+    modes = [
+        'auto', 'local', 'local.local', 'mixed.operator', 'cluster.operator'
+    ]
     transports = ['auto', 'http', 'kafka']
 
     if mode not in modes:
