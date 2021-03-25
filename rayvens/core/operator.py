@@ -130,7 +130,9 @@ class Camel:
 
         if await_start(self.mode, integration_name):
             return integration_name
-        return None
+
+        # TODO: deal with failing integrations.
+        raise RuntimeError('Could not start source')
 
     def add_sink(self, stream, sink):
         # Compose integration name.
@@ -185,7 +187,9 @@ class Camel:
         # Wait for integration to finish.
         if await_start(self.mode, integration_name):
             return integration_name
-        return None
+
+        # TODO: deal with failing integrations.
+        raise RuntimeError('Could not start sink')
 
     def disconnect(self, integration_name):
         # Check integration name is valid.
