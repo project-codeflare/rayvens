@@ -64,7 +64,7 @@ class Stream:
         return ray.get(self.actor.disconnect_source.remote(source_name))
 
     def disconnect_sink(self, sink_name):
-        return ray.get(self.actor.disconnect.remote(sink_name))
+        return ray.get(self.actor.disconnect_sink.remote(sink_name))
 
     def disconnect_all(self):
         return ray.get(self.actor.disconnect_all.remote())
