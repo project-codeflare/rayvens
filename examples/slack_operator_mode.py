@@ -50,7 +50,7 @@ sink_config = dict(kind='slack-sink',
                    webhookUrl=slack_webhook)
 
 # Add sink to stream.
-sink = stream.actor.add_sink.remote(sink_config)
+sink = stream.actor.add_sink.remote(stream, sink_config)
 
 # Wait for sink to reach running state.
 ray.get(sink)
