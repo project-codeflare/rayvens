@@ -34,11 +34,13 @@ class Camel:
                                         inverted=True)
         integration = Integration(stream.name, spec)
         integration.send_to(stream.actor)
+        return integration.name
 
     def add_sink(self, stream, config):
         spec = catalog.construct_sink(config, 'platform-http:/sink')
         integration = Integration(stream.name, spec)
         integration.recv_from(stream.actor)
+        return integration.name
 
 
 rayvens_random = random.Random()

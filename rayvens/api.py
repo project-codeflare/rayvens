@@ -44,7 +44,7 @@ class Stream:
         if (isinstance(subscriber, ray.actor.ActorHandle)) and getattr(
                 subscriber, 'send_to', None) is None:
             subscriber = Stream('implicit', operator=subscriber)
-        ray.wait([self.actor.send_to.remote(subscriber, name)])
+        ray.get(self.actor.send_to.remote(subscriber, name))
         return subscriber
 
     def append(self, data):
@@ -60,33 +60,40 @@ class Stream:
     def add_sink(self, sink_config):
         return ray.get(self.actor.add_sink.remote(self, sink_config))
 
-    def disconnect(self, integration):
-        ray.get(self.actor.disconnect.remote(integration))
+    def disconnect_source(self, source_name):
+        return ray.get(self.actor.disconnect_source.remote(source_name))
+
+    def disconnect_sink(self, sink_name):
+        return ray.get(self.actor.disconnect.remote(sink_name))
 
     def disconnect_all(self):
-        ray.get(self.actor.disconnect_all.remote())
+        return ray.get(self.actor.disconnect_all.remote())
 
 
 @ray.remote(num_cpus=0)
 class StreamActor:
     def __init__(self, name, operator=None):
         self.name = name
-        self._subscribers = []
+        self._subscribers = {}
         self._operator = operator
         self._sources = []
         self._sinks = []
 
     def send_to(self, subscriber, name=None):
-        # TODO: make name mandatory and use it to remove subscribers.
-        self._subscribers.append({'subscriber': subscriber, 'name': name})
+        if name is None:
+            name = object()
+        if name in self._subscribers:
+            raise RuntimeError(
+                f'Stream {self.name} already has a subscriber named {name}.')
+        self._subscribers[name] = subscriber
 
     def append(self, data):
         if data is None:
             return
         if self._operator is not None:
             data = _eval(self._operator, data)
-        for s in self._subscribers:
-            _eval(s['subscriber'], data)
+        for subscriber in self._subscribers.values():
+            _eval(subscriber, data)
 
     def add_operator(self, operator):
         self._operator = operator
@@ -101,28 +108,25 @@ class StreamActor:
         self._sinks.append(sink)
         return sink
 
-    def disconnect(self, integration):
-        is_sink = integration in self._sinks
-        is_source = integration in self._sources
+    def disconnect_source(self, source_name):
+        if source_name not in self._sources:
+            raise RuntimeError(
+                f'Stream {self.name} has no source {source_name}.')
+        self._sources.remove(source_name)
+        return _global_camel.disconnect(source_name)
 
-        if not is_sink and not is_source:
-            raise RuntimeError(f'{integration} is not a valid source or sink')
-
-        success = _global_camel.disconnect(integration)
-        # TODO: remove subscribers
-        if success:
-            if is_source:
-                self._sources.remove(integration)
-            else:
-                self._sinks.remove(integration)
+    def disconnect_sink(self, sink_name):
+        if sink_name not in self._sinks:
+            raise RuntimeError(f'Stream {self.name} has no sink {sink_name}.')
+        self._sinks.remove(sink_name)
+        self._subscribers.pop(sink_name)
+        return _global_camel.disconnect(sink_name)
 
     def disconnect_all(self):
-        success = _global_camel.disconnect_all()
-        # TODO: remove subscribers
-        if success:
-            self._subscribers = []
-            self._sources = []
-            self._sinks = []
+        self._subscribers = []
+        self._sources = []
+        self._sinks = []
+        return _global_camel.disconnect_all()
 
 
 def _eval(f, data):
