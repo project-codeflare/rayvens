@@ -90,6 +90,18 @@ available_node_types:
                     - name: dshm
                       emptyDir:
                           medium: Memory
+                    - name: podinfo
+                      downwardAPI:
+                          items:
+                              - path: "labels"
+                                fieldRef:
+                                    fieldPath: metadata.labels
+                              - path: "name"
+                                fieldRef:
+                                    fieldPath: metadata.name
+                              - path: "namespace"
+                                fieldRef:
+                                    fieldPath: metadata.namespace
                 containers:
                     - name: ray-node
                       imagePullPolicy: Always
@@ -99,21 +111,14 @@ available_node_types:
                       volumeMounts:
                           - mountPath: /dev/shm
                             name: dshm
+                          - name: podinfo
+                            mountPath: /etc/podinfo
                       resources:
                           requests:
                               cpu: 2000m
                               memory: 512Mi
                           limits:
                               memory: 2Gi
-                      env:
-                          - name: KUBE_POD_NAME
-                            valueFrom:
-                                fieldRef:
-                                    fieldPath: metadata.name
-                          - name: KUBE_POD_NAMESPACE
-                            valueFrom:
-                                fieldRef:
-                                    fieldPath: metadata.namespace
     head_node:
         min_workers: 0
         max_workers: 0
@@ -138,6 +143,12 @@ available_node_types:
                               - path: "labels"
                                 fieldRef:
                                     fieldPath: metadata.labels
+                              - path: "name"
+                                fieldRef:
+                                    fieldPath: metadata.name
+                              - path: "namespace"
+                                fieldRef:
+                                    fieldPath: metadata.namespace
                 containers:
                     - name: ray-node
                       image: localhost:5000/rayvens
@@ -158,15 +169,6 @@ available_node_types:
                               memory: 512Mi
                           limits:
                               memory: 2Gi
-                      env:
-                          - name: KUBE_POD_NAME
-                            valueFrom:
-                                fieldRef:
-                                    fieldPath: metadata.name
-                          - name: KUBE_POD_NAMESPACE
-                            valueFrom:
-                                fieldRef:
-                                    fieldPath: metadata.namespace
 head_start_ray_commands:
     - ray stop
     - ulimit -n 65536; ray start --head --autoscaling-config=~/ray_bootstrap_config.yaml --dashboard-host 0.0.0.0
