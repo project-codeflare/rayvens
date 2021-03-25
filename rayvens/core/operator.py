@@ -182,15 +182,6 @@ class CamelAnyNode:
 
         return await_start(self.mode, integration_name)
 
-    def await_start_all(self, stream):
-        # Await for all sinks to start.
-        for sink_name in stream._sinks:
-            await_start(sink_name)
-
-        # Await for all sources to start.
-        for source_name in stream._sources:
-            await_start(source_name)
-
     def disconnect(self, integration_name):
         # Check integration name is valid.
         if integration_name not in self.invocations:
