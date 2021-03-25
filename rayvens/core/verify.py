@@ -19,11 +19,9 @@ from rayvens.core.mode import mode
 
 
 def verify_log(integration_name, message):
-    _outcome(kamel.log(mode, integration_name, message) is not None)
-
-
-def _outcome(success):
-    log = "SUCCESS"
-    if not success:
-        log = "FAIL"
+    invocation = kamel.log(mode, integration_name, message)
+    log = "FAIL"
+    if invocation is not None:
+        log = "SUCCESS"
+        invocation.kill()
     print("[LOG CHECK]:", log)
