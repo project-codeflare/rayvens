@@ -60,6 +60,9 @@ class Stream:
     def add_sink(self, sink_config):
         return ray.get(self.actor.add_sink.remote(self, sink_config))
 
+    def unsubscribe(self, subscriber_name):
+        return ray.get(self.actor.unsubscribe.remote(subscriber_name))
+
     def disconnect_source(self, source_name):
         return ray.get(self.actor.disconnect_source.remote(source_name))
 
@@ -80,11 +83,11 @@ class StreamActor:
         self._sinks = []
 
     def send_to(self, subscriber, name=None):
-        if name is None:
-            name = object()
         if name in self._subscribers:
             raise RuntimeError(
                 f'Stream {self.name} already has a subscriber named {name}.')
+        if name is None:
+            name = object()
         self._subscribers[name] = subscriber
 
     def append(self, data):
@@ -108,16 +111,24 @@ class StreamActor:
         self._sinks.append(sink)
         return sink
 
+    def unsubscribe(self, subscriber_name):
+        if subscriber_name not in self._subscribers:
+            raise RuntimeError(
+                f'Stream {self.name} has no subscriber named {subscriber_name}.'
+            )
+        self._subscribers.pop(subscriber_name)
+
     def disconnect_source(self, source_name):
         if source_name not in self._sources:
             raise RuntimeError(
-                f'Stream {self.name} has no source {source_name}.')
+                f'Stream {self.name} has no source named {source_name}.')
         self._sources.remove(source_name)
         return _global_camel.disconnect(source_name)
 
     def disconnect_sink(self, sink_name):
         if sink_name not in self._sinks:
-            raise RuntimeError(f'Stream {self.name} has no sink {sink_name}.')
+            raise RuntimeError(
+                f'Stream {self.name} has no sink named {sink_name}.')
         self._sinks.remove(sink_name)
         self._subscribers.pop(sink_name)
         return _global_camel.disconnect(sink_name)
