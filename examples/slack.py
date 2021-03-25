@@ -82,11 +82,12 @@ class Comparator:
             self.last_quote = quote
 
 
-# comparator instance
+# comparator stream
 comparator = Comparator.remote()
+operator = rayvens.Stream('comparator', operator=comparator)
 
 # connect source to comparator to sink
-source >> comparator >> sink
+source >> operator >> sink
 
 # run for a while
 time.sleep(300)

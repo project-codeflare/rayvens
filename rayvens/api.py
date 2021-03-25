@@ -41,9 +41,6 @@ class Stream:
             self.add_source(source_config)
 
     def send_to(self, subscriber, name=None):
-        if (isinstance(subscriber, ray.actor.ActorHandle)) and getattr(
-                subscriber, 'send_to', None) is None:
-            subscriber = Stream('implicit', operator=subscriber)
         ray.get(self.actor.send_to.remote(subscriber, name))
         return subscriber
 
