@@ -18,7 +18,7 @@ from enum import Enum
 from rayvens.core import utils
 
 
-class RayKamelExecLocation(Enum):
+class RayvensMode(Enum):
     # Ray and Kamel running locally.
     LOCAL = 1
 
@@ -42,7 +42,7 @@ class RayKamelExecLocation(Enum):
 
 
 class Execution:
-    def __init__(self, location=RayKamelExecLocation.LOCAL):
+    def __init__(self, location=RayvensMode.LOCAL):
         self.location = location
         self.connector = 'http'
         self.namespace = "ray"
@@ -54,11 +54,11 @@ class Execution:
         return self.namespace
 
     def getQuarkusHTTPServer(self, integration_name, serve_source=False):
-        if self.location == RayKamelExecLocation.LOCAL:
+        if self.location == RayvensMode.LOCAL:
             return "http://0.0.0.0:8080"
-        if self.location == RayKamelExecLocation.MIXED_OPERATOR:
+        if self.location == RayvensMode.MIXED_OPERATOR:
             return "http://localhost:%s" % utils.externalizedClusterPort
-        if self.location == RayKamelExecLocation.CLUSTER_OPERATOR:
+        if self.location == RayvensMode.CLUSTER_OPERATOR:
             if integration_name == "":
                 raise RuntimeError("integration name is not set")
             if serve_source:
@@ -70,13 +70,13 @@ class Execution:
         raise RuntimeError("unreachable")
 
     def isLocal(self):
-        return self.location == RayKamelExecLocation.LOCAL
+        return self.location == RayvensMode.LOCAL
 
     def isMixed(self):
-        return self.location == RayKamelExecLocation.MIXED_OPERATOR
+        return self.location == RayvensMode.MIXED_OPERATOR
 
     def isCluster(self):
-        return self.location == RayKamelExecLocation.CLUSTER_OPERATOR
+        return self.location == RayvensMode.CLUSTER_OPERATOR
 
     def hasHTTPConnector(self):
         return self.connector == 'http'

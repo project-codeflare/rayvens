@@ -20,7 +20,7 @@ import time
 import threading
 from ray import serve
 from rayvens.core.kamel_backend import KamelBackend
-from rayvens.core.mode import mode, RayKamelExecLocation
+from rayvens.core.mode import mode, RayvensMode
 from rayvens.core import kubernetes
 from rayvens.core import kamel
 from rayvens.core import utils
@@ -32,13 +32,13 @@ def start(camel_mode):
     camel = None
     mode.connector = 'http'
     if camel_mode == 'local.local':
-        mode.location = RayKamelExecLocation.LOCAL
+        mode.location = RayvensMode.LOCAL
         camel = CamelAnyNode(mode)
     elif camel_mode == 'mixed.operator':
-        mode.location = RayKamelExecLocation.MIXED_OPERATOR
+        mode.location = RayvensMode.MIXED_OPERATOR
         camel = CamelAnyNode(mode)
     elif camel_mode == 'cluster.operator':
-        mode.location = RayKamelExecLocation.CLUSTER_OPERATOR
+        mode.location = RayvensMode.CLUSTER_OPERATOR
         camel = CamelAnyNode(mode)
     else:
         raise RuntimeError("Unsupported camel mode.")
