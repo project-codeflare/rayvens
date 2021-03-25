@@ -32,13 +32,13 @@ def start(camel_mode):
     camel = None
     mode.connector = 'http'
     if camel_mode == 'local.local':
-        mode.location = RayvensMode.LOCAL
+        mode.run_mode = RayvensMode.LOCAL
         camel = Camel(mode)
     elif camel_mode == 'mixed.operator':
-        mode.location = RayvensMode.MIXED_OPERATOR
+        mode.run_mode = RayvensMode.MIXED_OPERATOR
         camel = Camel(mode)
     elif camel_mode == 'cluster.operator':
-        mode.location = RayvensMode.CLUSTER_OPERATOR
+        mode.run_mode = RayvensMode.CLUSTER_OPERATOR
         camel = Camel(mode)
     else:
         raise RuntimeError("Unsupported camel mode.")

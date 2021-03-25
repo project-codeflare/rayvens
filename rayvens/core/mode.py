@@ -41,9 +41,9 @@ class RayvensMode(Enum):
     OPERATOR_OPERATOR = 7
 
 
-class Execution:
-    def __init__(self, location=RayvensMode.LOCAL):
-        self.location = location
+class RunMode:
+    def __init__(self, run_mode=RayvensMode.LOCAL):
+        self.run_mode = run_mode
         self.connector = 'http'
         self.namespace = "ray"
 
@@ -54,11 +54,11 @@ class Execution:
         return self.namespace
 
     def getQuarkusHTTPServer(self, integration_name, serve_source=False):
-        if self.location == RayvensMode.LOCAL:
+        if self.run_mode == RayvensMode.LOCAL:
             return "http://0.0.0.0:8080"
-        if self.location == RayvensMode.MIXED_OPERATOR:
+        if self.run_mode == RayvensMode.MIXED_OPERATOR:
             return "http://localhost:%s" % utils.externalizedClusterPort
-        if self.location == RayvensMode.CLUSTER_OPERATOR:
+        if self.run_mode == RayvensMode.CLUSTER_OPERATOR:
             if integration_name == "":
                 raise RuntimeError("integration name is not set")
             if serve_source:
@@ -70,13 +70,13 @@ class Execution:
         raise RuntimeError("unreachable")
 
     def isLocal(self):
-        return self.location == RayvensMode.LOCAL
+        return self.run_mode == RayvensMode.LOCAL
 
     def isMixed(self):
-        return self.location == RayvensMode.MIXED_OPERATOR
+        return self.run_mode == RayvensMode.MIXED_OPERATOR
 
     def isCluster(self):
-        return self.location == RayvensMode.CLUSTER_OPERATOR
+        return self.run_mode == RayvensMode.CLUSTER_OPERATOR
 
     def hasHTTPConnector(self):
         return self.connector == 'http'
@@ -86,4 +86,4 @@ class Execution:
 
 
 # Default execution mode.
-mode = Execution()
+mode = RunMode()

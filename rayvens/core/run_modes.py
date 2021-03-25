@@ -36,22 +36,18 @@
 #  Connector types between sources/sinks and Ray:
 #     - RS   : Ray Serve for sources and HTTP requests for sinks.
 #     - P2P  : HTTP requests on both source and sink side.
-#     - P2PS : Like P2P but with location spread enabled.
 #     - K    : Kafka for both sources and sinks.
-#     - KS   : Kafka + location spread enabled.
 #
-#
-#
-# Mode              |      Ray      |     Kamel     || Supported Connectors
-#                   | clstr | oprtr | clstr | oprtr || RS | P2P | P2PS | K | KS
-# ------------------|-------|-------|-------|-------||----|-----|------|---|---
-# local             | no    | -     | no    | -     || v  |     |      |   |
-# ------------------|-------|-------|-------|-------||----|-----|------|---|---
-# mixed.local       | no    | -     | yes   | no    ||    |     |      |   |
-# mixed.operator    | no    | -     | yes   | yes   || v  |     |      |   |
-# ------------------|-------|-------|-------|-------||----|-----|------|---|---
-# cluster.local     | yes   | no    | yes   | no    ||    | v   | v    | v | v
-# cluster.operator  | yes   | no    | yes   | yes   || v  |     |      |   |
-# operator.local    | yes   | yes   | yes   | no    ||    |     |      |   |
-# operator.operator | yes   | yes   | yes   | yes   ||    |     |      |   |
+# Mode              |      Ray      |     Kamel     ||   Transport
+#                   | clstr | oprtr | clstr | oprtr || RS | P2P | K |
+# ------------------|-------|-------|-------|-------||----|-----|---|
+# local             | no    | -     | no    | -     ||    | v   |   |
+# ------------------|-------|-------|-------|-------||----|-----|---|
+# mixed.local       | no    | -     | yes   | no    ||    |     |   |
+# mixed.operator    | no    | -     | yes   | yes   ||    | v   |   |
+# ------------------|-------|-------|-------|-------||----|-----|---|
+# cluster.local     | yes   | no    | yes   | no    ||    | v   | v |
+# cluster.operator  | yes   | no    | yes   | yes   ||    | v   |   |
+# operator.local    | yes   | yes   | yes   | no    ||    |     |   |
+# operator.operator | yes   | yes   | yes   | yes   ||    |     |   |
 #
