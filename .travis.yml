@@ -35,3 +35,4 @@ script:
   - ray submit ./scripts/cluster.yaml ./tests/stream.py
   - ray submit ./scripts/cluster.yaml ./tests/source.py
   - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
+  - ray submit ./scripts/cluster.yaml ./tests/sink.py

@@ -26,6 +26,7 @@ class KamelCommand(Enum):
     LOCAL_BUILD = 4
     LOCAL_RUN = 5
     DELETE = 6
+    LOG = 7
     UNINSTALL = 100
 
 
@@ -44,6 +45,8 @@ def getKamelCommandType(command):
         return KamelCommand.UNINSTALL
     if command.startswith("delete"):
         return KamelCommand.DELETE
+    if command.startswith("log"):
+        return KamelCommand.LOG
     raise RuntimeError('unsupported kamel subcommand: %s' % command)
 
 
@@ -62,6 +65,8 @@ def getKamelCommandString(commandType):
         return "uninstall"
     if commandType == KamelCommand.DELETE:
         return "delete"
+    if commandType == KamelCommand.LOG:
+        return "log"
     raise RuntimeError('unsupported kamel subcommand')
 
 
@@ -80,6 +85,8 @@ def getKamelCommandEndCondition(subcommandType, baseName):
         return "Camel K Service Accounts removed from namespace"
     if subcommandType == KamelCommand.DELETE:
         return "Integration %s deleted" % baseName
+    if subcommandType == KamelCommand.LOG:
+        return ""
     raise RuntimeError('unsupported kamel subcommand: %s' %
                        getKamelCommandString(subcommandType))
 
@@ -112,11 +119,12 @@ def deletesKubectlService(subcommandType):
 # Helper for ongoing local commands like kamel local run.
 
 
-def invokeLocalOngoingCmd(command,
-                          mode,
-                          integration_name,
-                          integration_content=[],
-                          inverted_http=False):
+def invokeOngoingCmd(command,
+                     mode,
+                     integration_name,
+                     integration_content=[],
+                     inverted_http=False,
+                     message=None):
     # Invoke command using the Kamel invocation actor.
     kamel_invocation = invocation.KamelInvocation(
         command,
@@ -126,7 +134,7 @@ def invokeLocalOngoingCmd(command,
         inverted_http=inverted_http)
 
     # Wait for kamel command to finish launching the integration.
-    kamel_is_ready = kamel_invocation.ongoing_command()
+    kamel_is_ready = kamel_invocation.ongoing_command(message)
 
     # Log progress.
     print("kamel ongoing command is ready:", kamel_is_ready)

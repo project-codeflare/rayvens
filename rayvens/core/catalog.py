@@ -74,13 +74,21 @@ def slack_sink(config):
     }
 
 
+def test_sink(config):
+    return {'steps': [{'log': {'message': "\"${body}\""}}]}
+
+
 def generic_sink(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-sink requires a spec.')
     return config['spec']
 
 
-sinks = {'slack-sink': slack_sink, 'generic-sink': generic_sink}
+sinks = {
+    'slack-sink': slack_sink,
+    'generic-sink': generic_sink,
+    'test-sink': test_sink
+}
 
 
 # construct a camel sink specification from a rayvens sink config

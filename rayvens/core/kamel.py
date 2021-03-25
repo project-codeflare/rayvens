@@ -18,11 +18,10 @@ import os
 from rayvens.core import kamel_utils
 from rayvens.core.mode import mode
 
+
 # Method to install kamel in a cluster.
 # The cluster needs to be already started. An operator image, and a registry
 # that Camel-K can use to publish newly created images to are needed.
-
-
 def install(kamelImage,
             publishRegistry,
             mode=mode,
@@ -69,8 +68,6 @@ def install(kamelImage,
 
 
 # Invoke kamel uninstall.
-
-
 def uninstall(installInvocation):
     command = ["uninstall"]
 
@@ -83,8 +80,6 @@ def uninstall(installInvocation):
 
 
 # Kamel run invocation.
-
-
 def run(integration_files,
         mode,
         integration_name,
@@ -133,7 +128,7 @@ def run(integration_files,
     # If this is a kamel local run, the behavior of the command is slightly
     # different and needs to be handled separately.
     if isLocal:
-        return kamel_utils.invokeLocalOngoingCmd(
+        return kamel_utils.invokeOngoingCmd(
             command,
             mode,
             integration_name,
@@ -149,9 +144,24 @@ def run(integration_files,
         inverted_http=inverted_http)
 
 
-# Kamel delete invocation.
+# Kamel log command (needs operator).
+def log(mode, integration_name, custom_message):
+    command = ["log"]
+
+    # Add integration name.
+    command.append(integration_name)
+
+    # Namespace
+    command.append("-n")
+    command.append(mode.getNamespace())
+
+    return kamel_utils.invokeOngoingCmd(command,
+                                        mode,
+                                        integration_name,
+                                        message=custom_message)
 
 
+# Kamel delete invocation (needs operator).
 def delete(runningIntegrationInvocation, integration_name):
     # Compose command with integration name.
     command = ["delete"]

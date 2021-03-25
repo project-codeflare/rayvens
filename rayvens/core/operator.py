@@ -128,7 +128,10 @@ class Camel:
             send_to_helper = SendToHelper()
             send_to_helper.send_to(stream.actor, server_address, route)
 
-        return await_start(self.mode, integration_name)
+        successful_start = await_start(self.mode, integration_name)
+        if successful_start:
+            return integration_name
+        return None
 
     def add_sink(self, stream, sink):
         # Compose integration name.
@@ -180,7 +183,11 @@ class Camel:
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
         stream.actor.send_to.remote(helper, stream.name)
 
-        return await_start(self.mode, integration_name)
+        # Wait for integration to finish.
+        successful_start = await_start(self.mode, integration_name)
+        if successful_start:
+            return integration_name
+        return None
 
     def disconnect(self, integration_name):
         # Check integration name is valid.

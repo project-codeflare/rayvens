@@ -104,37 +104,11 @@ class KamelInvocation:
                                         shell=True,
                                         preexec_fn=os.setsid)
 
-    def ongoing_command(self):
-        # Check if kamel instance launched correctly.
-        success = False
-        while True:
-            # Log progress of kamel subprocess.
-            output = utils.printLogFromSubProcess(self.subprocess_name,
-                                                  self.process,
-                                                  with_output=True)
+    def ongoing_command(self, message):
+        if message is None:
+            return self._check_successful_start()
 
-            if self.process.poll() is not None:
-                break
-            # Some form of completion signal is received.
-            # Use the Kamel output to decide when Kamel instance is
-            # ready to receive requests.
-            # TODO: check process completion by checking if it has
-            # started listening on the host:port.
-            if self.end_condition in output:
-                success = True
-                break
-
-        # Emit success/fail message.
-        log = "Kamel integration is ready."
-        if not success:
-            log = "Kamel integration failed to start."
-        utils.printLog(self.subprocess_name, log)
-
-        # Delete intermediate file.
-        if self.filename is not None:
-            os.remove(self.filename)
-
-        return success
+        return self._check_logs(message)
 
     def returning_command(self):
         success = False
@@ -172,6 +146,54 @@ class KamelInvocation:
         # Magic formula for terminating all processes in the group including
         # any subprocesses that the kamel command might have created.
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+
+    def _check_successful_start(self):
+        # Check if kamel instance launched correctly.
+        success = self._check_ongoing_process_output(self.end_condition, True)
+
+        # Emit success/fail message.
+        subcommand = kamel_utils.getKamelCommandString(self.subcommand_type)
+        log = "Kamel `%s` command finished successfully." % subcommand
+        if not success:
+            log = "Kamel `%s` command failed." % subcommand
+        utils.printLog(self.subprocess_name, log)
+
+        # Delete intermediate file.
+        if self.filename is not None:
+            os.remove(self.filename)
+
+        return success
+
+    def _check_logs(self, message):
+        # Check logs.
+        success = self._check_ongoing_process_output(message)
+
+        # Emit success/fail message.
+        log = "Logs checked successfully."
+        if not success:
+            log = "Log check failed."
+        utils.printLog(self.subprocess_name, log)
+        return success
+
+    def _check_ongoing_process_output(self, end_condition, with_output=False):
+        success = False
+        while True:
+            # Log progress of kamel subprocess.
+            output = utils.printLogFromSubProcess(self.subprocess_name,
+                                                  self.process,
+                                                  with_output=with_output)
+
+            # Check process has not exited prematurely.
+            if self.process.poll() is not None:
+                break
+
+            # Use the Kamel output to decide when Kamel instance is
+            # ready to receive requests.
+            if end_condition in output:
+                success = True
+                break
+
+        return success
 
 
 #

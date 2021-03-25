@@ -134,8 +134,6 @@ def isInErrorState(line, fullPodName):
 
 
 # Helper for invoking a long running kubectl command.
-
-
 def getPodStatusCmd(command, integrationName):
     # Invoke command using the Kubectl invocation actor.
     kubectlInvocation = invocation.KubectlInvocation(command)
@@ -152,8 +150,6 @@ def getPodStatusCmd(command, integrationName):
 
 
 # Helper for starting a service. Command returns immediately.
-
-
 def executeReturningKubectlCmd(command, service_name=None, with_output=False):
     # Invoke command using the Kubectl invocation actor.
     kubectl_invocation = invocation.KubectlInvocation(command, service_name)
@@ -166,8 +162,6 @@ def executeReturningKubectlCmd(command, service_name=None, with_output=False):
 
 
 # Helper for check that a service exists.
-
-
 def executeOngoingKubectlCmd(command, service_name=None, with_output=False):
     # Invoke command using the Kubectl invocation actor.
     kubectl_invocation = invocation.KubectlInvocation(command, service_name)
