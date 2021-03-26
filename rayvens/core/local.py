@@ -28,19 +28,17 @@ import sys
 
 
 class Camel:
-    def add_source(self, stream, config):
+    def add_source(self, stream, config, name):
         spec = catalog.construct_source(config,
                                         'platform-http:/source',
                                         inverted=True)
-        integration = Integration(stream.name, spec)
+        integration = Integration(name, spec)
         integration.send_to(stream.actor)
-        return integration.name
 
-    def add_sink(self, stream, config):
+    def add_sink(self, stream, config, name):
         spec = catalog.construct_sink(config, 'platform-http:/sink')
-        integration = Integration(stream.name, spec)
+        integration = Integration(name, spec)
         integration.recv_from(stream.actor)
-        return integration.name
 
 
 rayvens_random = random.Random()

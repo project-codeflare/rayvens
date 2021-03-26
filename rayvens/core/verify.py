@@ -16,9 +16,11 @@
 
 from rayvens.core import kamel
 from rayvens.core.mode import mode
+from rayvens.core.name import name_integration, name_sink
 
 
-def verify_log(integration_name, message):
+def verify_log(stream, config, message):
+    integration_name = name_integration(stream.name, name_sink(config))
     invocation = kamel.log(mode, integration_name, message)
     log = "FAIL"
     if invocation is not None:

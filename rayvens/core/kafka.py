@@ -26,19 +26,17 @@ import sys
 
 
 class Camel:
-    def add_source(self, stream, config):
-        spec = catalog.construct_source(
-            config, f'kafka:{stream.name}?brokers={brokers()}')
-        integration = Integration(stream.name, spec)
+    def add_source(self, stream, config, name):
+        spec = catalog.construct_source(config,
+                                        f'kafka:{name}?brokers={brokers()}')
+        integration = Integration(name, spec)
         integration.send_to(stream.actor)
-        return integration.name
 
-    def add_sink(self, stream, config):
-        spec = catalog.construct_sink(
-            config, f'kafka:{stream.name}?brokers={brokers()}')
-        integration = Integration(stream.name, spec)
+    def add_sink(self, stream, config, name):
+        spec = catalog.construct_sink(config,
+                                      f'kafka:{name}?brokers={brokers()}')
+        integration = Integration(name, spec)
         integration.recv_from(stream.actor)
-        return integration.name
 
 
 @ray.remote(num_cpus=0)

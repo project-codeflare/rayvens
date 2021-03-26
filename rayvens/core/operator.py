@@ -69,10 +69,7 @@ class Camel:
         if self.mode.hasRayServeConnector():
             serve.start()
 
-    def add_source(self, stream, source):
-        # Get integration name.
-        integration_name = self._get_integration_name(stream.name)
-
+    def add_source(self, stream, source, integration_name):
         # Construct endpoint.
         route = f'/{stream.name}'
         if 'route' in source and source['route'] is not None:
@@ -134,10 +131,7 @@ class Camel:
         # TODO: deal with failing integrations.
         raise RuntimeError('Could not start source')
 
-    def add_sink(self, stream, sink):
-        # Compose integration name.
-        integration_name = self._get_integration_name(stream.name)
-
+    def add_sink(self, stream, sink, integration_name):
         # Extract config.
         route = f'/{stream.name}'
         if 'route' in sink and sink['route'] is not None:

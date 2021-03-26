@@ -36,7 +36,7 @@ stream = rayvens.Stream('test-sink')
 test_sink_config = dict(kind='test-sink', route='/totestsink')
 
 # Add sink to stream.
-sink = stream.add_sink(test_sink_config)
+stream.add_sink(test_sink_config)
 
 # Sends message to all sinks attached to this stream.
 output_message = f'Sending message to Slack sink in run mode {run_mode}.'
@@ -45,7 +45,7 @@ stream << output_message
 time.sleep(10)
 
 # Verify outcome.
-verify_log(sink, output_message)
+verify_log(stream, test_sink_config, output_message)
 
 # Delete all integrations from stream.
 stream.disconnect_all()
