@@ -169,6 +169,9 @@ available_node_types:
                               memory: 512Mi
                           limits:
                               memory: 2Gi
+                      env:
+                          - name: RAY_ADDRESS
+                            value: auto
 head_start_ray_commands:
     - ray stop
     - ulimit -n 65536; ray start --head --autoscaling-config=~/ray_bootstrap_config.yaml --dashboard-host 0.0.0.0
