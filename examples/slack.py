@@ -20,11 +20,11 @@ import rayvens
 import sys
 import time
 
-# this example demonstrates how to use Camel
-# to receive and emit external events
+# This example demonstrates how to use Camel
+# to receive and emit external events.
 #
 # fetch AAPL quotes every 3 seconds
-# analyze trend (up/down/same)
+# analyze trend (up/down/stable)
 # publish trend to slack
 #
 # http-source -> comparator actor -> slack-sink
@@ -37,14 +37,12 @@ slack_channel = sys.argv[1]
 slack_webhook = sys.argv[2]
 
 # initialize ray
-try:
-    ray.init(address='auto')  # try to connect to cluster first
-except ConnectionError:
-    ray.init()  # fallback to local execution
+ray.init()
 
+# initialize rayvens
 rayvens.init()
 
-# start event source actor
+# create a source stream
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
@@ -54,14 +52,14 @@ source = rayvens.Stream('http', source_config=source_config)
 # log incoming events
 source >> (lambda event: print('LOG:', event))
 
-# start event sink actor
+# create a sink stream
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
                    webhookUrl=slack_webhook)
 sink = rayvens.Stream('slack', sink_config=sink_config)
 
 
-# Actor to compare APPL quote with last quote
+# actor to compare APPL quote with last quote
 @ray.remote
 class Comparator:
     def __init__(self):
@@ -77,17 +75,17 @@ class Comparator:
                 elif quote < self.last_quote:
                     return 'AAPL is down'
                 else:
-                    return 'AAPL is unchanged'
+                    return 'AAPL is stable'
         finally:
             self.last_quote = quote
 
 
-# comparator stream
+# create an stream operator
 comparator = Comparator.remote()
 operator = rayvens.Stream('comparator', operator=comparator)
 
-# connect source to comparator to sink
+# connect source to operator to sink
 source >> operator >> sink
 
 # run for a while
-time.sleep(300)
+time.sleep(120)

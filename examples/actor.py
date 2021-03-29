@@ -17,22 +17,18 @@
 import ray
 import rayvens
 
-# this example demonstrate how to use a stream to connect
-# event producers and consumers using a pub-sub pattern
-#
-# in this example, the event handlers are Ray actors
-# the events are delivered to each actor in order
-# but the interleaving of events across subscribers is arbitrary
+# This example demonstrates the use of Ray actors to handle events.
+# The events are delivered to each actor in order. The processing order
+# is therefore deterministic for each actor. But the interleaving of events
+# across actors is arbitrary.
 
 # initialize ray
-try:
-    ray.init(address='auto')  # try to connect to cluster first
-except ConnectionError:
-    ray.init()  # fallback to local execution
+ray.init()
 
+# initialize rayvens
 rayvens.init()
 
-# create a stream actor
+# create a stream
 stream = rayvens.Stream('example')
 
 

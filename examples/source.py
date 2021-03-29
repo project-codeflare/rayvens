@@ -19,18 +19,16 @@ import ray
 import rayvens
 import time
 
-# this example demonstrates how to subscribe to a Camel event source
-# and process incoming events using a stateful actor
+# This example demonstrates how to subscribe to a Camel event source
+# and process incoming events using a Ray actor.
 
 # initialize ray
-try:
-    ray.init(address='auto')  # try to connect to cluster first
-except ConnectionError:
-    ray.init()  # fallback to local execution
+ray.init()
 
+# initialize rayvens
 rayvens.init()
 
-# start event source
+# create a source stream
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
@@ -41,7 +39,7 @@ source = rayvens.Stream('http', source_config=source_config)
 source >> (lambda event: print('LOG:', event))
 
 
-# Actor to compare APPL quote with last quote
+# actor to compare APPL quote with last quote
 @ray.remote
 class Comparator:
     def __init__(self):
@@ -57,7 +55,7 @@ class Comparator:
                 elif quote < self.last_quote:
                     print('AAPL is down')
                 else:
-                    print('AAPL is unchanged')
+                    print('AAPL is stable')
         finally:
             self.last_quote = quote
 
@@ -69,4 +67,4 @@ comparator = Comparator.remote()
 source >> comparator
 
 # run for a while
-time.sleep(300)
+time.sleep(120)

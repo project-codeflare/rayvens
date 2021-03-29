@@ -17,13 +17,20 @@
 import ray
 import rayvens
 
+# This example demonstrates how to create a stream of events,
+# subscribe to this stream, and append events to the stream.
+
+# initialize ray
 ray.init()
+
+# initialize rayvens
 rayvens.init()
 
+# create a stream
 stream = rayvens.Stream('example')
 
-# deliver all events to print
+# deliver all future events to print
 stream >> print
 
-# append two events to the stream
+# append two events to the stream in order
 stream << 'hello' << 'world'
