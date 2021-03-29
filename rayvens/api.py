@@ -21,6 +21,7 @@ from rayvens.core.local import Camel as start_http
 from rayvens.core.kafka import Camel as start_kafka
 from rayvens.core.operator import start as start_operator
 from rayvens.core.name import name_source, name_sink, name_integration
+from rayvens.core.verify import verify_do
 
 
 class Stream:
@@ -69,6 +70,9 @@ class Stream:
 
     def disconnect_all(self):
         return ray.get(self.actor.disconnect_all.remote())
+
+    def _meta(self, action, *args, **kwargs):
+        return ray.get(self.actor._meta.remote(action, *args, **kwargs))
 
 
 @ray.remote(num_cpus=0)
@@ -149,6 +153,9 @@ class StreamActor:
         self._sources = []
         self._sinks = []
         return _global_camel.disconnect_all()
+
+    def _meta(self, action, *args, **kwargs):
+        return verify_do(self, _global_camel, action, *args, **kwargs)
 
 
 def _eval(f, data):

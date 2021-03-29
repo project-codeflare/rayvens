@@ -35,7 +35,7 @@ def getPodRunningStatus(mode, integration_name):
 # Wait for integration to reach running state.
 
 
-def getIntegrationStatus(mode, pod_name):
+def getIntegrationStatus(mode, pod_name, message=None):
     # TODO: adapt this to support multiple namespaces.
     command = ["logs", pod_name]
 
@@ -46,7 +46,7 @@ def getIntegrationStatus(mode, pod_name):
     # Stream output from this command.
     command.append("--follow=true")
 
-    return kubernetes_utils.executeOngoingKubectlCmd(command)
+    return kubernetes_utils.executeOngoingKubectlCmd(command, message)
 
 
 # Create service that Ray can talk to from outside the cluster.

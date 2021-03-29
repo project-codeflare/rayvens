@@ -234,25 +234,18 @@ class KubectlInvocation:
                                         shell=True,
                                         preexec_fn=os.setsid)
 
-    def executeKubectlCmd(self, serviceName=None, with_output=False):
-        success = False
-        while True:
-            output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process,
-                                                  with_output=with_output)
-            if self.subcommandType == \
-               kubernetes_utils.KubectlCommand.GET_SERVICES:
-                if kubernetes_utils.serviceNameMatches(output, serviceName):
-                    success = True
-                    break
-            elif self.endCondition in output:
-                success = True
-                break
+    def executeKubectlCmd(self,
+                          message=None,
+                          serviceName=None,
+                          with_output=False):
+        # Set end condition for custom message if one is provided.
+        end_condition = self.endCondition
+        if message is not None:
+            end_condition = message
 
-            returnCode = self.process.poll()
-            if returnCode is not None:
-                print("Return code is not None!!")
-                break
+        # Check command output.
+        success = self._check_ongoing_kubectl_output(end_condition,
+                                                     serviceName, with_output)
 
         subcommand = kubernetes_utils.getKubectlCommandString(
             self.subcommandType)
@@ -302,3 +295,26 @@ class KubectlInvocation:
         # Terminating all processes in the group including any subprocesses
         # that the kubectl command might have created.
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+
+    def _check_ongoing_kubectl_output(self,
+                                      end_condition,
+                                      serviceName=None,
+                                      with_output=False):
+        success = False
+        while True:
+            output = utils.printLogFromSubProcess(self.subprocessName,
+                                                  self.process,
+                                                  with_output=with_output)
+            if self.subcommandType == \
+               kubernetes_utils.KubectlCommand.GET_SERVICES:
+                if kubernetes_utils.serviceNameMatches(output, serviceName):
+                    success = True
+                    break
+            elif end_condition in output:
+                success = True
+                break
+
+            returnCode = self.process.poll()
+            if returnCode is not None:
+                break
+        return success

@@ -162,12 +162,16 @@ def executeReturningKubectlCmd(command, service_name=None, with_output=False):
 
 
 # Helper for check that a service exists.
-def executeOngoingKubectlCmd(command, service_name=None, with_output=False):
+def executeOngoingKubectlCmd(command,
+                             message,
+                             service_name=None,
+                             with_output=False):
     # Invoke command using the Kubectl invocation actor.
     kubectl_invocation = invocation.KubectlInvocation(command, service_name)
 
     # Wait for kamel command to finish launching the integration.
-    outcome = kubectl_invocation.executeKubectlCmd(service_name, with_output)
+    outcome = kubectl_invocation.executeKubectlCmd(message, service_name,
+                                                   with_output)
 
     # Stop kubectl command.
     kubectl_invocation.kill()

@@ -17,12 +17,22 @@
 import ray
 import rayvens
 import time
-from rayvens.core.verify import verify_log
+import os
 
 # Initialize ray based on where ray will run inside the cluster using the
 # kamel operator.
-ray.init(address='auto')
+
+# Default run mode.
 run_mode = 'operator'
+env_run_mode = os.getenv('RAYVENS_TEST_MODE')
+if env_run_mode is not None:
+    run_mode = env_run_mode
+
+# Select appropriate Ray init method.
+if run_mode == 'operator':
+    ray.init(address='auto')
+else:
+    ray.init(object_store_memory=78643200)
 
 # Start the test.
 
@@ -36,7 +46,7 @@ stream = rayvens.Stream('test-sink')
 test_sink_config = dict(kind='test-sink', route='/totestsink')
 
 # Add sink to stream.
-stream.add_sink(test_sink_config)
+sink = stream.add_sink(test_sink_config)
 
 # Sends message to all sinks attached to this stream.
 output_message = f'Sending message to Slack sink in run mode {run_mode}.'
@@ -45,7 +55,7 @@ stream << output_message
 time.sleep(10)
 
 # Verify outcome.
-verify_log(stream, test_sink_config, output_message)
+stream._meta('verify_log', sink, output_message)
 
 # Delete all integrations from stream.
 stream.disconnect_all()

@@ -116,7 +116,6 @@ class Camel:
                                       integration_name,
                                       integration_as_files=False,
                                       inverted_http=inverted)
-        # self.invocations[source_invocation] = integration_name
         self.invocations[integration_name] = source_invocation
 
         # Set up source for the HTTP connector case.
@@ -153,7 +152,6 @@ class Camel:
                                     self.mode,
                                     integration_name,
                                     integration_as_files=False)
-        # self.invocations[sink_invocation] = integration_name
         self.invocations[integration_name] = sink_invocation
 
         # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
