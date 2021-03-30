@@ -15,5 +15,3 @@
 #
 
 [flake8]
-ignore =
-  F633

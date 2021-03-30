@@ -29,8 +29,8 @@ rayvens.init()
 # create a stream
 stream = rayvens.Stream('example')
 
-# deliver all future events to print
-stream >> print
+# log all future events
+stream >> (lambda event: print('LOG:', event))
 
 # append two events to the stream in order
 stream << 'hello' << 'world'

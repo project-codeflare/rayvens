@@ -27,35 +27,35 @@ applications can produce events, subscribe to event streams, and process events.
 Rayvens leverages [Apache Camel](https://camel.apache.org) to make it possible
 for data scientists to access hundreds data services with little effort.
 
-For example, we can periodically fetch data from a REST API with code:
+For example, we can periodically fetch the AAPL stock price from a REST API with
+code:
 ```python
 source_config = dict(
     kind='http-source',
     url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
     period=3000)
-source = client.create_stream('http', source=source_config)
+source = rayvens.Stream('http', source_config=source_config)
 ```
 
 We can publish messages to Slack with code:
 ```python
 sink_config = dict(kind='slack-sink',
-                   channel='#rayvens',
-                   webhookUrl=os.getenv('RAYVENS_WEBHOOK'))
-sink = client.create_stream('slack', sink=sink_config)
+                   channel=slack_channel,
+                   webhookUrl=slack_webhook)
+sink = rayvens.Stream('slack', sink_config=sink_config)
 ```
 
-We can pipe this source to this sink using code:
+We can delivers all events from `source` to `sink` using code:
 ```python
 source >> sink
 ```
-This code delivers all events from the source to the sink in order.
 
-We can process these events using code:
+We also process events on the fly using Python functions, Ray tasks, or Ray
+actors for stateful processing. For instance, we can log events to the console
+using code:
 ```python
-source >> processor >> sink
+source >> (lambda event: print('LOG:', event))
 ```
-This processor may be a simple Python function, a Ray task, or a Ray actor
-making possible to implement stateful processors.
 
 ## Setup Rayvens
 
@@ -82,79 +82,118 @@ pip install kubernetes
 Clone this repository and install Rayvens:
 ```shell
 git clone https://github.ibm.com/solsa/rayvens.git
-pip install -e rayvens
+pip install rayvens
 ```
 
 Try Rayvens:
 ```shell
-python rayvens/examples/hello.py
+python rayvens/examples/stream.py
 ```
-
-Rayvens configures and uses [Ray
-Serve](https://docs.ray.io/en/master/serve/index.html) to accept incoming
-external events.
+```
+(pid=37214) LOG: hello
+(pid=37214) LOG: world
+```
 
 ## A First Example
 
-The [hello.py](examples/hello.py) file demonstrates an elementary Rayvens
+The [stream.py](examples/stream.py) file demonstrates an elementary Rayvens
 program.
 ```python
 import ray
 import rayvens
 
+# initialize ray
 ray.init()
-client = rayvens.Client()
 
-stream = client.create_stream('example')
+# initialize rayvens
+rayvens.init()
 
-# deliver all events to print
-stream >> print
+# create a stream
+stream = rayvens.Stream('example')
 
-# append two events to the stream
+# log all future events
+stream >> (lambda event: print('LOG:', event))
+
+# append two events to the stream in order
 stream << 'hello' << 'world'
 ```
 
-This program initialize Ray and Rayvens and creates a `Stream`. Streams and
-events are the core facilities offered by Rayvens. Streams bridge event
-publishers and subscribers. Streams are implemented as Ray actors. All rules
-applicable to Ray actors (lifecycle, serialization, ordering) apply to streams.
-Streams can interface publishers and subscribers running on different Ray nodes.
+This program initialize Ray and Rayvens and creates a `rayvens.Stream` instance.
+Streams and events are the core facilities offered by Rayvens. Streams bridge
+event publishers and subscribers.
 
 In this example, a subscriber is added to the stream using syntax `stream >>
-subscriber`. As a result, the Python `print` method is invoked on every event in
-the stream. In general, subscribers can be Python callables, Ray tasks, or Ray
-actors, as illustrated below. Multiple subscribers may be attached to the same
-stream. The `<<` operator is a shorthand for the `send_to` method:
+subscriber`. The `>>` operator is a shorthand for the `send_to` method:
 ```python
-stream.send_to.remote(print)
+stream.send_to(lambda event: print('LOG:', event))
 ```
+All events appended to the stream _after_ the invocation of the `>>` operator
+(or `send_to` method) will be delivered to the subscriber. Multiple subscribers
+may be attached to the same stream. In general, subscribers can be Python
+functions, Ray tasks, or Ray actors. Hence, streams can interface publishers and
+subscribers running on different Ray nodes.
 
 A couple of events are then published to the stream using the syntax `stream <<
-value`. As illustrate here, events are just arbitrary values in general, but of
+value`. As illustrated here, events are just arbitrary values in general, but of
 course publishers and subscribers can agree on specific event schemas. The `<<`
 operator has left-to-right associativity making it possible to send multiple
-events with one statement. The `>>` operator is a shorthand for the `append`
+events with one statement. The `<<` operator is a shorthand for the `append`
 method:
 ```python
-stream.append.remote('hello')
-stream.append.remote('world')
+stream.append('hello').append('world')
 ```
 
-The `<<` and `>>` operator are not symmetrical. The `send_to` method (resp. `<<`
+Conceptually, the `append` method adds an event _at the end_ of the stream, just
+like the `append` method of Python lists. But in contrast with lists, a Stream
+does not persist events. It simply delivers events to subscribers as they come.
+In particular, appending events to a stream without subscribers (and without an
+operator, see below) is a no-op.
+
+Run the example program with:
+```shell
+python rayvens/examples/stream.py
+```
+```
+(pid=37214) LOG: hello
+(pid=37214) LOG: world
+```
+
+Observe the two events are delivered in order. Events are delivered to function
+and actor subscribers in order, but task subscribers offer no ordering
+guarantees. See the [function.py](examples/function.py),
+[task.py](examples/task.py), and [actor.py](examples/actor.py) examples for
+details.
+
+The `<<` and `>>` operator are not symmetrical. The `send_to` method (resp. `>>`
 operator) invokes its argument (resp. right-hand side) for every event appended
-to the stream. The `append` method and `>>` operator only append one event to
+to the stream. The `append` method and `<<` operator only append one event to
 the stream.
 
-Run this program with:
-```shell
-python rayvens/examples/hello.py
-```
-Observe the two events are delivered in order.
+## Stream and StreamActor
 
-Other examples are provided in the [examples](examples) folder. See in
-particular the [pubsub.py](examples/pubsub.py), [task.py](examples/task.py), and
-[actor.py](examples/actor.py) examples for further discussions of in-order and
-out-of-order event delivery.
+Under the hood, streams are implemented as Ray actors. Concretely, the
+`rayvens.Stream` class is a stateless, serializable, wrapper around the
+`rayvens.StreamActor` actor class. All rules applicable to Ray actors
+(lifecycle, serialization, queuing, ordering) are applicable to streams. In
+particular, the stream actor will be reclaimed when the original stream handle
+goes out of scope.
+
+The configuration of the stream actor can be tuned using `actor_options`:
+```python
+stream = rayvens.Stream('example', actor_options={num_cpus: 0.1})
+```
+
+For convenience, most methods of the `Stream` class including the `send_to`
+method encapsulate the remote invocation of the homonymous `StreamActor` method
+and block until completion using `ray.get`. The `append` method is the
+exception. It returns immediately. Nevertheless, Ray actor's semantics
+guarantees that sequences of `append` invocations are processed in order.
+
+For more control, it is possible to invoke methods directly on the stream actor,
+for example:
+```python
+stream.actor.send_to.remote(lambda event: print('LOG:', event))
+```
 
 ## Setup Camel-K
 
