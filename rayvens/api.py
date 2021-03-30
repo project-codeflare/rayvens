@@ -20,7 +20,7 @@ import ray
 from rayvens.core.local import Camel as start_http
 from rayvens.core.kafka import Camel as start_kafka
 from rayvens.core.operator import start as start_operator
-from rayvens.core.name import name_source, name_sink, name_integration
+from rayvens.core.name import name_source, name_sink
 from rayvens.core.verify import verify_do
 
 
@@ -81,8 +81,8 @@ class StreamActor:
         self.name = name
         self._subscribers = {}
         self._operator = operator
-        self._sources = []
-        self._sinks = []
+        self._sources = {}
+        self._sinks = {}
 
     def send_to(self, subscriber, name=None):
         if name in self._subscribers:
@@ -105,13 +105,12 @@ class StreamActor:
 
     def add_source(self, stream, source_config):
         source_name = name_source(source_config)
-        if source_name in self._sinks:
+        if source_name in self._sources:
             raise RuntimeError(
                 f'Stream {self.name} already has a source named {source_name}.'
             )
-        integration_name = name_integration(self.name, source_name)
-        _global_camel.add_source(stream, source_config, integration_name)
-        self._sources.append(source_name)
+        self._sources[source_name] = _global_camel.add_source(
+            stream, source_config, source_name)
         return source_name
 
     def add_sink(self, stream, sink_config):
@@ -119,9 +118,8 @@ class StreamActor:
         if sink_name in self._sinks:
             raise RuntimeError(
                 f'Stream {self.name} already has a sink named {sink_name}.')
-        integration_name = name_integration(self.name, sink_name)
-        _global_camel.add_sink(stream, sink_config, integration_name)
-        self._sinks.append(sink_name)
+        self._sinks[sink_name] = _global_camel.add_sink(
+            stream, sink_config, sink_name)
         return sink_name
 
     def unsubscribe(self, subscriber_name):
@@ -135,24 +133,22 @@ class StreamActor:
         if source_name not in self._sources:
             raise RuntimeError(
                 f'Stream {self.name} has no source named {source_name}.')
-        self._sources.remove(source_name)
-        integration_name = name_integration(self.name, source_name)
-        return _global_camel.disconnect(integration_name)
+        _global_camel.disconnect(self._sources[source_name])
+        self._sources.pop(source_name)
 
     def disconnect_sink(self, sink_name):
         if sink_name not in self._sinks:
             raise RuntimeError(
                 f'Stream {self.name} has no sink named {sink_name}.')
-        self._sinks.remove(sink_name)
+        _global_camel.disconnect(self._sinks[sink_name])
+        self._sinks.pop(sink_name)
         self._subscribers.pop(sink_name)
-        integration_name = name_integration(self.name, sink_name)
-        return _global_camel.disconnect(integration_name)
 
     def disconnect_all(self):
-        self._subscribers = []
-        self._sources = []
-        self._sinks = []
-        return _global_camel.disconnect_all()
+        for source_name in dict(self._sources):
+            self.disconnect_source(source_name)
+        for sink_name in dict(self._sinks):
+            self.disconnect_sink(sink_name)
 
     def _meta(self, action, *args, **kwargs):
         return verify_do(self, _global_camel, action, *args, **kwargs)

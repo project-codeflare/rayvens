@@ -26,6 +26,7 @@ from rayvens.core import kamel
 from rayvens.core import utils
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.core.common import await_start
+from rayvens.core.integration import Integration
 
 
 def start(camel_mode):
@@ -49,18 +50,6 @@ class Camel:
     def __init__(self, mode):
         self.mode = mode
 
-        # TODO: add node and process id to unique name of integrations and
-        # services.
-        self.endpoint_id = -1
-        self.integration_id = -1
-        self.service_id = -1
-
-        # List of command invocations used to clean-up the environment.
-        self.invocations = {}
-
-        # List of services used to clean-up the environment.
-        self.services = {}
-
         # The Ray Serve backend used for Sinks. Sink are a special case and
         # can use one backend to support multiple sinks.
         self.kamel_backend = None
@@ -69,11 +58,12 @@ class Camel:
         if self.mode.hasRayServeConnector():
             serve.start()
 
-    def add_source(self, stream, source, integration_name):
-        # Construct endpoint.
-        route = f'/{stream.name}'
-        if 'route' in source and source['route'] is not None:
-            route = source['route']
+    def add_source(self, stream, source, source_name):
+        # Construct integration
+        integration = Integration(stream.name, source_name, source)
+
+        # Construct endpoint. First, get route:
+        route = integration.route()
 
         # Determine the `to` endpoint value made up of a base address and
         # a custom route provided by the user. The computation depends on
@@ -101,44 +91,43 @@ class Camel:
 
         if self.mode.hasRayServeConnector():
             # Set endpoint and integration names.
-            endpoint_name = self._get_endpoint_name(stream.name)
+            endpoint_name = self._get_endpoint_name(
+                integration.integration_name)
 
             # Create backend for this topic.
             source_backend = KamelBackend(self.mode, topic=stream.actor)
 
             # Create endpoint.
             source_backend.createProxyEndpoint(endpoint_name, route,
-                                               integration_name)
+                                               integration.integration_name)
 
         # Start running the source integration.
         source_invocation = kamel.run([integration_content],
                                       self.mode,
-                                      integration_name,
+                                      integration.integration_name,
                                       integration_as_files=False,
                                       inverted_http=inverted)
-        self.invocations[integration_name] = source_invocation
+        integration.invocation = source_invocation
 
         # Set up source for the HTTP connector case.
         if self.mode.hasHTTPConnector():
-            server_address = self.mode.getQuarkusHTTPServer(integration_name)
+            server_address = self.mode.getQuarkusHTTPServer(
+                integration.integration_name)
             send_to_helper = SendToHelper()
             send_to_helper.send_to(stream.actor, server_address, route)
 
-        if await_start(self.mode, integration_name):
-            return integration_name
+        if not await_start(self.mode, integration.integration_name):
+            raise RuntimeError('Could not start source')
+        return integration
 
-        # TODO: deal with failing integrations.
-        raise RuntimeError('Could not start source')
+    def add_sink(self, stream, sink, sink_name):
+        # Construct integration
+        integration = Integration(stream.name, sink_name, sink)
 
-    def add_sink(self, stream, sink, integration_name):
-        # Extract config.
-        route = f'/{stream.name}'
-        if 'route' in sink and sink['route'] is not None:
-            route = sink['route']
-
-        use_backend = False
-        if 'use_backend' in sink and sink['use_backend'] is not None:
-            use_backend = sink['use_backend']
+        # Extract integration properties:
+        route = integration.route()
+        use_backend = integration.use_backend()
+        integration_name = integration.integration_name
 
         # Get integration source code.
         integration_content = construct_sink(sink, f'platform-http:{route}')
@@ -152,16 +141,16 @@ class Camel:
                                     self.mode,
                                     integration_name,
                                     integration_as_files=False)
-        self.invocations[integration_name] = sink_invocation
+        integration.invocation = sink_invocation
 
         # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
         # then we have to also start a service the allows outside processes to
         # send data to the sink.
         if self.mode.isMixed():
-            service_name = self._get_service_name("kind-external-connector")
+            service_name = self._get_service_name(integration_name)
             kubernetes.createExternalServiceForKamel(mode, service_name,
                                                      integration_name)
-            self.services[integration_name] = service_name
+            integration.service = service_name
 
         if use_backend:
             endpoint_name = self._get_endpoint_name(stream.name)
@@ -174,71 +163,44 @@ class Camel:
         else:
             helper = Helper.remote(
                 self.mode.getQuarkusHTTPServer(integration_name) + route)
-        stream.actor.send_to.remote(helper, stream.name)
+        stream.actor.send_to.remote(helper, sink_name)
 
         # Wait for integration to finish.
-        if await_start(self.mode, integration_name):
-            return integration_name
+        if not await_start(self.mode, integration_name):
+            raise RuntimeError('Could not start sink')
 
-        # TODO: deal with failing integrations.
-        raise RuntimeError('Could not start sink')
+        return integration
 
-    def disconnect(self, integration_name):
-        # Check integration name is valid.
-        if integration_name not in self.invocations:
-            raise RuntimeError(f'{integration_name} is invalid')
-
-        # Retrieve invocation.
-        invocation = self.invocations[integration_name]
-
-        # If kamel is running the cluster then use kamel delete to
-        # terminate the integration.
+    def disconnect(self, integration):
         if self.mode.isCluster() or self.mode.isMixed():
-            outcome = True
-
-            # First we terminate any services associated with the integration.
-            if integration_name in self.services:
-                outcome = kubernetes.deleteService(
-                    self.mode, self.services[integration_name])
-            if not outcome:
-                raise RuntimeWarning(
-                    f'{self.services[integration_name]} for {integration_name}'
-                    'could not be terminated')
+            # If kamel is running the cluster then use kamel delete to
+            # terminate the integration. First we terminate any services
+            # associated with the integration.
+            if integration.service is not None:
+                if not kubernetes.deleteService(self.mode,
+                                                integration.service):
+                    raise RuntimeError(
+                        f'Service with name {integration.service} for'
+                        '{integration.integration_name} could not be'
+                        'terminated')
 
             # Terminate the integration itself.
-            if not kamel.delete(invocation, integration_name):
-                outcome = False
+            if not kamel.delete(integration.invocation,
+                                integration.integration_name):
+                raise RuntimeError(
+                    f'Failed to terminate {integration.integration_name}')
+        elif self.mode.isLocal():
+            # If integration is running locally we only need to kill the
+            # process that runs it.
+            integration.invocation.kill()
+        else:
+            raise RuntimeError('Unknown run mode')
 
-            return outcome
+    def _get_endpoint_name(self, integration_name):
+        return "_".join(["endpoint", integration_name])
 
-        # If integration is running locally we only need to kill the
-        # process that runs it.
-        if self.mode.isLocal():
-            invocation.kill()
-            return True
-
-        return False
-
-    def disconnect_all(self):
-        # Disconnect all the integrations.
-        outcome = True
-        for integration_name in self.invocations:
-            if not self.disconnect(integration_name):
-                outcome = False
-
-        return outcome
-
-    def _get_endpoint_name(self, name):
-        self.endpoint_id += 1
-        return "_".join(["endpoint", name, str(self.endpoint_id)])
-
-    def _get_integration_name(self, name):
-        self.integration_id += 1
-        return "-".join(["integration", name, str(self.integration_id)])
-
-    def _get_service_name(self, name):
-        self.service_id += 1
-        return "-".join(["service", name, str(self.service_id)])
+    def _get_service_name(self, integration_name):
+        return "-".join(["service", integration_name])
 
 
 class SendToHelper:

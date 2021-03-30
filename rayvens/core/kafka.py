@@ -19,20 +19,23 @@ import ray
 import signal
 import subprocess
 import yaml
-from confluent_kafka import Consumer, Producer
 import threading
-import rayvens.core.catalog as catalog
 import sys
+from confluent_kafka import Consumer, Producer
+import rayvens.core.catalog as catalog
+from rayvens.core.name import name_integration
 
 
 class Camel:
-    def add_source(self, stream, config, name):
+    def add_source(self, stream, config, source_name):
+        name = name_integration(stream.name, source_name)
         spec = catalog.construct_source(config,
                                         f'kafka:{name}?brokers={brokers()}')
         integration = Integration(name, spec)
         integration.send_to(stream.actor)
 
-    def add_sink(self, stream, config, name):
+    def add_sink(self, stream, config, sink_name):
+        name = name_integration(stream.name, sink_name)
         spec = catalog.construct_sink(config,
                                       f'kafka:{name}?brokers={brokers()}')
         integration = Integration(name, spec)

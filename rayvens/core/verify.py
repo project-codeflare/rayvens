@@ -15,7 +15,6 @@
 #
 
 from rayvens.core import kamel
-from rayvens.core.name import name_integration
 
 
 def verify_do(stream, _global_camel, action, *args, **kwargs):
@@ -25,26 +24,27 @@ def verify_do(stream, _global_camel, action, *args, **kwargs):
 
 
 def _verify_log(stream, _global_camel, sink_source_name, message):
-    integration_name = name_integration(stream.name, sink_source_name)
-
-    # Check if source/sink exists.
-    if sink_source_name not in stream._sinks and \
-       sink_source_name not in stream._sources:
+    # Get integration:
+    integration = None
+    if sink_source_name in stream._sinks:
+        integration = stream._sinks[sink_source_name]
+    if sink_source_name in stream._sources:
+        integration = stream._sources[sink_source_name]
+    if integration is None:
         raise RuntimeError(
             f'{sink_source_name} not found on stream {stream.name}')
 
     if _global_camel.mode.isLocal():
         # In the local case the integration run is ongoing and we can
         # access the logs directly.
-        # TODO: for not this only works for the operator local implementation,
-        # need to keep track of invocations in other implementations.
-        invocation = _global_camel.invocations[integration_name]
-        outcome = invocation.ongoing_command(message)
+        # TODO: make this work for local implementation.
+        outcome = integration.invocation.ongoing_command(message)
     else:
         # When running using the operator then the integration run command
         # is non-blocking and returns immediately. The logs can be queried
         # using the kamel log command.
-        invocation = kamel.log(_global_camel.mode, integration_name, message)
+        invocation = kamel.log(_global_camel.mode,
+                               integration.integration_name, message)
         outcome = invocation is not None
         invocation.kill()
 

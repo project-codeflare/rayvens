@@ -23,19 +23,22 @@ import time
 import threading
 import requests
 import random
-import rayvens.core.catalog as catalog
 import sys
+import rayvens.core.catalog as catalog
+from rayvens.core.name import name_integration
 
 
 class Camel:
-    def add_source(self, stream, config, name):
+    def add_source(self, stream, config, source_name):
+        name = name_integration(stream.name, source_name)
         spec = catalog.construct_source(config,
                                         'platform-http:/source',
                                         inverted=True)
         integration = Integration(name, spec)
         integration.send_to(stream.actor)
 
-    def add_sink(self, stream, config, name):
+    def add_sink(self, stream, config, sink_name):
+        name = name_integration(stream.name, sink_name)
         spec = catalog.construct_sink(config, 'platform-http:/sink')
         integration = Integration(name, spec)
         integration.recv_from(stream.actor)
