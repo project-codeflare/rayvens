@@ -195,32 +195,48 @@ for example:
 stream.actor.send_to.remote(lambda event: print('LOG:', event))
 ```
 
-## Setup Camel-K
+## Camel Setup
 
-To run Rayvens programs including Camel components, there are three choices:
-1. **local mode**: run Ray on the host with a local installation of the Camel-K
-   client, Java, and Maven,
-2. **operator mode**: run Ray and Camel-K inside a Kubernetes cluster relying on
-   the [Camel-K
+To run Rayvens programs including Camel integrations, there are two choices:
+1. **local mode**: run Camel integrations using the [Camel-K
+   client](https://camel.apache.org/camel-k/latest/cli/cli.html), Java, and
+   Maven directly on the host that is running the stream actor whether it is a
+   Kubernetes pod, a virtual machine, a developer laptop, etc.
+2. **operator mode**: run Camel integrations inside a Kubernetes cluster relying
+   on the [Camel-K
    operator](https://camel.apache.org/camel-k/latest/architecture/operator.html)
-   to run Camel components in dedicated pods,
-3. **anywhere mode**: run Ray and Camel-K inside a Kubernetes cluster without
-   relying on the [Camel-K
-   operator](https://camel.apache.org/camel-k/latest/architecture/operator.html)
-   by running the Camel components inside the Ray pods in jointly with the Ray
-   processes.
+   to run Camel integrations in dedicated pods.
 
-Modes 2 and 3 rely on a custom Ray container image that adds to the base Ray
-image the Rayvens package and the kamel CLI and its dependencies. This image is
-built automatically as part of the setup described below. This setup also
-includes the deployment of the Camel-K operator used in mode 2 and the necessary
-RBAC rules for the operator.
+In principle, local mode permits running Rayvens anywhere Ray can by simply
+replacing the Ray container image with the Rayvens image. This image adds to the
+base Ray image, the Rayvens code and its dependencies notably the Camel-K
+client, Java and Maven. This Rayvens image is built automatically as part of the
+setup described below. Of course, the Rayvens image like the Ray image can be
+further extended with additional content to satisfy the needs of specific
+applications. Local mode also works for running Ray code outside of a Ray
+cluster assuming all the dependencies are satisfied by the host operating
+system. See below for instructions.
 
-In principle, mode 3 permits running Rayvens anywhere Ray can by simply
-replacing the base Ray image with the Rayvens image. At this time however, we
-only include deployment instructions for Kubernetes.
+Operator mode requires access to a Kubernetes cluster running the Camel-K
+operator and configured with the proper RBAC rules. We provide instructions for
+setting up a development cluster below. At this time, operator mode requires the
+Ray code to also run inside the same Kubernetes cluster but we intend to lift
+this restriction shortly.
 
-### Setup Camel-K on the host
+The default mode is the local mode. The mode can be specified when initializing
+Rayvens:
+```python
+rayvens.init(mode='operator')
+```
+
+The mode can also be specified using environment variable `RAYVENS_MODE`. But
+the mode specified in the code if any takes precedence.
+
+Camel-K is designed to pull dependencies dynamically from Maven Central when
+running integrations. While it is possible to preload dependencies to support
+air-gapped execution environments, Rayvens does not handle this yet.
+
+### Setup Camel-K for development directly on the host
 
 To run Camel event sources and sinks locally, a [Camel-K
 client](https://camel.apache.org/camel-k/latest/cli/cli.html) installation is
@@ -233,7 +249,7 @@ Test your installation with:
 kamel local run rayvens/scripts/camel-test-source.yaml
 ```
 
-### Setup Ray and Camel-K in Kind
+### Setup Ray and Camel-K in a Kind Cluster
 
 To test Rayvens on a development Kubernetes cluster we recommend using
 [Kind](https://kind.sigs.k8s.io).
@@ -256,7 +272,7 @@ operator](https://camel.apache.org/camel-k/latest/architecture/operator.html).
 
 Try your Ray cluster on Kind with:
 ```shell
-ray submit rayvens/scripts/cluster.yaml rayvens/examples/pubsub.py
+ray submit rayvens/scripts/cluster.yaml rayvens/examples/stream.py
 ```
 
 ### Cluster.yaml
@@ -264,12 +280,7 @@ ray submit rayvens/scripts/cluster.yaml rayvens/examples/pubsub.py
 Our example [cluster.yaml](scripts/cluster.yaml) configuration file is derived
 from Ray's
 [example-full.yaml](https://github.com/ray-project/ray/blob/master/python/ray/autoscaler/kubernetes/example-full.yaml)
-configuration file with some notable enhancements:
-- additional configuration parameters for the head and worker pods (RBAC rules
-  to manage Camel integrations, downward api, custom resource tags),
-- an additional service port (8000) to receive external events from Camel,
-- file mounts and the installation of Rayvens of every node,
-- a 2-cpu-per-pod resource requirement to make room for Ray Serve.
+configuration file with some RBAC enhancements to support Camel integrations.
 
 We plan to support the Ray operator in the near future.
 
@@ -281,7 +292,7 @@ kind delete cluster
 ```
 
 To take down the docker registry run:
-```
+```shell
 docker stop registry
 docker rm registry
 ```
