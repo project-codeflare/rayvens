@@ -25,7 +25,7 @@ Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&bran
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
 applications can produce events, subscribe to event streams, and process events.
 Rayvens leverages [Apache Camel](https://camel.apache.org) to make it possible
-for data scientists to access hundreds data services with little effort.
+for data scientists to access hundreds of data services with little effort.
 
 For example, we can periodically fetch the AAPL stock price from a REST API with
 code:
@@ -45,14 +45,14 @@ sink_config = dict(kind='slack-sink',
 sink = rayvens.Stream('slack', sink_config=sink_config)
 ```
 
-We can delivers all events from `source` to `sink` using code:
+We can delivers all events from the `source` stream to the `sink` using code:
 ```python
 source >> sink
 ```
 
 We also process events on the fly using Python functions, Ray tasks, or Ray
-actors for stateful processing. For instance, we can log events to the console
-using code:
+actors and actor methods for stateful processing. For instance, we can log
+events to the console using code:
 ```python
 source >> (lambda event: print('LOG:', event))
 ```
@@ -118,9 +118,9 @@ stream >> (lambda event: print('LOG:', event))
 stream << 'hello' << 'world'
 ```
 
-This program initialize Ray and Rayvens and creates a `rayvens.Stream` instance.
-Streams and events are the core facilities offered by Rayvens. Streams bridge
-event publishers and subscribers.
+This program initialize Ray and Rayvens and creates a `Stream` instance. Streams
+and events are the core facilities offered by Rayvens. Streams bridge event
+publishers and subscribers.
 
 In this example, a subscriber is added to the stream using syntax `stream >>
 subscriber`. The `>>` operator is a shorthand for the `send_to` method:
@@ -134,8 +134,11 @@ functions, Ray tasks, or Ray actors. Hence, streams can interface publishers and
 subscribers running on different Ray nodes.
 
 A couple of events are then published to the stream using the syntax `stream <<
-value`. As illustrated here, events are just arbitrary values in general, but of
-course publishers and subscribers can agree on specific event schemas. The `<<`
+value`. In contrast to subscribers that are registered with the stream, there is
+no registration needed to publish event to the stream.
+
+As illustrated here, events are just arbitrary values in general, but of course
+publishers and subscribers can agree on specific event schemas. The `<<`
 operator has left-to-right associativity making it possible to send multiple
 events with one statement. The `<<` operator is a shorthand for the `append`
 method:
@@ -144,7 +147,7 @@ stream.append('hello').append('world')
 ```
 
 Conceptually, the `append` method adds an event _at the end_ of the stream, just
-like the `append` method of Python lists. But in contrast with lists, a Stream
+like the `append` method of Python lists. But in contrast with lists, a stream
 does not persist events. It simply delivers events to subscribers as they come.
 In particular, appending events to a stream without subscribers (and without an
 operator, see below) is a no-op.
@@ -171,12 +174,11 @@ the stream.
 
 ## Stream and StreamActor
 
-Under the hood, streams are implemented as Ray actors. Concretely, the
-`rayvens.Stream` class is a stateless, serializable, wrapper around the
-`rayvens.StreamActor` actor class. All rules applicable to Ray actors
-(lifecycle, serialization, queuing, ordering) are applicable to streams. In
-particular, the stream actor will be reclaimed when the original stream handle
-goes out of scope.
+Under the hood, streams are implemented as Ray actors. Concretely, the `Stream`
+class is a stateless, serializable, wrapper around the `StreamActor` actor
+class. All rules applicable to Ray actors (lifecycle, serialization, queuing,
+ordering) are applicable to streams. In particular, the stream actor will be
+reclaimed when the original stream handle goes out of scope.
 
 The configuration of the stream actor can be tuned using `actor_options`:
 ```python
@@ -209,10 +211,10 @@ To run Rayvens programs including Camel integrations, there are two choices:
 
 In principle, local mode permits running Rayvens anywhere Ray can by simply
 replacing the Ray container image with the Rayvens image. This image adds to the
-base Ray image, the Rayvens code and its dependencies notably the Camel-K
-client, Java and Maven. This Rayvens image is built automatically as part of the
-setup described below. Of course, the Rayvens image like the Ray image can be
-further extended with additional content to satisfy the needs of specific
+base Ray image the Rayvens code and its dependencies, notably the Camel-K
+client, Java, and Maven. This Rayvens image is built automatically as part of
+the setup described below. Of course, the Rayvens image like the Ray image can
+be further extended with additional content to satisfy the needs of specific
 applications. Local mode also works for running Ray code outside of a Ray
 cluster assuming all the dependencies are satisfied by the host operating
 system. See below for instructions.
@@ -366,7 +368,9 @@ guarantee that events will be processed in order.
 The `Comparator` class follows the convention that it accepts events by means of
 a method named `append`. If for instance this method were to be named `accept`
 instead, then we would have to subscribe the actor to the source using syntax
-`source >> comparator.accept`.
+`source >> comparator.accept`. In other words, subscribing an actor `a` to a
+stream is a shorthand for subscribing the `a.append` method of this actor to the
+stream.
 
 ### Running the example
 
@@ -385,7 +389,8 @@ dependencies on first run from Maven Central. When running in operator mode, the
 Camel-K operator is used to build and cache a container image for the source. In
 both cases, the source may take a minute or more to start the first time. The
 source should start in matter of seconds on subsequent runs (unless it is
-scheduled to a different Ray worker in local mode).
+scheduled to a different Ray worker in local mode, as the cache is not shared
+across workers).
 
 Rayvens manages the Camel processes and pods automatically and makes sure to
 terminate them all when the main Ray program exits (normally or abnormally).
@@ -404,8 +409,8 @@ sink_config = dict(kind='slack-sink',
 sink.add_sink(sink_config)
 ```
 
-For convenience, the construction of the stream and addition of the sink can
-be combined into a single statement:
+For convenience, the construction of the stream and addition of the sink can be
+combined into a single statement:
 ```python
 sink = rayvens.Stream('slack', sink_config=sink_config)
 ```
@@ -462,7 +467,7 @@ convention, when `append` does not return a value, i.e., returns `None`, no
 event is delivered to subscribers. In this example, the first source event does
 not generate a Slack message.
 
-We can then interface the source and sink using this operator using code:
+We can then connect the source and sink via this operator using code:
 ```python
 source >> operator >> sink
 ```
@@ -471,6 +476,12 @@ which is a shorthand for:
 source.send_to(operator)
 operator.send_to(sink)
 ```
+
+Like subscribers, the argument to the `add_operator` method may be a Python
+function, a Ray task, a Ray actor, or a Ray actor method. Using an actor like
+`comparator` is shorthand for the actor method `comparator.append`. Building an
+operator stream from a Ray task is not recommended however as it may reorder
+events arbitrarily.
 
 ### Running the example
 
