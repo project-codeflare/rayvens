@@ -155,7 +155,8 @@ def executeReturningKubectlCmd(command, service_name=None, with_output=False):
     kubectl_invocation = invocation.KubectlInvocation(command, service_name)
 
     # Wait for kubectl command to return.
-    outcome = kubectl_invocation.executeKubectlCmd(service_name, with_output)
+    outcome = kubectl_invocation.executeKubectlCmd(service_name=service_name,
+                                                   with_output=with_output)
 
     # Return outcome.
     return outcome
@@ -170,8 +171,9 @@ def executeOngoingKubectlCmd(command,
     kubectl_invocation = invocation.KubectlInvocation(command, service_name)
 
     # Wait for kamel command to finish launching the integration.
-    outcome = kubectl_invocation.executeKubectlCmd(message, service_name,
-                                                   with_output)
+    outcome = kubectl_invocation.executeKubectlCmd(message=message,
+                                                   service_name=service_name,
+                                                   with_output=with_output)
 
     # Stop kubectl command.
     kubectl_invocation.kill()

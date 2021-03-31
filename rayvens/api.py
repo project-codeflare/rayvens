@@ -20,6 +20,7 @@ import ray
 from rayvens.core.local import Camel as start_http
 from rayvens.core.kafka import Camel as start_kafka
 from rayvens.core.operator import start as start_operator
+from rayvens.core.ray_serve import start as start_ray_serve
 from rayvens.core.name import name_source, name_sink
 from rayvens.core.verify import verify_do
 
@@ -175,7 +176,7 @@ _global_camel = None
 def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
          transport=os.getenv('RAYVENS_TRANSPORT', 'auto')):
     modes = ['auto', 'local', 'local.local', 'mixed.operator', 'operator']
-    transports = ['auto', 'http', 'kafka']
+    transports = ['auto', 'http', 'kafka', 'ray-serve']
 
     if mode not in modes:
         raise RuntimeError(
@@ -189,10 +190,18 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
     if mode in ['auto', 'local']:
         if transport in ['auto', 'http']:
             _global_camel = start_http()
-        else:
+        elif transport == 'kafka':
             _global_camel = start_kafka()
-    else:
+        else:
+            raise RuntimeError(
+                f'{transport} transport unsupported for mode {mode}.')
+    elif mode in ['local.local', 'mixed.operator', 'operator']:
         if transport in ['auto', 'http']:
             _global_camel = start_operator(mode)
+        elif transport in ['ray-serve']:
+            _global_camel = start_ray_serve(mode)
         else:
-            raise RuntimeError('Unsupported transport type.')
+            raise RuntimeError(
+                f'{transport} transport unsupported for mode {mode}.')
+    else:
+        raise RuntimeError(f'Unsupported mode {mode}.')

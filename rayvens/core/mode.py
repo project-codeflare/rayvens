@@ -44,7 +44,6 @@ class RayvensMode(Enum):
 class RunMode:
     def __init__(self, run_mode=RayvensMode.LOCAL):
         self.run_mode = run_mode
-        self.connector = 'http'
         self.namespace = "ray"
 
     def setNamespace(self, namespace):
@@ -77,12 +76,6 @@ class RunMode:
 
     def isCluster(self):
         return self.run_mode == RayvensMode.CLUSTER_OPERATOR
-
-    def hasHTTPConnector(self):
-        return self.connector == 'http'
-
-    def hasRayServeConnector(self):
-        return self.connector == 'ray-serve'
 
 
 # Default execution mode.

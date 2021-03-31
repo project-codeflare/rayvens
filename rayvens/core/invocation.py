@@ -236,7 +236,7 @@ class KubectlInvocation:
 
     def executeKubectlCmd(self,
                           message=None,
-                          serviceName=None,
+                          service_name=None,
                           with_output=False):
         # Set end condition for custom message if one is provided.
         end_condition = self.endCondition
@@ -245,7 +245,8 @@ class KubectlInvocation:
 
         # Check command output.
         success = self._check_ongoing_kubectl_output(end_condition,
-                                                     serviceName, with_output)
+                                                     serviceName=service_name,
+                                                     with_output=with_output)
 
         subcommand = kubernetes_utils.getKubectlCommandString(
             self.subcommandType)
