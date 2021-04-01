@@ -20,6 +20,9 @@ setup(name='rayvens',
       packages=['rayvens', 'rayvens.core'],
       package_data={'rayvens.core': ['Queue.java']},
       include_package_data=True,
+      install_requires=[
+          'kubernetes>=12.0.1', 'confluent-kafka>=1.6.1', 'ray[serve]'
+      ],
       version='0.1',
       description='Ray eventing',
       license='apache-2.0',

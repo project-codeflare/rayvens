@@ -27,7 +27,7 @@ click==7.1.2
 cloudpickle==1.6.0
 colorama==0.4.4
 colorful==0.5.4
-confluent-kafka==1.6.0
+confluent-kafka==1.6.1
 filelock==3.0.12
 Flask==1.1.2
 google-api-core==1.26.1
