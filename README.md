@@ -77,12 +77,13 @@ pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/9053be0e639cf35
 # for both
 pip install "ray[serve]"
 pip install kubernetes
+pip install confluent-kafka==1.6.0
 ```
 
 Clone this repository and install Rayvens:
 ```shell
 git clone https://github.ibm.com/solsa/rayvens.git
-pip install rayvens
+pip install ./rayvens
 ```
 
 Try Rayvens:
