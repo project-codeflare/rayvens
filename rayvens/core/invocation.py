@@ -30,21 +30,43 @@ from rayvens.core import kubernetes_utils
 
 
 class KamelLocalInvocation:
-    def __init__(self, integration_name, port, integration_specification):
+    def __init__(self, integration_name, transport, port,
+                 integration_specification):
+        # Save subcommand type.
         self.subcommand_type = kamel_utils.KamelCommand.LOCAL_RUN
+
+        # Temporary file name for holding the integration content.
         self.filename = f'{integration_name}.yaml'
         with open(self.filename, 'w') as f:
             yaml.dump(integration_specification, f)
+
+        # Assemble command that includes the clean-up harness and, for
+        # the http transport case, the Queue where all the events are
+        # sent to / received from.
         harness = os.path.join(os.path.dirname(__file__), 'harness.py')
-        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-        command = [
-            sys.executable, harness, 'kamel', 'local', 'run', queue,
-            '--property', f'quarkus.http.port={port}', self.filename
-        ]
+        command = [sys.executable, harness, 'kamel', 'local', 'run']
+
+        if transport == 'http' and self.runs_integration():
+            # Append Queue.java file.
+            queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+            command.append(queue)
+
+            # In the case of HTTP, add the port:
+            command.append('--property')
+            command.append(f'quarkus.http.port={port}')
+
+        # Append file at the end.
+        command.append(self.filename)
+
+        # Launch command.
         self.process = subprocess.Popen(command, start_new_session=True)
 
     def uses_operator(self):
         return self.subcommand_type == kamel_utils.KamelCommand.RUN
+
+    def runs_integration(self):
+        return self.subcommand_type == kamel_utils.KamelCommand.RUN or \
+            self.subcommand_type == kamel_utils.KamelCommand.LOCAL_RUN
 
     def cancel(self):
         try:

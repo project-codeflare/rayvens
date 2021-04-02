@@ -33,10 +33,10 @@ class Integration:
         self.service_name = None
         self.server_address = None
 
-    def invoke_local_run(self, integration_specification):
+    def invoke_local_run(self, mode, integration_specification):
         # TODO: invoke kamel.local_run instead.
         self.invocation = KamelLocalInvocation(self.integration_name,
-                                               self.port,
+                                               mode.transport, self.port,
                                                integration_specification)
 
     def invoke_run(self, mode, integration_content):

@@ -18,6 +18,8 @@ import ray
 import requests
 import time
 import threading
+import os
+from confluent_kafka import Consumer, Producer
 from rayvens.core import kubernetes
 from rayvens.core.mode import mode, RayvensMode
 
@@ -34,18 +36,6 @@ def get_run_mode(camel_mode):
     else:
         raise RuntimeError("Unsupported camel mode.")
     return mode
-
-
-@ray.remote(num_cpus=0)
-class ProducerActor:
-    def __init__(self, url):
-        self.url = url
-
-    def append(self, data):
-        try:
-            requests.post(self.url, data)
-        except requests.exceptions.ConnectionError:
-            pass
 
 
 # Wait for an integration to reach its running state and not only that but
@@ -76,6 +66,18 @@ def await_start(mode, integration_name):
     return integration_is_running
 
 
+@ray.remote(num_cpus=0)
+class ProducerActor:
+    def __init__(self, url):
+        self.url = url
+
+    def append(self, data):
+        try:
+            requests.post(self.url, data)
+        except requests.exceptions.ConnectionError:
+            pass
+
+
 # Method for sending events to the queue.
 def send_to(handle, server_address, route):
     def append():
@@ -96,3 +98,55 @@ def send_to(handle, server_address, route):
 def recv_from(handle, integration_name, server_address, route):
     helper = ProducerActor.remote(f'{server_address}{route}')
     handle.send_to.remote(helper, integration_name)
+
+
+@ray.remote(num_cpus=0)
+class KafkaProducerActor:
+    def __init__(self, name):
+        self.producer = ProducerHelper(name)
+
+    def append(self, data):
+        self.producer.produce(data)
+
+
+class ProducerHelper:
+    def __init__(self, name):
+        self.name = name
+        self.producer = Producer({'bootstrap.servers': brokers()})
+
+    def produce(self, data):
+        if data is not None:
+            self.producer.produce(self.name, data.encode('utf-8'))
+
+
+def kafka_send_to(integration_name, handle):
+    # use kafka consumer thread to push from camel source to rayvens stream
+    consumer = Consumer({
+        'bootstrap.servers': brokers(),
+        'group.id': 'ray',
+        'auto.offset.reset': 'latest'
+    })
+
+    consumer.subscribe([integration_name])
+
+    def append():
+        while True:
+            msg = consumer.poll()
+            if msg.error():
+                print(f'consumer error: {msg.error()}')
+            else:
+                handle.append.remote(msg.value().decode('utf-8'))
+
+    threading.Thread(target=append).start()
+
+
+def kafka_recv_from(integration_name, handle):
+    # use kafka producer actor to push from rayvens stream to camel sink
+    helper = KafkaProducerActor.remote(integration_name)
+    handle.send_to.remote(helper, integration_name)
+
+
+def brokers():
+    host = os.getenv('KAFKA_SERVICE_HOST', 'localhost')
+    port = os.getenv('KAFKA_SERVICE_PORT', '31093')
+    return f'{host}:{port}'

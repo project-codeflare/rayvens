@@ -18,7 +18,7 @@ import os
 import ray
 
 from rayvens.core.local import start as start_http
-from rayvens.core.kafka import Camel as start_kafka
+from rayvens.core.kafka import start as start_kafka
 from rayvens.core.operator import start as start_operator_http
 from rayvens.core.ray_serve import start as start_operator_ray_serve
 from rayvens.core.name import name_source, name_sink
@@ -191,7 +191,7 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
         if transport in ['auto', 'http']:
             _global_camel = start_http(mode)
         elif transport == 'kafka':
-            _global_camel = start_kafka()
+            _global_camel = start_kafka(mode)
         else:
             raise RuntimeError(
                 f'{transport} transport unsupported for mode {mode}.')

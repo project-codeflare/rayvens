@@ -33,14 +33,14 @@ class Camel:
         spec = catalog.construct_source(config,
                                         'platform-http:/source',
                                         inverted=True)
-        integration.invoke_local_run(spec)
+        integration.invoke_local_run(self.mode, spec)
         send_to(stream.actor, self.mode.server_address(integration), '/source')
         return integration
 
     def add_sink(self, stream, config, sink_name):
         integration = Integration(stream.name, sink_name, config)
         spec = catalog.construct_sink(config, 'platform-http:/sink')
-        integration.invoke_local_run(spec)
+        integration.invoke_local_run(self.mode, spec)
         recv_from(stream.actor, integration.integration_name,
                   self.mode.server_address(integration), '/sink')
         return integration

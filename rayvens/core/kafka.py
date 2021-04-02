@@ -14,97 +14,35 @@
 # limitations under the License.
 #
 
-import os
-import ray
-import signal
-import subprocess
-import yaml
-import threading
-import sys
-from confluent_kafka import Consumer, Producer
 import rayvens.core.catalog as catalog
-from rayvens.core.name import name_integration
+from rayvens.core.common import get_run_mode, brokers
+from rayvens.core.common import kafka_send_to, kafka_recv_from
+from rayvens.core.integration import Integration
+
+
+def start(camel_mode):
+    return Camel(get_run_mode(camel_mode))
 
 
 class Camel:
+    def __init__(self, mode):
+        self.mode = mode
+        self.mode.transport = 'kafka'
+
     def add_source(self, stream, config, source_name):
-        name = name_integration(stream.name, source_name)
-        spec = catalog.construct_source(config,
-                                        f'kafka:{name}?brokers={brokers()}')
-        integration = Integration(name, spec)
-        integration.send_to(stream.actor)
+        integration = Integration(stream.name, source_name, config)
+        spec = catalog.construct_source(
+            config,
+            f'kafka:{integration.integration_name}?brokers={brokers()}')
+        integration.invoke_local_run(self.mode, spec)
+        kafka_send_to(integration.integration_name, stream.actor)
+        return integration
 
     def add_sink(self, stream, config, sink_name):
-        name = name_integration(stream.name, sink_name)
-        spec = catalog.construct_sink(config,
-                                      f'kafka:{name}?brokers={brokers()}')
-        integration = Integration(name, spec)
-        integration.recv_from(stream.actor)
-
-
-@ray.remote(num_cpus=0)
-class ProducerActor:
-    def __init__(self, name):
-        self.producer = ProducerHelper(name)
-
-    def append(self, data):
-        self.producer.produce(data)
-
-
-class ProducerHelper:
-    def __init__(self, name):
-        self.name = name
-        self.producer = Producer({'bootstrap.servers': brokers()})
-
-    def produce(self, data):
-        if data is not None:
-            self.producer.produce(self.name, data.encode('utf-8'))
-
-
-def brokers():
-    host = os.getenv('KAFKA_SERVICE_HOST', 'localhost')
-    port = os.getenv('KAFKA_SERVICE_PORT', '31093')
-    return f'{host}:{port}'
-
-
-class Integration:
-    def __init__(self, name, spec):
-        self.name = name
-        filename = f'{name}.yaml'
-        with open(filename, 'w') as f:
-            yaml.dump(spec, f)
-        harness = os.path.join(os.path.dirname(__file__), 'harness.py')
-        command = [sys.executable, harness, 'kamel', 'local', 'run', filename]
-        process = subprocess.Popen(command, start_new_session=True)
-        self.pid = process.pid
-
-    def send_to(self, handle):
-        # use kafka consumer thread to push from camel source to rayvens stream
-        consumer = Consumer({
-            'bootstrap.servers': brokers(),
-            'group.id': 'ray',
-            'auto.offset.reset': 'latest'
-        })
-
-        consumer.subscribe([self.name])
-
-        def append():
-            while True:
-                msg = consumer.poll()
-                if msg.error():
-                    print(f'consumer error: {msg.error()}')
-                else:
-                    handle.append.remote(msg.value().decode('utf-8'))
-
-        threading.Thread(target=append).start()
-
-    def recv_from(self, handle):
-        # use kafka producer actor to push from rayvens stream to camel sink
-        helper = ProducerActor.remote(self.name)
-        handle.send_to.remote(helper, self.name)
-
-    def cancel(self):
-        try:
-            os.kill(self.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        integration = Integration(stream.name, sink_name, config)
+        spec = catalog.construct_sink(
+            config,
+            f'kafka:{integration.integration_name}?brokers={brokers()}')
+        integration.invoke_local_run(self.mode, spec)
+        kafka_recv_from(integration.integration_name, stream.actor)
+        return integration
