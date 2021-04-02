@@ -16,7 +16,6 @@
 
 from enum import Enum
 from rayvens.core import invocation
-from rayvens.core import kubernetes
 
 
 class KamelCommand(Enum):
@@ -30,7 +29,8 @@ class KamelCommand(Enum):
     UNINSTALL = 100
 
 
-def getKamelCommandType(command):
+def getKamelCommandType(command_options):
+    command = ' '.join(command_options)
     if command.startswith("install"):
         return KamelCommand.INSTALL
     if command.startswith("build"):
@@ -123,15 +123,13 @@ def invokeOngoingCmd(command,
                      mode,
                      integration_name,
                      integration_content=[],
-                     inverted_http=False,
                      message=None):
     # Invoke command using the Kamel invocation actor.
     kamel_invocation = invocation.KamelInvocation(
         command,
         mode,
         integration_name=integration_name,
-        integration_content=integration_content,
-        inverted_http=inverted_http)
+        integration_content=integration_content)
 
     # Wait for kamel command to finish launching the integration.
     kamel_is_ready = kamel_invocation.ongoing_command(message)
@@ -153,15 +151,12 @@ def invokeOngoingCmd(command,
 def invokeReturningCmd(command,
                        mode,
                        integration_name,
-                       integration_content=[],
-                       await_start=False,
-                       inverted_http=False):
+                       integration_content=[]):
     kamel_invocation = invocation.KamelInvocation(
         command,
         mode,
         integration_name=integration_name,
-        integration_content=integration_content,
-        inverted_http=inverted_http)
+        integration_content=integration_content)
 
     # Wait for the kamel command to be invoked and retrieve status.
     success = kamel_invocation.returning_command()
@@ -169,24 +164,5 @@ def invokeReturningCmd(command,
     # If command was no successful then exit early.
     if not success:
         return None
-
-    if await_start:
-        subcommandType = kamel_invocation.getSubcommandType()
-        if createsKubectlService(subcommandType):
-            # Ensure pod is running.
-            pod_is_running, pod_name = kubernetes.getPodRunningStatus(
-                mode, integration_name)
-            if pod_is_running:
-                print(f'Pod {pod_name} is running correctly.')
-            else:
-                print("Pod did not run correctly.")
-
-            # Ensure integration is running.
-            integration_is_running = kubernetes.getIntegrationStatus(
-                mode, pod_name)
-            if integration_is_running:
-                print(f'Integration {integration_name} is running.')
-            else:
-                print('Integration did not start correctly.')
 
     return kamel_invocation

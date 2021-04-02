@@ -14,12 +14,9 @@
 # limitations under the License.
 #
 
-import requests
 import ray
 from ray import serve
 from rayvens.core.kamel_backend import KamelBackend
-from rayvens.core import kubernetes
-from rayvens.core import kamel
 from rayvens.core import utils
 from rayvens.core import common
 from rayvens.core.catalog import construct_source, construct_sink
@@ -34,6 +31,7 @@ def start(camel_mode):
 class Camel:
     def __init__(self, mode):
         self.mode = mode
+        self.mode.transport = 'ray-serve'
 
         # The Ray Serve backend used for Sinks. Sink are a special case and
         # can use one backend to support multiple sinks.
@@ -74,11 +72,7 @@ class Camel:
                                            integration.integration_name)
 
         # Start running the source integration.
-        source_invocation = kamel.run([integration_content],
-                                      self.mode,
-                                      integration.integration_name,
-                                      integration_as_files=False)
-        integration.invocation = source_invocation
+        integration.invoke_run(self.mode, integration_content)
 
         if not await_start(self.mode, integration.integration_name):
             raise RuntimeError('Could not start source')
@@ -101,15 +95,7 @@ class Camel:
             self.kamel_backend = KamelBackend(self.mode)
 
         # Start running the integration.
-        sink_invocation = kamel.run([integration_content],
-                                    self.mode,
-                                    integration_name,
-                                    integration_as_files=False)
-        integration.invocation = sink_invocation
-
-        if self.mode.isMixed():
-            integration.service_name = common.create_externalizing_service(
-                self.mode, integration)
+        integration.invoke_run(self.mode, integration_content)
 
         if use_backend:
             endpoint_name = self._get_endpoint_name(stream.name)
@@ -120,8 +106,8 @@ class Camel:
                                               serve.get_handle(endpoint_name),
                                               endpoint_name)
         else:
-            helper = Helper.remote(
-                self.mode.getQuarkusHTTPServer(integration_name) + route)
+            helper = common.ProducerActor.remote(
+                self.mode.server_address(integration_name) + route)
         stream.actor.send_to.remote(helper, sink_name)
 
         # Wait for integration to finish.
@@ -131,35 +117,10 @@ class Camel:
         return integration
 
     def disconnect(self, integration):
-        if self.mode.isCluster() or self.mode.isMixed():
-            # If kamel is running the cluster then use kamel delete to
-            # terminate the integration. First we terminate any services
-            # associated with the integration.
-            if integration.service is not None:
-                if not kubernetes.deleteService(self.mode,
-                                                integration.service):
-                    raise RuntimeError(
-                        f'Service with name {integration.service} for'
-                        '{integration.integration_name} could not be'
-                        'terminated')
-
-            # Terminate the integration itself.
-            if not kamel.delete(integration.invocation,
-                                integration.integration_name):
-                raise RuntimeError(
-                    f'Failed to terminate {integration.integration_name}')
-        elif self.mode.isLocal():
-            # If integration is running locally we only need to kill the
-            # process that runs it.
-            integration.invocation.kill()
-        else:
-            raise RuntimeError('Unknown run mode')
+        integration.disconnect(self.mode)
 
     def _get_endpoint_name(self, integration_name):
         return "_".join(["endpoint", integration_name])
-
-    def _get_service_name(self, integration_name):
-        return "-".join(["service", integration_name])
 
 
 @ray.remote(num_cpus=0)
@@ -174,13 +135,3 @@ class HelperWithBackend:
             answer = self.backend.postToProxyEndpointHandle(
                 self.endpoint_handle, self.endpoint_name, data)
             print(answer)
-
-
-@ray.remote(num_cpus=0)
-class Helper:
-    def __init__(self, url):
-        self.url = url
-
-    def append(self, data):
-        if data is not None:
-            requests.post(self.url, data)

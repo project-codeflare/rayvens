@@ -85,9 +85,7 @@ def run(integration_files,
         integration_name,
         local=None,
         envVars=[],
-        integration_as_files=True,
-        await_start=False,
-        inverted_http=False):
+        integration_as_files=True):
     # Use the mode to determine if this is a local run or a run.
     isLocal = mode.isLocal()
 
@@ -132,16 +130,13 @@ def run(integration_files,
             command,
             mode,
             integration_name,
-            integration_content=integration_content,
-            inverted_http=inverted_http)
+            integration_content=integration_content)
 
     return kamel_utils.invokeReturningCmd(
         command,
         mode,
         integration_name,
-        integration_content=integration_content,
-        await_start=await_start,
-        inverted_http=inverted_http)
+        integration_content=integration_content)
 
 
 # Kamel log command (needs operator).

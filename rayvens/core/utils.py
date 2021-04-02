@@ -58,8 +58,8 @@ def subprocessTag(subprocessName):
     return "[%s subprocess]" % subprocessName
 
 
-def printLogFromSubProcess(subprocessName, process, with_output=False):
-    output = process.stdout.readline().decode("utf-8")
+def printLogFromSubProcess(subprocessName, stdout, with_output=False):
+    output = stdout.readline().decode("utf-8")
     output = output.strip()
 
     if output != "" and with_output:

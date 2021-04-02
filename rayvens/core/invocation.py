@@ -19,6 +19,7 @@ import os
 import signal
 import io
 import yaml
+import sys
 from rayvens.core import utils
 from rayvens.core import kamel_utils
 from rayvens.core import kubernetes_utils
@@ -28,6 +29,30 @@ from rayvens.core import kubernetes_utils
 #
 
 
+class KamelLocalInvocation:
+    def __init__(self, integration_name, port, integration_specification):
+        self.subcommand_type = kamel_utils.KamelCommand.LOCAL_RUN
+        self.filename = f'{integration_name}.yaml'
+        with open(self.filename, 'w') as f:
+            yaml.dump(integration_specification, f)
+        harness = os.path.join(os.path.dirname(__file__), 'harness.py')
+        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+        command = [
+            sys.executable, harness, 'kamel', 'local', 'run', queue,
+            '--property', f'quarkus.http.port={port}', self.filename
+        ]
+        self.process = subprocess.Popen(command, start_new_session=True)
+
+    def uses_operator(self):
+        return self.subcommand_type == kamel_utils.KamelCommand.RUN
+
+    def cancel(self):
+        try:
+            os.kill(self.process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+
 class KamelInvocation:
     subprocess_name = "Kamel"
 
@@ -35,12 +60,15 @@ class KamelInvocation:
                  command_options,
                  mode,
                  integration_name="",
-                 integration_content=[],
-                 inverted_http=False):
+                 integration_content=[]):
         self.mode = mode
         self.integration_name = integration_name
 
-        if inverted_http:
+        # Get subcommand type.
+        self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
+
+        if self.mode.transport == 'http' and \
+           self.subcommand_type == kamel_utils.KamelCommand.RUN:
             # Add Queue.java file.
             queue_file = os.path.join(os.path.dirname(__file__), 'Queue.java')
             command_options.append(queue_file)
@@ -68,9 +96,6 @@ class KamelInvocation:
             self.filename = os.path.abspath(self.filename)
             final_command.append(self.filename)
 
-        # Get subcommand type.
-        self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
-
         # Create the kamel command.
         exec_command = " ".join(final_command)
 
@@ -96,7 +121,6 @@ class KamelInvocation:
         self.end_condition = kamel_utils.getKamelCommandEndCondition(
             self.subcommand_type, self.integration_name)
 
-        # TODO: Does this work for Windows? Linux? Cloud?
         # Launch kamel command in a new process.
         self.process = subprocess.Popen(exec_command,
                                         stdout=subprocess.PIPE,
@@ -142,6 +166,9 @@ class KamelInvocation:
     def getMode(self):
         return self.mode
 
+    def uses_operator(self):
+        return self.subcommand_type == kamel_utils.KamelCommand.RUN
+
     def kill(self):
         # Magic formula for terminating all processes in the group including
         # any subprocesses that the kamel command might have created.
@@ -180,7 +207,7 @@ class KamelInvocation:
         while True:
             # Log progress of kamel subprocess.
             output = utils.printLogFromSubProcess(self.subprocess_name,
-                                                  self.process,
+                                                  self.process.stdout,
                                                   with_output=with_output)
 
             # Check process has not exited prematurely.
@@ -264,7 +291,7 @@ class KubectlInvocation:
             # for.
             # There should only be one new pod.
             output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process,
+                                                  self.process.stdout,
                                                   with_output=True)
             if self.podName == "":
                 self.podName = kubernetes_utils.extractPodFullName(
@@ -304,7 +331,7 @@ class KubectlInvocation:
         success = False
         while True:
             output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process,
+                                                  self.process.stdout,
                                                   with_output=with_output)
             if self.subcommandType == \
                kubernetes_utils.KubectlCommand.GET_SERVICES:

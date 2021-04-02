@@ -16,14 +16,17 @@
 
 import ray
 import requests
-from rayvens.core import kamel
+import time
+import threading
 from rayvens.core import kubernetes
 from rayvens.core.mode import mode, RayvensMode
 
 
 def get_run_mode(camel_mode):
-    if camel_mode == 'local.local':
+    if camel_mode == 'auto' or camel_mode == 'local':
         mode.run_mode = RayvensMode.LOCAL
+    elif camel_mode == 'local.local':
+        mode.run_mode = RayvensMode.LOCAL_LOCAL
     elif camel_mode == 'mixed.operator':
         mode.run_mode = RayvensMode.MIXED_OPERATOR
     elif camel_mode == 'operator':
@@ -34,13 +37,15 @@ def get_run_mode(camel_mode):
 
 
 @ray.remote(num_cpus=0)
-class Helper:
+class ProducerActor:
     def __init__(self, url):
         self.url = url
 
     def append(self, data):
-        if data is not None:
+        try:
             requests.post(self.url, data)
+        except requests.exceptions.ConnectionError:
+            pass
 
 
 # Wait for an integration to reach its running state and not only that but
@@ -71,45 +76,23 @@ def await_start(mode, integration_name):
     return integration_is_running
 
 
-# Function which disconnects an integration whether it is an integration
-# created using the kamel operator and `kamel run` or an integration created
-# using `kamel local run`.
-def disconnect_integration(mode, integration, kamel_operator=False):
-    if kamel_operator:
-        # If kamel is running the cluster then use kamel delete to
-        # terminate the integration. First we terminate any services
-        # associated with the integration.
-        if integration.service is not None:
-            if not kubernetes.deleteService(mode, integration.service):
-                raise RuntimeError(
-                    f'Service with name {integration.service} for'
-                    '{integration.integration_name} could not be'
-                    'terminated')
+# Method for sending events to the queue.
+def send_to(handle, server_address, route):
+    def append():
+        while True:
+            try:
+                response = requests.get(f'{server_address}{route}')
+                if response.status_code != 200:
+                    time.sleep(1)
+                    continue
+                handle.append.remote(response.text)
+            except requests.exceptions.ConnectionError:
+                time.sleep(1)
 
-        # Terminate the integration itself.
-        if not kamel.delete(integration.invocation,
-                            integration.integration_name):
-            raise RuntimeError(
-                f'Failed to terminate {integration.integration_name}')
-        return
-
-    # If no kamel operator is used the only other alternative is that the
-    # integration is running locally. In that case we only need to kill the
-    # process that runs it.
-    integration.invocation.kill()
+    threading.Thread(target=append).start()
 
 
-# If running in mixed mode, i.e. Ray locally and kamel in the cluster, then we
-# have to also start a service the allows outside processes to send data to
-# the sink.
-def create_externalizing_service(mode, integration):
-    service_name = get_service_name(integration.integration_name)
-    print("service_name = ", service_name)
-    kubernetes.createExternalServiceForKamel(mode, service_name,
-                                             integration.integration_name)
-    return service_name
-
-
-# Automatic name of a service.
-def get_service_name(integration_name):
-    return "-".join(["service", integration_name])
+# Method for sending events to the sink.
+def recv_from(handle, integration_name, server_address, route):
+    helper = ProducerActor.remote(f'{server_address}{route}')
+    handle.send_to.remote(helper, integration_name)

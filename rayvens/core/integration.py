@@ -14,7 +14,11 @@
 # limitations under the License.
 #
 
+from rayvens.core.utils import random_port
 from rayvens.core.name import name_integration
+from rayvens.core.invocation import KamelLocalInvocation
+from rayvens.core import kamel
+from rayvens.core import kubernetes
 
 
 class Integration:
@@ -24,8 +28,56 @@ class Integration:
         self.config = config
         self.integration_name = name_integration(self.stream_name,
                                                  self.source_sink_name)
+        self.port = random_port()
         self.invocation = None
-        self.service = None
+        self.service_name = None
+        self.server_address = None
+
+    def invoke_local_run(self, integration_specification):
+        # TODO: invoke kamel.local_run instead.
+        self.invocation = KamelLocalInvocation(self.integration_name,
+                                               self.port,
+                                               integration_specification)
+
+    def invoke_run(self, mode, integration_content):
+        self.invocation = kamel.run([integration_content],
+                                    mode,
+                                    self.integration_name,
+                                    integration_as_files=False)
+
+        # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
+        # then we have to also start a service the allows outside processes to
+        # send data to the sink.
+        if mode.isMixed():
+            self.service_name = "-".join(["service", self.integration_name])
+            kubernetes.createExternalServiceForKamel(mode, self.service_name,
+                                                     self.integration_name)
+
+    # Function which disconnects an integration whether it is an integration
+    # created using the kamel operator and `kamel run` or an integration
+    # created using `kamel local run`.
+    def disconnect(self, mode):
+        if self.invocation.uses_operator():
+            # If kamel is running the cluster then use kamel delete to
+            # terminate the integration. First we terminate any services
+            # associated with the integration.
+            if self.service_name is not None:
+                if not kubernetes.deleteService(mode, self.service_name):
+                    raise RuntimeError(
+                        f'Service with name {self.service_name} for'
+                        '{self.integration_name} could not be'
+                        'terminated')
+
+            # Terminate the integration itself.
+            if not kamel.delete(self.invocation, self.integration_name):
+                raise RuntimeError(
+                    f'Failed to terminate {self.integration_name}')
+            return
+
+        # If no kamel operator is used the only other alternative is that the
+        # integration is running locally. In that case we only need to kill the
+        # process that runs it.
+        self.invocation.kill()
 
     def route(self):
         if 'route' in self.config and self.config['route'] is not None:

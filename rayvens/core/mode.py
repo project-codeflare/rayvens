@@ -22,6 +22,9 @@ class RayvensMode(Enum):
     # Ray and Kamel running locally.
     LOCAL = 1
 
+    # TODO: Remove this.
+    LOCAL_LOCAL = 8
+
     # Ray running locally, Kamel local running in a container in the cluster.
     MIXED_LOCAL = 2
 
@@ -45,6 +48,7 @@ class RunMode:
     def __init__(self, run_mode=RayvensMode.LOCAL):
         self.run_mode = run_mode
         self.namespace = "ray"
+        self.transport = None
 
     def setNamespace(self, namespace):
         self.namespace = namespace
@@ -52,8 +56,15 @@ class RunMode:
     def getNamespace(self):
         return self.namespace
 
-    def getQuarkusHTTPServer(self, integration_name, serve_source=False):
+    def getQuarkusHTTPServer(self,
+                             integration_name,
+                             serve_source=False,
+                             port=None):
         if self.run_mode == RayvensMode.LOCAL:
+            if port is None:
+                raise RuntimeError('port is not specified')
+            return f'http://localhost:{port}'
+        if self.run_mode == RayvensMode.LOCAL_LOCAL:
             return "http://0.0.0.0:8080"
         if self.run_mode == RayvensMode.MIXED_OPERATOR:
             return "http://localhost:%s" % utils.externalizedClusterPort
@@ -68,8 +79,13 @@ class RunMode:
                 integration_name, self.namespace, utils.internalClusterPort)
         raise RuntimeError("unreachable")
 
+    def server_address(self, integration):
+        return self.getQuarkusHTTPServer(integration.integration_name,
+                                         port=integration.port)
+
     def isLocal(self):
-        return self.run_mode == RayvensMode.LOCAL
+        return self.run_mode == RayvensMode.LOCAL_LOCAL or \
+            self.run_mode == RayvensMode.LOCAL
 
     def isMixed(self):
         return self.run_mode == RayvensMode.MIXED_OPERATOR

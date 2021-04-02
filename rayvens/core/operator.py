@@ -14,22 +14,20 @@
 # limitations under the License.
 #
 
-import requests
-import time
-import threading
-from rayvens.core import kamel
-from rayvens.core import common
+from rayvens.core.common import get_run_mode, send_to, await_start
+from rayvens.core.common import ProducerActor
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.core.integration import Integration
 
 
 def start(camel_mode):
-    return Camel(common.get_run_mode(camel_mode))
+    return Camel(get_run_mode(camel_mode))
 
 
 class Camel:
     def __init__(self, mode):
         self.mode = mode
+        self.mode.transport = 'http'
 
     def add_source(self, stream, source, source_name):
         # Construct integration
@@ -46,20 +44,12 @@ class Camel:
                                                inverted=True)
 
         # Start running the source integration.
-        source_invocation = kamel.run([integration_content],
-                                      self.mode,
-                                      integration.integration_name,
-                                      integration_as_files=False,
-                                      inverted_http=True)
-        integration.invocation = source_invocation
+        integration.invoke_run(self.mode, integration_content)
 
         # Set up source for the HTTP connector case.
-        server_address = self.mode.getQuarkusHTTPServer(
-            integration.integration_name)
-        send_to_helper = SendToHelper()
-        send_to_helper.send_to(stream.actor, server_address, route)
+        send_to(stream.actor, self.mode.server_address(integration), route)
 
-        if not common.await_start(self.mode, integration.integration_name):
+        if not await_start(self.mode, integration.integration_name):
             raise RuntimeError('Could not start source')
         return integration
 
@@ -69,50 +59,22 @@ class Camel:
 
         # Extract integration properties:
         route = integration.route()
-        integration_name = integration.integration_name
 
         # Get integration source code.
         integration_content = construct_sink(sink, f'platform-http:{route}')
 
         # Start running the integration.
-        sink_invocation = kamel.run([integration_content],
-                                    self.mode,
-                                    integration_name,
-                                    integration_as_files=False)
-        integration.invocation = sink_invocation
+        integration.invoke_run(self.mode, integration_content)
 
-        if self.mode.isMixed():
-            integration.service_name = common.create_externalizing_service(
-                self.mode, integration)
-
-        helper = common.Helper.remote(
-            self.mode.getQuarkusHTTPServer(integration_name) + route)
+        helper = ProducerActor.remote(
+            self.mode.server_address(integration) + route)
         stream.actor.send_to.remote(helper, sink_name)
 
         # Wait for integration to finish.
-        if not common.await_start(self.mode, integration_name):
+        if not await_start(self.mode, integration.integration_name):
             raise RuntimeError('Could not start sink')
 
         return integration
 
     def disconnect(self, integration):
-        kamel_operator = self.mode.isCluster() or self.mode.isMixed()
-        common.disconnect_integration(self.mode,
-                                      integration,
-                                      kamel_operator=kamel_operator)
-
-
-class SendToHelper:
-    def send_to(self, handle, server_address, route):
-        def append():
-            while True:
-                try:
-                    response = requests.get(f'{server_address}{route}')
-                    if response.status_code != 200:
-                        time.sleep(1)
-                        continue
-                    handle.append.remote(response.text)
-                except requests.exceptions.ConnectionError:
-                    time.sleep(1)
-
-        threading.Thread(target=append).start()
+        integration.disconnect(self.mode)
