@@ -27,7 +27,7 @@ def getPodRunningStatus(mode, integration_name):
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     return kubernetes_utils.getPodStatusCmd(command, integration_name)
 
@@ -41,7 +41,7 @@ def getIntegrationStatus(mode, pod_name, message=None):
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     # Stream output from this command.
     command.append("--follow=true")
@@ -84,14 +84,14 @@ spec:
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     if kubernetes_utils.executeReturningKubectlCmd(command, serviceName):
         command = ["get", "services", "-w"]
 
         # Namespace
         command.append("-n")
-        command.append(mode.getNamespace())
+        command.append(mode.namespace)
 
         serviceHasBeenStarted = kubernetes_utils.executeOngoingKubectlCmd(
             command, serviceName)
@@ -112,6 +112,6 @@ def deleteService(mode, serviceName):
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     return kubernetes_utils.executeReturningKubectlCmd(command, serviceName)

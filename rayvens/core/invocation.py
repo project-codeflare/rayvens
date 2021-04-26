@@ -122,15 +122,6 @@ class KamelInvocation:
 
         return success
 
-    def getSubcommandType(self):
-        return self.subcommand_type
-
-    def getNamespace(self):
-        return self.mode.getNamespace()
-
-    def getMode(self):
-        return self.mode
-
     def runs_integration(self):
         return self.subcommand_type == kamel_utils.KamelCommand.RUN or \
             self.subcommand_type == kamel_utils.KamelCommand.LOCAL_RUN

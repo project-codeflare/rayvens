@@ -53,8 +53,8 @@ class Camel:
         server_pod_name = ""
         if self.mode.isCluster():
             server_pod_name = utils.get_server_pod_name()
-        endpoint_base = self.mode.getQuarkusHTTPServer(server_pod_name,
-                                                       serve_source=True)
+        endpoint_base = self.mode._get_server_address(server_pod_name,
+                                                      serve_source=True)
 
         # Construct integration source code. When the ray serve connector is
         # not enabled, use an HTTP inverted connection.

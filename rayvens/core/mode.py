@@ -47,16 +47,23 @@ class RunMode:
         self.namespace = "ray"
         self.transport = None
 
-    def setNamespace(self, namespace):
-        self.namespace = namespace
+    def server_address(self, integration):
+        return self._get_server_address(integration.integration_name,
+                                        port=integration.port)
 
-    def getNamespace(self):
-        return self.namespace
+    def isLocal(self):
+        return self.run_mode == RayvensMode.LOCAL
 
-    def getQuarkusHTTPServer(self,
-                             integration_name,
-                             serve_source=False,
-                             port=None):
+    def isMixed(self):
+        return self.run_mode == RayvensMode.MIXED_OPERATOR
+
+    def isCluster(self):
+        return self.run_mode == RayvensMode.CLUSTER_OPERATOR
+
+    def _get_server_address(self,
+                            integration_name,
+                            serve_source=False,
+                            port=None):
         if self.run_mode == RayvensMode.LOCAL:
             # Default setup: "http://0.0.0.0:8080"
             if port is None:
@@ -74,19 +81,6 @@ class RunMode:
             return "http://%s.%s.svc.cluster.local:%s" % (
                 integration_name, self.namespace, utils.internalClusterPort)
         raise RuntimeError("unreachable")
-
-    def server_address(self, integration):
-        return self.getQuarkusHTTPServer(integration.integration_name,
-                                         port=integration.port)
-
-    def isLocal(self):
-        return self.run_mode == RayvensMode.LOCAL
-
-    def isMixed(self):
-        return self.run_mode == RayvensMode.MIXED_OPERATOR
-
-    def isCluster(self):
-        return self.run_mode == RayvensMode.CLUSTER_OPERATOR
 
 
 # Default execution mode.

@@ -18,15 +18,6 @@ import ray
 import requests
 from ray import serve
 
-# Default value for Quarkus HTTP server.
-# TODO: multiple sinks will require multiple ports.
-quarkusHTTPServerLocal = "http://0.0.0.0:8080"
-
-# Can we create a Ray backend which has an external endpoint that has a handle
-# in Ray?
-# i.e. have a proxy endpoint that Ray code can use and will forward traffic to
-# the external endpoint which is not managed by Ray.
-
 
 class SinkEvent:
     def __init__(self, route, integration_name):
@@ -49,7 +40,7 @@ class KamelEventHandler:
     async def __call__(self, request):
         body = await request.body()
         if isinstance(body, SinkEvent):
-            endpoint = self.mode.getQuarkusHTTPServer(
+            endpoint = self.mode._get_server_address(
                 body.integration_name) + body.route
             requests.post(endpoint, data=body.get_data())
             return {"message": "Success"}
@@ -114,4 +105,4 @@ class SinkSubscriber(object):
         self.route = route
 
     def sendToSink(self, data):
-        requests.post(quarkusHTTPServerLocal + self.route, data=data)
+        requests.post("http://0.0.0.0:8080" + self.route, data=data)

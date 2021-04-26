@@ -43,7 +43,7 @@ def install(kamelImage,
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     # Add kamel operator image.
     command.append("--operator-image")
@@ -68,14 +68,14 @@ def install(kamelImage,
 
 
 # Invoke kamel uninstall.
-def uninstall(installInvocation):
+def uninstall(install_invocation):
     command = ["uninstall"]
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(install_invocation.mode.namespace)
 
-    return kamel_utils.invokeReturningCmd(command, installInvocation.getMode(),
+    return kamel_utils.invokeReturningCmd(command, install_invocation.mode,
                                           "camel-k-operator")
 
 
@@ -94,7 +94,7 @@ def run(integration_content, mode, integration_name, envVars=[]):
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     for envVar in envVars:
         if envVar not in os.environ:
@@ -147,7 +147,7 @@ def log(mode, integration_name, custom_message):
 
     # Namespace
     command.append("-n")
-    command.append(mode.getNamespace())
+    command.append(mode.namespace)
 
     return kamel_utils.invokeOngoingCmd(command,
                                         mode,
@@ -156,15 +156,15 @@ def log(mode, integration_name, custom_message):
 
 
 # Kamel delete invocation (needs operator).
-def delete(runningIntegrationInvocation, integration_name):
+def delete(integration_invocation, integration_name):
     # Compose command with integration name.
     command = ["delete"]
 
     # Namespace
     command.append("-n")
-    command.append(runningIntegrationInvocation.getNamespace())
+    command.append(integration_invocation.mode.namespace)
 
     command.append(integration_name)
 
-    return kamel_utils.invokeReturningCmd(
-        command, runningIntegrationInvocation.getMode(), integration_name)
+    return kamel_utils.invokeReturningCmd(command, integration_invocation.mode,
+                                          integration_name)
