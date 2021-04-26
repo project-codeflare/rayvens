@@ -23,8 +23,6 @@ RUN sudo apt-get update \
     && sudo rm -rf /var/lib/apt/lists/* \
     && sudo apt-get clean
 
-RUN pip install confluent_kafka==1.6.0
-
 COPY --chown=ray:users setup.py rayvens/
 COPY --chown=ray:users rayvens rayvens/rayvens/
 
