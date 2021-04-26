@@ -143,6 +143,8 @@ class StreamActor:
                 f'Stream {self.name} has no sink named {sink_name}.')
         _global_camel.disconnect(self._sinks[sink_name])
         self._sinks.pop(sink_name)
+        for sub_name in dict(self._subscribers):
+            print("Sub name:", sub_name)
         self._subscribers.pop(sink_name)
 
     def disconnect_all(self):
@@ -175,7 +177,7 @@ _global_camel = None
 
 def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
          transport=os.getenv('RAYVENS_TRANSPORT', 'auto')):
-    modes = ['auto', 'local', 'local.local', 'mixed.operator', 'operator']
+    modes = ['auto', 'local', 'mixed.operator', 'operator']
     transports = ['auto', 'http', 'kafka', 'ray-serve']
 
     if mode not in modes:
@@ -195,7 +197,7 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
         else:
             raise RuntimeError(
                 f'{transport} transport unsupported for mode {mode}.')
-    elif mode in ['local.local', 'mixed.operator', 'operator']:
+    elif mode in ['mixed.operator', 'operator']:
         if transport in ['auto', 'http']:
             _global_camel = start_operator_http(mode)
         elif transport in ['ray-serve']:

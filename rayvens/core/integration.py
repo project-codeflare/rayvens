@@ -16,7 +16,6 @@
 
 from rayvens.core.utils import random_port
 from rayvens.core.name import name_integration
-from rayvens.core.invocation import KamelLocalInvocation
 from rayvens.core import kamel
 from rayvens.core import kubernetes
 
@@ -33,17 +32,15 @@ class Integration:
         self.service_name = None
         self.server_address = None
 
-    def invoke_local_run(self, mode, integration_specification):
-        # TODO: invoke kamel.local_run instead.
-        self.invocation = KamelLocalInvocation(self.integration_name,
-                                               mode.transport, self.port,
-                                               integration_specification)
+    def invoke_local_run(self, mode, integration_content):
+        self.invocation = kamel.local_run([integration_content],
+                                          mode,
+                                          self.integration_name,
+                                          port=self.port)
 
     def invoke_run(self, mode, integration_content):
-        self.invocation = kamel.run([integration_content],
-                                    mode,
-                                    self.integration_name,
-                                    integration_as_files=False)
+        self.invocation = kamel.run([integration_content], mode,
+                                    self.integration_name)
 
         # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
         # then we have to also start a service the allows outside processes to
@@ -77,11 +74,13 @@ class Integration:
         # If no kamel operator is used the only other alternative is that the
         # integration is running locally. In that case we only need to kill the
         # process that runs it.
-        self.invocation.kill()
+        # self.invocation.kill()
 
-    def route(self):
+    def route(self, default=None):
         if 'route' in self.config and self.config['route'] is not None:
             return self.config['route']
+        if default is not None:
+            return default
         return f'/{self.stream_name}'
 
     def use_backend(self):

@@ -44,5 +44,5 @@ class Camel:
             config,
             f'kafka:{integration.integration_name}?brokers={brokers()}')
         integration.invoke_local_run(self.mode, spec)
-        kafka_recv_from(integration.integration_name, stream.actor)
+        kafka_recv_from(sink_name, stream.actor)
         return integration

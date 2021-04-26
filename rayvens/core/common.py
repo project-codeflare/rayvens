@@ -27,8 +27,6 @@ from rayvens.core.mode import mode, RayvensMode
 def get_run_mode(camel_mode):
     if camel_mode == 'auto' or camel_mode == 'local':
         mode.run_mode = RayvensMode.LOCAL
-    elif camel_mode == 'local.local':
-        mode.run_mode = RayvensMode.LOCAL_LOCAL
     elif camel_mode == 'mixed.operator':
         mode.run_mode = RayvensMode.MIXED_OPERATOR
     elif camel_mode == 'operator':

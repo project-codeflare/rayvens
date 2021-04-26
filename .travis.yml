@@ -39,5 +39,5 @@ script:
 
 # Test operator mode
   - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
-  - RAYVENS_TEST_MODE=local.local python ./tests/sink.py
+  - RAYVENS_TEST_MODE=local python ./tests/sink.py
   - ray submit ./scripts/cluster.yaml ./tests/sink.py

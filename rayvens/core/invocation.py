@@ -25,54 +25,8 @@ from rayvens.core import kamel_utils
 from rayvens.core import kubernetes_utils
 
 #
-# Wrap invocation as actor. This is an invocation for kamel local run.
+# Kamel invocation.
 #
-
-
-class KamelLocalInvocation:
-    def __init__(self, integration_name, transport, port,
-                 integration_specification):
-        # Save subcommand type.
-        self.subcommand_type = kamel_utils.KamelCommand.LOCAL_RUN
-
-        # Temporary file name for holding the integration content.
-        self.filename = f'{integration_name}.yaml'
-        with open(self.filename, 'w') as f:
-            yaml.dump(integration_specification, f)
-
-        # Assemble command that includes the clean-up harness and, for
-        # the http transport case, the Queue where all the events are
-        # sent to / received from.
-        harness = os.path.join(os.path.dirname(__file__), 'harness.py')
-        command = [sys.executable, harness, 'kamel', 'local', 'run']
-
-        if transport == 'http' and self.runs_integration():
-            # Append Queue.java file.
-            queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-            command.append(queue)
-
-            # In the case of HTTP, add the port:
-            command.append('--property')
-            command.append(f'quarkus.http.port={port}')
-
-        # Append file at the end.
-        command.append(self.filename)
-
-        # Launch command.
-        self.process = subprocess.Popen(command, start_new_session=True)
-
-    def uses_operator(self):
-        return self.subcommand_type == kamel_utils.KamelCommand.RUN
-
-    def runs_integration(self):
-        return self.subcommand_type == kamel_utils.KamelCommand.RUN or \
-            self.subcommand_type == kamel_utils.KamelCommand.LOCAL_RUN
-
-    def cancel(self):
-        try:
-            os.kill(self.process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
 
 
 class KamelInvocation:
@@ -89,23 +43,13 @@ class KamelInvocation:
         # Get subcommand type.
         self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
 
-        if self.mode.transport == 'http' and \
-           self.subcommand_type == kamel_utils.KamelCommand.RUN:
-            # Add Queue.java file.
-            queue_file = os.path.join(os.path.dirname(__file__), 'Queue.java')
-            command_options.append(queue_file)
-
-            # TODO: Add random port for local run case.
-            # self.port = utils.random_port()
-            # command_options.append("--property")
-            # command_options.append(f'quarkus.http.port={self.port}')
-
-        # If list is porvided, join it.
-        if isinstance(command_options, list):
-            command_options = " ".join(command_options)
-
-        # Create final kamel command.
-        final_command = ["exec", "kamel", command_options]
+        # TODO: enable some sort of harness!
+        if self.mode.isLocal():
+            harness = os.path.join(os.path.dirname(__file__), 'harness.py')
+            final_command = [sys.executable, harness, 'kamel']
+        else:
+            final_command = ["exec", "kamel"]
+        final_command.extend(command_options)
 
         # If integration content is not null then we have files to create and
         # write to.
@@ -118,10 +62,9 @@ class KamelInvocation:
             self.filename = os.path.abspath(self.filename)
             final_command.append(self.filename)
 
-        # Create the kamel command.
-        exec_command = " ".join(final_command)
+        # Log kamel command.
+        print("Exec command => ", " ".join(final_command))
 
-        print("Exec command => ", exec_command)
         # Add to PATH for case when this command is invoked in a cluster.
         if mode.isCluster():
             os.environ['PATH'] = ":".join(
@@ -129,26 +72,26 @@ class KamelInvocation:
                  os.getenv('PATH')])
 
         # Fail early before command is invoked if kamel is not found.
-        if not utils.executableIsAvailable("kamel"):
+        if self.uses_operator() and not utils.executableIsAvailable("kamel"):
             raise RuntimeError('kamel executable not found in PATH')
-
-        # Fail if this is not a local command and kubectl is not found.
-        if not kamel_utils.isLocalCommand(self.subcommand_type) and \
-           not utils.executableIsAvailable("kubectl"):
-            raise RuntimeError(
-                "kubectl executable not found in PATH for non-local kamel"
-                "command")
 
         # Get end condition or fail if command type is not supported.
         self.end_condition = kamel_utils.getKamelCommandEndCondition(
             self.subcommand_type, self.integration_name)
 
         # Launch kamel command in a new process.
-        self.process = subprocess.Popen(exec_command,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        shell=True,
-                                        preexec_fn=os.setsid)
+        if self.mode.isLocal():
+            # Launch command.
+            self.process = subprocess.Popen(final_command,
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
+                                            start_new_session=True)
+        else:
+            self.process = subprocess.Popen(" ".join(final_command),
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
+                                            shell=True,
+                                            preexec_fn=os.setsid)
 
     def ongoing_command(self, message):
         if message is None:
@@ -188,13 +131,26 @@ class KamelInvocation:
     def getMode(self):
         return self.mode
 
+    def runs_integration(self):
+        return self.subcommand_type == kamel_utils.KamelCommand.RUN or \
+            self.subcommand_type == kamel_utils.KamelCommand.LOCAL_RUN
+
     def uses_operator(self):
-        return self.subcommand_type == kamel_utils.KamelCommand.RUN
+        return self.subcommand_type == kamel_utils.KamelCommand.RUN or \
+            self.subcommand_type == kamel_utils.KamelCommand.LOG or \
+            self.subcommand_type == kamel_utils.KamelCommand.INSTALL or \
+            self.subcommand_type == kamel_utils.KamelCommand.DELETE
 
     def kill(self):
         # Magic formula for terminating all processes in the group including
         # any subprocesses that the kamel command might have created.
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+
+    def cancel(self):
+        try:
+            os.kill(self.process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
 
     def _check_successful_start(self):
         # Check if kamel instance launched correctly.

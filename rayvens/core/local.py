@@ -30,17 +30,22 @@ class Camel:
 
     def add_source(self, stream, config, source_name):
         integration = Integration(stream.name, source_name, config)
+        route = integration.route(default='/source')
         spec = catalog.construct_source(config,
-                                        'platform-http:/source',
+                                        f'platform-http:{route}',
                                         inverted=True)
         integration.invoke_local_run(self.mode, spec)
-        send_to(stream.actor, self.mode.server_address(integration), '/source')
+        send_to(stream.actor, self.mode.server_address(integration), route)
         return integration
 
     def add_sink(self, stream, config, sink_name):
         integration = Integration(stream.name, sink_name, config)
-        spec = catalog.construct_sink(config, 'platform-http:/sink')
+        route = integration.route(default='/sink')
+        spec = catalog.construct_sink(config, f'platform-http:{route}')
         integration.invoke_local_run(self.mode, spec)
-        recv_from(stream.actor, integration.integration_name,
-                  self.mode.server_address(integration), '/sink')
+        recv_from(stream.actor, sink_name,
+                  self.mode.server_address(integration), route)
         return integration
+
+    def disconnect(self, integration):
+        integration.disconnect(self.mode)

@@ -80,59 +80,58 @@ def uninstall(installInvocation):
 
 
 # Kamel run invocation.
-def run(integration_files,
-        mode,
-        integration_name,
-        local=None,
-        envVars=[],
-        integration_as_files=True):
-    # Use the mode to determine if this is a local run or a run.
-    isLocal = mode.isLocal()
+def run(integration_content, mode, integration_name, envVars=[]):
+    command = ["run"]
 
-    # If the local argument is other than None use it to overwrite the
-    # mode.
-    if local is not None:
-        isLocal = local
+    if mode.transport == 'http':
+        # Append Queue.java file.
+        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+        command.append(queue)
 
-    # Invoke either kamel local run or kamel run.
-    if not isLocal:
-        command = ["run"]
+    # Integration name.
+    command.append("--name")
+    command.append(integration_name)
 
-        # Integration name.
-        command.append("--name")
-        command.append(integration_name)
+    # Namespace
+    command.append("-n")
+    command.append(mode.getNamespace())
 
-        # Namespace
-        command.append("-n")
-        command.append(mode.getNamespace())
-
-        for envVar in envVars:
-            if envVar not in os.environ:
-                raise RuntimeError(
-                    "Variable %s not set in current environment" % envVar)
-            command.append("--env")
-            command.append("%s=%s" % (envVar, os.getenv(envVar)))
-    else:
-        command = ["local", "run"]
-
-    # If files were provided then incorporate them inside the command.
-    # Otherwise send the integration file content list to the invocation actor.
-    integration_content = []
-    if integration_as_files:
-        command.append(" ".join(integration_files))
-    else:
-        integration_content = integration_files
-
-    # If this is a kamel local run, the behavior of the command is slightly
-    # different and needs to be handled separately.
-    if isLocal:
-        return kamel_utils.invokeOngoingCmd(
-            command,
-            mode,
-            integration_name,
-            integration_content=integration_content)
+    for envVar in envVars:
+        if envVar not in os.environ:
+            raise RuntimeError("Variable %s not set in current environment" %
+                               envVar)
+        command.append("--env")
+        command.append("%s=%s" % (envVar, os.getenv(envVar)))
 
     return kamel_utils.invokeReturningCmd(
+        command,
+        mode,
+        integration_name,
+        integration_content=integration_content)
+
+
+# Kamel local run invocation.
+def local_run(integration_content,
+              mode,
+              integration_name,
+              envVars=[],
+              port=None):
+    command = ["local", "run"]
+
+    if mode.transport == 'http':
+        # Append Queue.java file.
+        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+        command.append(queue)
+
+        # Port is mandatory.
+        if port is None:
+            return RuntimeError('port is missing')
+
+        # In the case of HTTP, add the port:
+        command.append('--property')
+        command.append(f'quarkus.http.port={port}')
+
+    return kamel_utils.invokeOngoingCmd(
         command,
         mode,
         integration_name,

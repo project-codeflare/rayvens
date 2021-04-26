@@ -28,7 +28,7 @@ if len(sys.argv) < 4:
 slack_channel = sys.argv[1]
 slack_webhook = sys.argv[2]
 run_mode = sys.argv[3]
-if run_mode not in ['local.local', 'mixed.operator', 'operator']:
+if run_mode not in ['local', 'mixed.operator', 'operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 
 # Initialize ray either on the cluster or locally otherwise.
