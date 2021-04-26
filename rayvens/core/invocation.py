@@ -17,7 +17,6 @@
 import subprocess
 import os
 import signal
-import io
 import yaml
 import sys
 from rayvens.core import utils
@@ -44,11 +43,13 @@ class KamelInvocation:
         self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
 
         # TODO: enable some sort of harness!
+        harness = os.path.join(os.path.dirname(__file__), 'harness.py')
+        final_command = [sys.executable, harness]
         if self.mode.isLocal():
-            harness = os.path.join(os.path.dirname(__file__), 'harness.py')
-            final_command = [sys.executable, harness, 'kamel']
+            final_command.append('kamel')
         else:
-            final_command = ["exec", "kamel"]
+            final_command.extend(
+                [self.integration_name, self.mode.namespace, 'kamel'])
         final_command.extend(command_options)
 
         # If integration content is not null then we have files to create and
@@ -80,18 +81,10 @@ class KamelInvocation:
             self.subcommand_type, self.integration_name)
 
         # Launch kamel command in a new process.
-        if self.mode.isLocal():
-            # Launch command.
-            self.process = subprocess.Popen(final_command,
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE,
-                                            start_new_session=True)
-        else:
-            self.process = subprocess.Popen(" ".join(final_command),
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE,
-                                            shell=True,
-                                            preexec_fn=os.setsid)
+        self.process = subprocess.Popen(final_command,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        start_new_session=True)
 
     def ongoing_command(self, message):
         if message is None:
@@ -101,13 +94,23 @@ class KamelInvocation:
 
     def returning_command(self):
         success = False
-        for line in io.TextIOWrapper(self.process.stdout, encoding="utf-8"):
-            line = line.strip()
-            # Only output non-empty lines.
-            if line != "":
-                utils.printLog(self.subprocess_name, line)
-            if self.end_condition in line:
+        while True:
+            # Log progress of kamel subprocess.
+            # TODO: when harness is used this is where we get stuck if
+            # output is produced.
+            output = utils.printLogFromSubProcess(self.subprocess_name,
+                                                  self.process.stdout,
+                                                  with_output=True)
+
+            # Use the Kamel output to decide when Kamel instance is
+            # ready to receive requests.
+            if self.end_condition in output:
                 success = True
+                break
+
+            # Check process has not exited prematurely.
+            if self.process.poll() is not None:
+                break
 
         # Log outcome.
         subcommand = kamel_utils.getKamelCommandString(self.subcommand_type)

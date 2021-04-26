@@ -20,17 +20,33 @@ import signal
 import subprocess
 import sys
 
-# start child process
-process = subprocess.Popen(sys.argv[1:], start_new_session=True)
+is_local = sys.argv[1] == "kamel"
 
-# wait for parent process
+# Start child process.
+process = None
+if is_local:
+    process = subprocess.Popen(sys.argv[1:], start_new_session=True)
+else:
+    process = subprocess.Popen(sys.argv[3:], start_new_session=True)
+
+# Wait for parent process.
 psutil.wait_procs([psutil.Process().parent()])
 
-# kill child process
-if sys.platform == "win32":
-    os.kill(process.pid, signal.CTRL_C_EVENT)
-else:
-    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+# Terminate child process.
+if is_local:
+    if sys.platform == "win32":
+        os.kill(process.pid, signal.CTRL_C_EVENT)
+    else:
+        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
 
-# delete integration file
-os.remove(sys.argv[-1])
+    # Delete integration file.
+    os.remove(sys.argv[-1])
+else:
+    # TODO: Is the kamel run command kept alive somehow? kamel run is a
+    # command that returns immediately. Investigate.
+    # TODO: only run the delete command below if the integration exists.
+
+    # Operator commands can only be terminated by running a kamel delete
+    # command.
+    command = ["kamel", "delete", sys.argv[1], "-n", sys.argv[2]]
+    subprocess.Popen(command, start_new_session=True)

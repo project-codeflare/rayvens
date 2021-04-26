@@ -143,8 +143,6 @@ class StreamActor:
                 f'Stream {self.name} has no sink named {sink_name}.')
         _global_camel.disconnect(self._sinks[sink_name])
         self._sinks.pop(sink_name)
-        for sub_name in dict(self._subscribers):
-            print("Sub name:", sub_name)
         self._subscribers.pop(sink_name)
 
     def disconnect_all(self):
