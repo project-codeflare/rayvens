@@ -28,4 +28,4 @@ setup(name='rayvens',
       license='apache-2.0',
       author='Rayvens authors',
       author_email='tardieu@us.ibm.com;gheorghe-teod.bercea@ibm.com',
-      url='https://github.ibm.com/solsa/rayvens')
+      url='https://github.ibm.com/codeflare/rayvens')

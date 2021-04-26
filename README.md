@@ -19,7 +19,7 @@
 </p>
 
 [![Build
-Status](https://travis.ibm.com/solsa/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/solsa/rayvens)
+Status](https://travis.ibm.com/codeflare/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/codeflare/rayvens)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
@@ -77,7 +77,7 @@ pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/9053be0e639cf35
 
 Clone this repository and install Rayvens:
 ```shell
-git clone https://github.ibm.com/solsa/rayvens.git
+git clone https://github.ibm.com/codeflare/rayvens.git
 pip install ./rayvens
 ```
 
