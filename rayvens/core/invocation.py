@@ -40,7 +40,7 @@ class KamelInvocation:
         self.integration_name = integration_name
 
         # Get subcommand type.
-        self.subcommand_type = kamel_utils.getKamelCommandType(command_options)
+        self.subcommand_type = kamel_utils.kamel_command_type(command_options)
 
         # TODO: enable some sort of harness!
         harness = os.path.join(os.path.dirname(__file__), 'harness.py')
@@ -77,7 +77,7 @@ class KamelInvocation:
             raise RuntimeError('kamel executable not found in PATH')
 
         # Get end condition or fail if command type is not supported.
-        self.end_condition = kamel_utils.getKamelCommandEndCondition(
+        self.end_condition = kamel_utils.kamel_command_end_condition(
             self.subcommand_type, self.integration_name)
 
         # Launch kamel command in a new process.
@@ -113,7 +113,7 @@ class KamelInvocation:
                 break
 
         # Log outcome.
-        subcommand = kamel_utils.getKamelCommandString(self.subcommand_type)
+        subcommand = kamel_utils.kamel_command_str(self.subcommand_type)
         log = "Kamel `%s` command finished successfully." % subcommand
         if not success:
             log = "Kamel `%s` command failed." % subcommand
@@ -151,7 +151,7 @@ class KamelInvocation:
         success = self._check_ongoing_process_output(self.end_condition, True)
 
         # Emit success/fail message.
-        subcommand = kamel_utils.getKamelCommandString(self.subcommand_type)
+        subcommand = kamel_utils.kamel_command_str(self.subcommand_type)
         log = "Kamel `%s` command finished successfully." % subcommand
         if not success:
             log = "Kamel `%s` command failed." % subcommand

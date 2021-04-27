@@ -29,7 +29,7 @@ class KamelCommand(Enum):
     UNINSTALL = 100
 
 
-def getKamelCommandType(command_options):
+def kamel_command_type(command_options):
     command = ' '.join(command_options)
     if command.startswith("install"):
         return KamelCommand.INSTALL
@@ -50,70 +50,45 @@ def getKamelCommandType(command_options):
     raise RuntimeError('unsupported kamel subcommand: %s' % command)
 
 
-def getKamelCommandString(commandType):
-    if commandType == KamelCommand.INSTALL:
+def kamel_command_str(command_type):
+    if command_type == KamelCommand.INSTALL:
         return "install"
-    if commandType == KamelCommand.BUILD:
+    if command_type == KamelCommand.BUILD:
         return "build"
-    if commandType == KamelCommand.RUN:
+    if command_type == KamelCommand.RUN:
         return "run"
-    if commandType == KamelCommand.LOCAL_BUILD:
+    if command_type == KamelCommand.LOCAL_BUILD:
         return "local build"
-    if commandType == KamelCommand.LOCAL_RUN:
+    if command_type == KamelCommand.LOCAL_RUN:
         return "local run"
-    if commandType == KamelCommand.UNINSTALL:
+    if command_type == KamelCommand.UNINSTALL:
         return "uninstall"
-    if commandType == KamelCommand.DELETE:
+    if command_type == KamelCommand.DELETE:
         return "delete"
-    if commandType == KamelCommand.LOG:
+    if command_type == KamelCommand.LOG:
         return "log"
     raise RuntimeError('unsupported kamel subcommand')
 
 
-def getKamelCommandEndCondition(subcommandType, baseName):
-    if subcommandType == KamelCommand.INSTALL:
+def kamel_command_end_condition(subcommand_type, base_name):
+    if subcommand_type == KamelCommand.INSTALL:
         return "Camel K installed in namespace"
-    if subcommandType == KamelCommand.BUILD:
+    if subcommand_type == KamelCommand.BUILD:
         return ""
-    if subcommandType == KamelCommand.RUN:
-        return f"integration \"{baseName}\""
-    if subcommandType == KamelCommand.LOCAL_BUILD:
+    if subcommand_type == KamelCommand.RUN:
+        return f"integration \"{base_name}\""
+    if subcommand_type == KamelCommand.LOCAL_BUILD:
         return ""
-    if subcommandType == KamelCommand.LOCAL_RUN:
+    if subcommand_type == KamelCommand.LOCAL_RUN:
         return "Installed features:"
-    if subcommandType == KamelCommand.UNINSTALL:
+    if subcommand_type == KamelCommand.UNINSTALL:
         return "Camel K Service Accounts removed from namespace"
-    if subcommandType == KamelCommand.DELETE:
-        return "Integration %s deleted" % baseName
-    if subcommandType == KamelCommand.LOG:
+    if subcommand_type == KamelCommand.DELETE:
+        return f"Integration {base_name} deleted"
+    if subcommand_type == KamelCommand.LOG:
         return ""
     raise RuntimeError('unsupported kamel subcommand: %s' %
-                       getKamelCommandString(subcommandType))
-
-
-# Command types which are local.
-
-
-def isLocalCommand(subcommandType):
-    isLocal = subcommandType == KamelCommand.LOCAL_BUILD \
-        or subcommandType == KamelCommand.LOCAL_RUN
-    return isLocal
-
-
-# Command types which lead to the creation of a kubectl service.
-
-
-def createsKubectlService(subcommandType):
-    return subcommandType == KamelCommand.INSTALL \
-        or subcommandType == KamelCommand.RUN
-
-
-# Command types which lead to the creation of a kubectl service.
-
-
-def deletesKubectlService(subcommandType):
-    return subcommandType == KamelCommand.DELETE \
-        or subcommandType == KamelCommand.UNINSTALL
+                       kamel_command_str(subcommand_type))
 
 
 # Helper for ongoing local commands like kamel local run.
