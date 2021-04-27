@@ -94,11 +94,11 @@ def kamel_command_end_condition(subcommand_type, base_name):
 # Helper for ongoing local commands like kamel local run.
 
 
-def invokeOngoingCmd(command,
-                     mode,
-                     integration_name,
-                     integration_content=[],
-                     message=None):
+def invoke_kamel_command(command,
+                         mode,
+                         integration_name,
+                         integration_content=[],
+                         message=None):
     # Invoke command using the Kamel invocation actor.
     kamel_invocation = invocation.KamelInvocation(
         command,
@@ -107,37 +107,7 @@ def invokeOngoingCmd(command,
         integration_content=integration_content)
 
     # Wait for kamel command to finish launching the integration.
-    kamel_is_ready = kamel_invocation.ongoing_command(message)
-
-    # Log progress.
-    print("kamel ongoing command is ready:", kamel_is_ready)
-
-    # Invocation object is required later for stopping the integration.
-    # TODO: find a better way to do invocation object management.
-    if kamel_is_ready:
+    if kamel_invocation.invoke(message):
         return kamel_invocation
 
     return None
-
-
-# Helper for returning kamel commands such as kamel install.
-
-
-def invokeReturningCmd(command,
-                       mode,
-                       integration_name,
-                       integration_content=[]):
-    kamel_invocation = invocation.KamelInvocation(
-        command,
-        mode,
-        integration_name=integration_name,
-        integration_content=integration_content)
-
-    # Wait for the kamel command to be invoked and retrieve status.
-    success = kamel_invocation.returning_command()
-
-    # If command was no successful then exit early.
-    if not success:
-        return None
-
-    return kamel_invocation

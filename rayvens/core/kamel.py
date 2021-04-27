@@ -64,7 +64,7 @@ def install(kamelImage,
     # Force installation.
     command.append("--force")
 
-    return kamel_utils.invokeReturningCmd(command, mode, "camel-k-operator")
+    return kamel_utils.invoke_kamel_command(command, mode, "camel-k-operator")
 
 
 # Invoke kamel uninstall.
@@ -75,8 +75,8 @@ def uninstall(install_invocation):
     command.append("-n")
     command.append(install_invocation.mode.namespace)
 
-    return kamel_utils.invokeReturningCmd(command, install_invocation.mode,
-                                          "camel-k-operator")
+    return kamel_utils.invoke_kamel_command(command, install_invocation.mode,
+                                            "camel-k-operator")
 
 
 # Kamel run invocation.
@@ -103,7 +103,7 @@ def run(integration_content, mode, integration_name, envVars=[]):
         command.append("--env")
         command.append("%s=%s" % (envVar, os.getenv(envVar)))
 
-    return kamel_utils.invokeReturningCmd(
+    return kamel_utils.invoke_kamel_command(
         command,
         mode,
         integration_name,
@@ -131,7 +131,7 @@ def local_run(integration_content,
         command.append('--property')
         command.append(f'quarkus.http.port={port}')
 
-    return kamel_utils.invokeOngoingCmd(
+    return kamel_utils.invoke_kamel_command(
         command,
         mode,
         integration_name,
@@ -149,10 +149,10 @@ def log(mode, integration_name, custom_message):
     command.append("-n")
     command.append(mode.namespace)
 
-    return kamel_utils.invokeOngoingCmd(command,
-                                        mode,
-                                        integration_name,
-                                        message=custom_message)
+    return kamel_utils.invoke_kamel_command(command,
+                                            mode,
+                                            integration_name,
+                                            message=custom_message)
 
 
 # Kamel delete invocation (needs operator).
@@ -166,5 +166,6 @@ def delete(integration_invocation, integration_name):
 
     command.append(integration_name)
 
-    return kamel_utils.invokeReturningCmd(command, integration_invocation.mode,
-                                          integration_name)
+    return kamel_utils.invoke_kamel_command(command,
+                                            integration_invocation.mode,
+                                            integration_name)
