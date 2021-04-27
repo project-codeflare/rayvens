@@ -42,14 +42,17 @@ class KamelInvocation:
         # Get subcommand type.
         self.subcommand_type = kamel_utils.kamel_command_type(command_options)
 
-        # TODO: enable some sort of harness!
+        # Use an external harness process to handle graceful termination of
+        # integrations.
         harness = os.path.join(os.path.dirname(__file__), 'harness.py')
         final_command = [sys.executable, harness]
-        if self.mode.isLocal():
+        if self.subcommand_type == kamel_utils.KamelCommand.LOCAL_RUN:
             final_command.append('kamel')
-        else:
+        elif self.subcommand_type == kamel_utils.KamelCommand.RUN:
             final_command.extend(
                 [self.integration_name, self.mode.namespace, 'kamel'])
+        else:
+            final_command = ['kamel']
         final_command.extend(command_options)
 
         # If integration content is not null then we have files to create and

@@ -20,7 +20,7 @@ import time
 import threading
 import os
 from confluent_kafka import Consumer, Producer
-from rayvens.core import kubernetes
+from rayvens.core import kamel
 from rayvens.core.mode import mode, RayvensMode
 
 
@@ -39,23 +39,13 @@ def get_run_mode(camel_mode):
 # Wait for an integration to reach its running state and not only that but
 # also be in a state where it can immediately execute incoming requests.
 def await_start(mode, integration_name):
-    # TODO: remove this once we enable this for local mode.
+    # Only needed when operator is used.
     if mode.isLocal():
         return True
 
-    # Wait for pod to start.
-    pod_is_running, pod_name = kubernetes.getPodRunningStatus(
-        mode, integration_name)
-    if pod_is_running:
-        print(f'Pod {pod_name} is running.')
-    else:
-        print('Pod did not run correctly.')
-        return False
-
-    # Wait for integration to be installed. Since we now know that the pod
-    # is running we can use that to check that the integration is installed
-    # correctly.
-    integration_is_running = kubernetes.getIntegrationStatus(mode, pod_name)
+    # Check logs of the integration to make sure it was installed properly.
+    invocation = kamel.log(mode, integration_name, "Installed features:")
+    integration_is_running = invocation is not None
     if integration_is_running:
         print(f'Integration {integration_name} is running.')
     else:
