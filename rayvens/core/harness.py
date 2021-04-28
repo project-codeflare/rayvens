@@ -29,11 +29,8 @@ if is_local:
 else:
     process = subprocess.Popen(sys.argv[3:], start_new_session=True)
 
-# Wait for parent process.
-psutil.wait_procs([psutil.Process().parent()])
 
-# Terminate child process.
-if is_local:
+def clean_up():
     if sys.platform == "win32":
         os.kill(process.pid, signal.CTRL_C_EVENT)
     else:
@@ -41,11 +38,22 @@ if is_local:
 
     # Delete integration file.
     os.remove(sys.argv[-1])
-else:
-    # TODO: Is the kamel run command kept alive somehow? kamel run is a
-    # command that returns immediately. Investigate.
-    # TODO: only run the delete command below if the integration exists.
 
+
+def sigterm_handler(*args):
+    clean_up()
+    sys.exit()
+
+
+signal.signal(signal.SIGTERM, sigterm_handler)
+
+# Wait for parent process.
+psutil.wait_procs([psutil.Process().parent()])
+
+# Terminate child process.
+if is_local:
+    clean_up()
+else:
     # Operator commands can only be terminated by running a kamel delete
     # command.
     command = ["kamel", "delete", sys.argv[1], "-n", sys.argv[2]]

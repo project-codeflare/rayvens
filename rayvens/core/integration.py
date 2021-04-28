@@ -74,7 +74,7 @@ class Integration:
         # If no kamel operator is used the only other alternative is that the
         # integration is running locally. In that case we only need to kill the
         # process that runs it.
-        # self.invocation.kill()
+        self.invocation.kill()
 
     def route(self, default=None):
         if 'route' in self.config and self.config['route'] is not None:
