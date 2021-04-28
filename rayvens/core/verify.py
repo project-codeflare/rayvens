@@ -34,7 +34,7 @@ def _verify_log(stream, _global_camel, sink_source_name, message):
         raise RuntimeError(
             f'{sink_source_name} not found on stream {stream.name}')
 
-    if _global_camel.mode.isLocal():
+    if _global_camel.mode.is_local():
         # In the local case the integration run is ongoing and we can
         # access the logs directly.
         # TODO: make this work for local implementation.

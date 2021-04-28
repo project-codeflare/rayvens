@@ -70,7 +70,7 @@ class KamelInvocation:
         print("Exec command => ", " ".join(final_command))
 
         # Add to PATH for case when this command is invoked in a cluster.
-        if mode.isCluster():
+        if mode.is_cluster():
             os.environ['PATH'] = ":".join(
                 ["/home/ray/rayvens/rayvens/linux-x86_64",
                  os.getenv('PATH')])

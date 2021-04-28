@@ -59,7 +59,7 @@ class KamelBackend:
         # When the backend runs on a local machine we must allocate its
         # actor at least 1 CPU.
         # actor_options = {'num_cpus': 0}
-        # if mode.isLocal() or mode.isMixed():
+        # if mode.is_local() or mode.is_mixed():
         #     actor_options = {'num_cpus': 1}
         serve.create_backend(self.backendName, KamelEventHandler, mode, topic)
         self.endpoint_to_event = {}

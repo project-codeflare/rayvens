@@ -45,7 +45,7 @@ class Integration:
         # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
         # then we have to also start a service the allows outside processes to
         # send data to the sink.
-        if mode.isMixed():
+        if mode.is_mixed():
             self.service_name = "-".join(["service", self.integration_name])
             kubernetes.createExternalServiceForKamel(mode, self.service_name,
                                                      self.integration_name)

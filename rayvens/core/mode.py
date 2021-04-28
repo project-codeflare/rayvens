@@ -51,13 +51,13 @@ class RunMode:
         return self._get_server_address(integration.integration_name,
                                         port=integration.port)
 
-    def isLocal(self):
+    def is_local(self):
         return self.run_mode == RayvensMode.LOCAL
 
-    def isMixed(self):
+    def is_mixed(self):
         return self.run_mode == RayvensMode.MIXED_OPERATOR
 
-    def isCluster(self):
+    def is_cluster(self):
         return self.run_mode == RayvensMode.CLUSTER_OPERATOR
 
     def _get_server_address(self,

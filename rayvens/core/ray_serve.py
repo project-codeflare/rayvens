@@ -51,7 +51,7 @@ class Camel:
         # a custom route provided by the user. The computation depends on
         # the connector type used for the implementation.
         server_pod_name = ""
-        if self.mode.isCluster():
+        if self.mode.is_cluster():
             server_pod_name = utils.get_server_pod_name()
         endpoint_base = self.mode._get_server_address(server_pod_name,
                                                       serve_source=True)

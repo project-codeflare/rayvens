@@ -40,7 +40,7 @@ def get_run_mode(camel_mode):
 # also be in a state where it can immediately execute incoming requests.
 def await_start(mode, integration_name):
     # Only needed when operator is used.
-    if mode.isLocal():
+    if mode.is_local():
         return True
 
     # Check logs of the integration to make sure it was installed properly.
