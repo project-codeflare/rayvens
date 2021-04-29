@@ -40,3 +40,5 @@ script:
   - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
   - RAYVENS_TEST_MODE=local python ./tests/sink.py
   - ray submit ./scripts/cluster.yaml ./tests/sink.py
+  - RAYVENS_TEST_MODE=local python ./tests/kafka.py
+  - ray submit ./scripts/cluster.yaml ./tests/kafka.py

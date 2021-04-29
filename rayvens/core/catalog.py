@@ -23,13 +23,27 @@ def http_source(config):
     return {'uri': f'timer:tick?period={period}', 'steps': [{'to': url}]}
 
 
+def kafka_source(config):
+    if 'topic' not in config:
+        raise TypeError('Kind kafka-source requires a topic.')
+    if 'broker' not in config:
+        raise TypeError('Kind kafka-source requires a valid kafka broker.')
+    topic = config['topic']
+    kafka_broker = config['broker']
+    return {'uri': f'kafka:{topic}?brokers={kafka_broker}', 'steps': []}
+
+
 def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
     return config['spec']
 
 
-sources = {'http-source': http_source, 'generic-source': generic_source}
+sources = {
+    'http-source': http_source,
+    'kafka-source': kafka_source,
+    'generic-source': generic_source
+}
 
 
 # construct a camel source specification from a rayvens source config
@@ -37,10 +51,10 @@ def construct_source(config, endpoint, inverted=False):
     if 'kind' not in config:
         raise TypeError('A Camel source needs a kind.')
     kind = config['kind']
-    f = sources.get(kind)
-    if f is None:
+    source_handler = sources.get(kind)
+    if source_handler is None:
         raise TypeError(f'Unsupported Camel source: {kind}.')
-    spec = f(config)
+    spec = source_handler(config)
     if inverted:
         spec['steps'].append({'bean': 'addToQueue'})
         spec = [{
@@ -74,6 +88,21 @@ def slack_sink(config):
     }
 
 
+def kafka_sink(config):
+    if 'topic' not in config:
+        raise TypeError('Kind kafka-sink requires a topic.')
+    if 'broker' not in config:
+        raise TypeError('Kind kafka-sink requires a valid kafka broker.')
+    topic = config['topic']
+    kafka_broker = config['broker']
+
+    return {
+        'steps': [{
+            'to': f'kafka:{topic}?brokers={kafka_broker}',
+        }]
+    }
+
+
 def test_sink(config):
     return {'steps': [{'log': {'message': "\"${body}\""}}]}
 
@@ -86,6 +115,7 @@ def generic_sink(config):
 
 sinks = {
     'slack-sink': slack_sink,
+    'kafka-sink': kafka_sink,
     'generic-sink': generic_sink,
     'test-sink': test_sink
 }
@@ -96,11 +126,11 @@ def construct_sink(config, endpoint):
     if 'kind' not in config:
         raise TypeError('A Camel sink needs a kind.')
     kind = config['kind']
-    f = sinks.get(kind)
-    if f is None:
+    sink_handler = sinks.get(kind)
+    if sink_handler is None:
         raise TypeError(f'Unsupported Camel sink: {kind}.')
 
-    spec = f(config)
+    spec = sink_handler(config)
     spec['uri'] = endpoint
     spec = [{'from': spec}]
     return spec
