@@ -24,20 +24,19 @@ before_install:
 install:
   - pyenv global 3.8.1
   - pip install --upgrade pip
-  - pip install -r requirements.txt
   - pip install .
 
 script:
   - ./scripts/start-kind.sh
 
-# Test local container run mode
+  # Test local container run mode
   - RAYVENS_TEST_MODE=local python ./tests/stream.py
   - RAYVENS_TEST_MODE=local python ./tests/source.py
   - RAYVENS_TEST_MODE=local RAYVENS_TRANSPORT=kafka python ./tests/source.py
   - ray submit ./scripts/cluster.yaml ./tests/stream.py
   - ray submit ./scripts/cluster.yaml ./tests/source.py
 
-# Test operator mode
+  # Test operator mode
   - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
   - RAYVENS_TEST_MODE=local python ./tests/sink.py
   - ray submit ./scripts/cluster.yaml ./tests/sink.py

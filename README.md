@@ -59,25 +59,17 @@ source >> (lambda event: print('LOG:', event))
 
 ## Setup Rayvens
 
+Rayvens requires Ray 1.3.0.
+
 These instructions have been tested on Big Sur and Ubuntu 18.04.4.
 
 We recommend installing Python 3.8.7 using
 [pyenv](https://github.com/pyenv/pyenv).
 
-Install Ray and Ray Serve with Kubernetes support:
-```shell
-pip install --upgrade pip
-
-# for osx
-pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/9053be0e639cf35a1b113ca8a4fc378d209ecb75/ray-2.0.0.dev0-cp38-cp38-macosx_10_13_x86_64.whl
-
-# for linux
-pip install https://s3-us-west-2.amazonaws.com/ray-wheels/master/9053be0e639cf35a1b113ca8a4fc378d209ecb75/ray-2.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
-```
-
 Clone this repository and install Rayvens:
 ```shell
 git clone https://github.ibm.com/codeflare/rayvens.git
+pip install --upgrade pip
 pip install ./rayvens
 ```
 
