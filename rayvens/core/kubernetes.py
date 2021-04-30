@@ -18,10 +18,13 @@ import os
 from rayvens.core import utils
 from rayvens.core import kubernetes_utils
 
+# Port used by the Quarkus Runtime to listen to HTTP requests.
+quarkus_listener_port = "8080"
+
 # Wait for pod to reach running state.
 
 
-def getPodRunningStatus(mode, integration_name):
+def pod_running_status(mode, integration_name):
     # TODO: adapt this to support multiple namespaces.
     command = ["get", "pods", "-w"]
 
@@ -29,13 +32,13 @@ def getPodRunningStatus(mode, integration_name):
     command.append("-n")
     command.append(mode.namespace)
 
-    return kubernetes_utils.getPodStatusCmd(command, integration_name)
+    return kubernetes_utils.pod_status(command, integration_name)
 
 
 # Wait for integration to reach running state.
 
 
-def getIntegrationStatus(mode, pod_name, message=None):
+def integration_status(mode, pod_name, message=None):
     # TODO: adapt this to support multiple namespaces.
     command = ["logs", pod_name]
 
@@ -46,72 +49,74 @@ def getIntegrationStatus(mode, pod_name, message=None):
     # Stream output from this command.
     command.append("--follow=true")
 
-    return kubernetes_utils.executeOngoingKubectlCmd(command, message)
+    return kubernetes_utils.invoke_kubectl_command(command,
+                                                   message=message,
+                                                   ongoing=True)
 
 
 # Create service that Ray can talk to from outside the cluster.
 
 
-def createExternalServiceForKamel(mode, serviceName, integrationName):
+def create_kamel_external_service(mode, service_name, integration_name):
     # Compose yaml file.
-    yamlFile = """
+    yaml_file = f"""
 kind: Service
 apiVersion: v1
 metadata:
-  name: %s
+  name: {service_name}
 spec:
   ports:
-  - nodePort: %s
-    port: %s
+  - nodePort: {utils.externalized_cluster_port}
+    port: {quarkus_listener_port}
     protocol: TCP
-    targetPort: %s
+    targetPort: {quarkus_listener_port}
   selector:
-    camel.apache.org/integration: %s
+    camel.apache.org/integration: {integration_name}
   type: NodePort
-    """ % (serviceName, utils.externalizedClusterPort,
-           utils.quarkusListenerPort, utils.quarkusListenerPort,
-           integrationName)
+    """
 
     # Write to output yaml file.
-    outputFileName = os.path.abspath(serviceName + ".yaml")
-    outputFile = open(outputFileName, "w")
-    outputFile.write(yamlFile)
-    outputFile.close()
+    output_file_name = os.path.abspath(service_name + ".yaml")
+    output_file = open(output_file_name, "w")
+    output_file.write(yaml_file)
+    output_file.close()
 
     # Start service and check that it has started.
-    serviceHasBeenStarted = False
-    command = ["apply", "-f", outputFileName]
+    service_started = False
+    command = ["apply", "-f", output_file_name]
 
     # Namespace
     command.append("-n")
     command.append(mode.namespace)
 
-    if kubernetes_utils.executeReturningKubectlCmd(command, serviceName):
+    if kubernetes_utils.invoke_kubectl_command(command,
+                                               service_name=service_name):
         command = ["get", "services", "-w"]
 
         # Namespace
         command.append("-n")
         command.append(mode.namespace)
 
-        serviceHasBeenStarted = kubernetes_utils.executeOngoingKubectlCmd(
-            command, serviceName)
+        service_started = kubernetes_utils.invoke_kubectl_command(
+            command, service_name=service_name, ongoing=True)
 
-    if serviceHasBeenStarted:
-        print("Service %s has been started succesfully." % serviceName)
+    if service_started:
+        print("Service %s has been started successfully." % service_name)
 
     # Remove intermediate file.
-    if outputFileName is not None:
-        os.remove(outputFileName)
+    if output_file_name is not None:
+        os.remove(output_file_name)
 
 
 # Delete service.
 
 
-def deleteService(mode, serviceName):
-    command = ["delete", "service", serviceName]
+def delete_service(mode, service_name):
+    command = ["delete", "service", service_name]
 
     # Namespace
     command.append("-n")
     command.append(mode.namespace)
 
-    return kubernetes_utils.executeReturningKubectlCmd(command, serviceName)
+    return kubernetes_utils.invoke_kubectl_command(command,
+                                                   service_name=service_name)

@@ -17,6 +17,12 @@
 from enum import Enum
 from rayvens.core import utils
 
+# Port for internal communication inside the cluster.
+internal_cluster_port = "80"
+
+# Cluster source port.
+internal_cluster_port_for_source = "8000"
+
 
 class RayvensMode(Enum):
     # Ray and Kamel running locally.
@@ -70,16 +76,16 @@ class RunMode:
                 raise RuntimeError('port is not specified')
             return f'http://localhost:{port}'
         if self.run_mode == RayvensMode.MIXED_OPERATOR:
-            return "http://localhost:%s" % utils.externalizedClusterPort
+            return "http://localhost:%s" % utils.externalized_cluster_port
         if self.run_mode == RayvensMode.CLUSTER_OPERATOR:
             if integration_name == "":
                 raise RuntimeError("integration name is not set")
             if serve_source:
                 return "http://%s.%s.svc.cluster.local:%s" % (
                     integration_name, self.namespace,
-                    utils.internalClusterPortForSource)
+                    internal_cluster_port_for_source)
             return "http://%s.%s.svc.cluster.local:%s" % (
-                integration_name, self.namespace, utils.internalClusterPort)
+                integration_name, self.namespace, internal_cluster_port)
         raise RuntimeError("unreachable")
 
 

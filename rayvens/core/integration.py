@@ -47,7 +47,7 @@ class Integration:
         # send data to the sink.
         if mode.is_mixed():
             self.service_name = "-".join(["service", self.integration_name])
-            kubernetes.createExternalServiceForKamel(mode, self.service_name,
+            kubernetes.create_kamel_external_service(mode, self.service_name,
                                                      self.integration_name)
 
     # Function which disconnects an integration whether it is an integration
@@ -59,7 +59,7 @@ class Integration:
             # terminate the integration. First we terminate any services
             # associated with the integration.
             if self.service_name is not None:
-                if not kubernetes.deleteService(mode, self.service_name):
+                if not kubernetes.delete_service(mode, self.service_name):
                     raise RuntimeError(
                         f'Service with name {self.service_name} for'
                         '{self.integration_name} could not be'

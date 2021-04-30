@@ -18,20 +18,7 @@ import os
 import random
 
 # Port externalized by the cluster.
-# TODO: randomize this port as part of the supported list of ports.
-externalizedClusterPort = "31095"
-
-# Port used by the Quarkus Runtime to listen to HTTP requests.
-# TODO: this value is just the default and can be customized in case
-# several services are listening to events.
-quarkusListenerPort = "8080"
-
-# Port for internal communication inside the cluster.
-# TODO: randomize this port as part of the supported list of ports.
-internalClusterPort = "80"
-
-# Cluster source port.
-internalClusterPortForSource = "8000"
+externalized_cluster_port = "31095"
 
 # Check if the executable exists in PATH. This method should work
 # in Windows, Linux and MacOS. Python >= 3.3 required.
@@ -44,32 +31,32 @@ def random_port():
     return rayvens_random.randint(49152, 65535)
 
 
-def executableIsAvailable(executableNameOrPath):
+def executable_is_available(executable):
     # If this is a path to the executable file return true.
-    if os.path.isfile(executableNameOrPath):
+    if os.path.isfile(executable):
         return True
 
     # Look up executable in path.
     from shutil import which
-    return which(executableNameOrPath) is not None
+    return which(executable) is not None
 
 
-def subprocessTag(subprocessName):
-    return "[%s subprocess]" % subprocessName
+def subprocess_tag(subprocess_name):
+    return "[%s subprocess]" % subprocess_name
 
 
-def printLogFromSubProcess(subprocessName, stdout, with_output=False):
+def print_log_from_subprocess(subprocess_name, stdout, with_output=False):
     output = stdout.readline().decode("utf-8")
     output = output.strip()
 
     if output != "" and with_output:
-        print(subprocessTag(subprocessName), output)
+        print(subprocess_tag(subprocess_name), output)
 
     return output
 
 
-def printLog(subprocessName, message):
-    print(subprocessTag(subprocessName), message)
+def print_log(subprocess_name, message):
+    print(subprocess_tag(subprocess_name), message)
 
 
 def get_server_pod_name():

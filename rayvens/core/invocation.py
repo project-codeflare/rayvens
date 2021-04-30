@@ -76,7 +76,7 @@ class KamelInvocation:
                  os.getenv('PATH')])
 
         # Fail early before command is invoked if kamel is not found.
-        if self.uses_operator() and not utils.executableIsAvailable("kamel"):
+        if self.uses_operator() and not utils.executable_is_available("kamel"):
             raise RuntimeError('kamel executable not found in PATH')
 
         # Get end condition or fail if command type is not supported.
@@ -126,7 +126,7 @@ class KamelInvocation:
         log = "Kamel `%s` command finished successfully." % subcommand
         if not success:
             log = "Kamel `%s` command failed." % subcommand
-        utils.printLog(self.subprocess_name, log)
+        utils.print_log(self.subprocess_name, log)
 
         # Delete intermediate file.
         if self.filename is not None:
@@ -142,15 +142,15 @@ class KamelInvocation:
         log = "Logs checked successfully."
         if not success:
             log = "Log check failed."
-        utils.printLog(self.subprocess_name, log)
+        utils.print_log(self.subprocess_name, log)
         return success
 
     def _check_kamel_output(self, end_condition, with_output=False):
         while True:
             # Log progress of kamel subprocess.
-            output = utils.printLogFromSubProcess(self.subprocess_name,
-                                                  self.process.stdout,
-                                                  with_output=with_output)
+            output = utils.print_log_from_subprocess(self.subprocess_name,
+                                                     self.process.stdout,
+                                                     with_output=with_output)
 
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.
@@ -170,120 +170,108 @@ class KamelInvocation:
 
 
 class KubectlInvocation:
-    subprocessName = "Kubectl"
+    subprocess_name = "Kubectl"
 
-    def __init__(self, commandOptions, k8sName=""):
+    def __init__(self, command_options, service_name=""):
         # If list is porvided, join it.
-        if isinstance(commandOptions, list):
-            commandOptions = " ".join(commandOptions)
+        if isinstance(command_options, list):
+            command_options = " ".join(command_options)
 
         # Initialize state.
-        self.subcommandType = kubernetes_utils.getKubectlCommandType(
-            commandOptions)
-        self.isRunning = False
-        # TODO: rename this, this can be either a pod or a service or a
-        # deployment name.
-        self.podName = ""
+        self.subcommand_type = kubernetes_utils.kubectl_command_type(
+            command_options)
+        self.pod_name = ""
 
         # Get end condition or fail if command type is not supported.
-        self.endCondition = kubernetes_utils.getKubectlCommandEndCondition(
-            self.subcommandType, k8sName)
+        self.end_condition = kubernetes_utils.kamel_command_end_condition(
+            self.subcommand_type, service_name)
 
         # Create the kubectl command.
-        execCommand = " ".join(["exec", "kubectl", commandOptions])
+        command = " ".join(["exec", "kubectl", command_options])
 
-        if not utils.executableIsAvailable("kubectl"):
+        if not utils.executable_is_available("kubectl"):
             raise RuntimeError('kubectl executable not found in PATH')
 
         # Launch kamel command in a new process.
-        self.process = subprocess.Popen(execCommand,
+        self.process = subprocess.Popen(command,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE,
                                         shell=True,
                                         preexec_fn=os.setsid)
 
-    def executeKubectlCmd(self,
-                          message=None,
-                          service_name=None,
-                          with_output=False):
+    def invoke(self, message, service_name, with_output=False):
         # Set end condition for custom message if one is provided.
-        end_condition = self.endCondition
+        end_condition = self.end_condition
         if message is not None:
             end_condition = message
 
         # Check command output.
-        success = self._check_ongoing_kubectl_output(end_condition,
-                                                     serviceName=service_name,
-                                                     with_output=with_output)
+        success = self._check_kubectl_output(end_condition,
+                                             service_name=service_name,
+                                             with_output=with_output)
 
-        subcommand = kubernetes_utils.getKubectlCommandString(
-            self.subcommandType)
-        logMessage = "Kubectl %s command finished successfully." % subcommand
+        subcommand = kubernetes_utils.kubectl_command_str(self.subcommand_type)
+        log = "Kubectl %s command finished successfully." % subcommand
         if not success:
-            logMessage = "Kubectl %s command failed." % subcommand
-        utils.printLog(self.subprocessName, logMessage)
+            log = "Kubectl %s command failed." % subcommand
+        utils.print_log(self.subprocess_name, log)
 
         return success
 
-    def podIsInRunningState(self, integrationName):
-        isRunning = False
+    def pod_is_running(self, integration_name):
+        running = False
         while True:
             # Process output line by line until we find the pod we are looking
             # for.
             # There should only be one new pod.
-            output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process.stdout,
-                                                  with_output=True)
-            if self.podName == "":
-                self.podName = kubernetes_utils.extractPodFullName(
-                    output, integrationName)
+            output = utils.print_log_from_subprocess(self.subprocess_name,
+                                                     self.process.stdout,
+                                                     with_output=True)
+            if self.pod_name == "":
+                self.pod_name = kubernetes_utils.extract_pod_name(
+                    output, integration_name)
 
-            if kubernetes_utils.isInRunningState(output, self.podName):
-                isRunning = True
+            if kubernetes_utils.is_pod_state_running(output, self.pod_name):
+                running = True
                 break
 
-            if kubernetes_utils.isInErrorState(output, self.podName):
+            if kubernetes_utils.is_pod_state_error(output, self.pod_name):
                 break
 
             # Return if command has exited.
-            returnCode = self.process.poll()
-            if returnCode is not None:
+            if self.process.poll() is not None:
                 break
 
-        logMessage = "Pod with name `%s` is now Running." % self.podName
-        if not isRunning:
-            logMessage = "Pod with name `%s` failed to start." % self.podName
-        utils.printLog(self.subprocessName, logMessage)
+        log = "Pod with name `%s` is now Running." % self.pod_name
+        if not running:
+            log = "Pod with name `%s` failed to start." % self.pod_name
+        utils.print_log(self.subprocess_name, log)
 
-        return isRunning
-
-    def getPodFullName(self):
-        return self.podName
+        return running
 
     def kill(self):
         # Terminating all processes in the group including any subprocesses
         # that the kubectl command might have created.
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
 
-    def _check_ongoing_kubectl_output(self,
-                                      end_condition,
-                                      serviceName=None,
-                                      with_output=False):
+    def _check_kubectl_output(self,
+                              end_condition,
+                              service_name=None,
+                              with_output=False):
         success = False
         while True:
-            output = utils.printLogFromSubProcess(self.subprocessName,
-                                                  self.process.stdout,
-                                                  with_output=with_output)
-            if self.subcommandType == \
+            output = utils.print_log_from_subprocess(self.subprocess_name,
+                                                     self.process.stdout,
+                                                     with_output=with_output)
+            if self.subcommand_type == \
                kubernetes_utils.KubectlCommand.GET_SERVICES:
-                if kubernetes_utils.serviceNameMatches(output, serviceName):
+                if kubernetes_utils.service_name_matches(output, service_name):
                     success = True
                     break
             elif end_condition in output:
                 success = True
                 break
 
-            returnCode = self.process.poll()
-            if returnCode is not None:
+            if self.process.poll() is not None:
                 break
         return success
