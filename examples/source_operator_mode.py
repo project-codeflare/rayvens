@@ -27,8 +27,6 @@ if len(sys.argv) < 2:
     print(f'usage: {sys.argv[0]} <run_mode>')
     sys.exit(1)
 run_mode = sys.argv[1]
-
-# TODO enable 'local', 'mixed.operator' modes.
 if run_mode not in ['operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 

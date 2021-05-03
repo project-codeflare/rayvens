@@ -43,5 +43,5 @@ script:
   - RAYVENS_TEST_MODE=local python ./tests/kafka.py
   - ray submit ./scripts/cluster.yaml ./tests/kafka.py
 
-  # Test mixed.operator mode
-  - RAYVENS_TEST_MODE=mixed.operator python ./tests/sink.py
+  # Test mixed mode
+  - RAYVENS_TEST_MODE=mixed python ./tests/sink.py

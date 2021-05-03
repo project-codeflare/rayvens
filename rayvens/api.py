@@ -175,7 +175,7 @@ _global_camel = None
 
 def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
          transport=os.getenv('RAYVENS_TRANSPORT', 'auto')):
-    modes = ['auto', 'local', 'mixed.operator', 'operator']
+    modes = ['auto', 'local', 'mixed', 'operator']
     transports = ['auto', 'http', 'kafka', 'ray-serve']
 
     if mode not in modes:
@@ -195,7 +195,7 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
         else:
             raise RuntimeError(
                 f'{transport} transport unsupported for mode {mode}.')
-    elif mode in ['mixed.operator', 'operator']:
+    elif mode in ['mixed', 'operator']:
         if transport in ['auto', 'http']:
             _global_camel = start_operator_http(mode)
         elif transport in ['ray-serve']:

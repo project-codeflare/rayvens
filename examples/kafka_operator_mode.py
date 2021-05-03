@@ -42,7 +42,7 @@ if len(sys.argv) < 1:
 
 # Run mode.
 run_mode = sys.argv[1]
-if run_mode not in ['local', 'mixed.operator', 'operator']:
+if run_mode not in ['local', 'mixed', 'operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 
 # The Kafka topic used for communication.
