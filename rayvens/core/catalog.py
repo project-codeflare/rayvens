@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+import yaml
+
 
 def http_source(config):
     if 'url' not in config:
@@ -36,6 +38,34 @@ def kafka_source(config):
 def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
+    if isinstance(config['spec'], str):
+        # Parse string to a Python dictionary.
+        generic_spec = yaml.safe_load(config['spec'])
+
+        # Ensure only a single source exists.
+        # TODO: enable support for multi-source Yaml.
+        if isinstance(generic_spec, list):
+            if len(generic_spec) > 1:
+                raise TypeError('Generic source has multiple sources.')
+            generic_spec = generic_spec[0]
+
+        # from will be inserted later.
+        if 'from' in generic_spec:
+            del generic_spec['from']
+
+        # A uri for the source must be present.
+        if 'uri' not in generic_spec:
+            raise TypeError('Generic source needs a source uri entry.')
+
+        # A steps field is required but can be empty by default.
+        if 'steps' not in generic_spec:
+            generic_spec['steps'] = []
+
+        return generic_spec
+
+    # If the source spec is given as non-string we assume it is a valid
+    # dictionary of the form:
+    # {'uri':<uri_value>, 'steps':[<more yaml or empty>]}
     return config['spec']
 
 
