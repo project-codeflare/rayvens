@@ -119,7 +119,7 @@ def generic_sink(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-sink requires a spec.')
     if isinstance(config['spec'], str):
-        return _process_generic_spec_str(config)
+        return _process_generic_spec_str(config, sink=True)
 
     # If the sink spec is given as non-string we assume it is a valid
     # dictionary of the form:
@@ -150,7 +150,7 @@ def construct_sink(config, endpoint):
     return spec
 
 
-def _process_generic_spec_str(config):
+def _process_generic_spec_str(config, sink=False):
     # Parse string to a Python dictionary.
     generic_spec = yaml.safe_load(config['spec'])
 
@@ -165,11 +165,11 @@ def _process_generic_spec_str(config):
     if 'from' in generic_spec:
         if generic_spec['from'] is None:
             del generic_spec['from']
-        if generic_spec['from'] is not None:
+        else:
             generic_spec = generic_spec['from']
 
     # A uri for the source must be present.
-    if 'uri' not in generic_spec:
+    if not sink and 'uri' not in generic_spec:
         raise TypeError('Generic spec needs a uri entry.')
 
     # A steps field is required but can be empty by default.
