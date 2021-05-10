@@ -27,14 +27,14 @@ import time
 # analyze trend (up/down/stable)
 # publish trend to slack
 #
-# http-source -> comparator actor -> slack-sink
+# http source -> comparator actor -> slack sink
 
 # process command line arguments
-if len(sys.argv) < 3:
-    print(f'usage: {sys.argv[0]} <slack_channel> <slack_webhook>')
+if len(sys.argv) != 3 and len(sys.argv) != 1:
+    print(f'usage: {sys.argv[0]} [<slack_channel> <slack_webhook>]')
     sys.exit(1)
-slack_channel = sys.argv[1]
-slack_webhook = sys.argv[2]
+slack_channel = sys.argv[1] if len(sys.argv) == 3 else ''
+slack_webhook = sys.argv[2] if len(sys.argv) == 3 else ''
 
 # initialize ray
 ray.init()
@@ -52,34 +52,33 @@ source = rayvens.Stream('http', source_config=source_config)
 # log incoming events
 source >> (lambda event: print('LOG:', event))
 
-# create a sink stream
-sink_config = dict(kind='slack-sink',
-                   channel=slack_channel,
-                   webhookUrl=slack_webhook)
-sink = rayvens.Stream('slack', sink_config=sink_config)
+if slack_channel != '':
+    # create a sink stream
+    sink_config = dict(kind='slack-sink',
+                       channel=slack_channel,
+                       webhookUrl=slack_webhook)
+    sink = rayvens.Stream('slack', sink_config=sink_config)
 
+    # actor to compare APPL quote with last quote
+    @ray.remote
+    class Comparator:
+        def __init__(self):
+            self.last_quote = None
 
-# actor to compare APPL quote with last quote
-@ray.remote
-class Comparator:
-    def __init__(self):
-        self.last_quote = None
+        def append(self, event):
+            payload = json.loads(event)  # parse event payload to json
+            quote = payload[0]['price']  # extract AAPL quote
+            if self.last_quote:
+                if quote > self.last_quote:
+                    sink.append('AAPL is up')
+                elif quote < self.last_quote:
+                    sink.append('AAPL is down')
+                else:
+                    sink.append('AAPL is stable')
+            self.last_quote = quote
 
-    def append(self, event):
-        payload = json.loads(event)  # parse event payload to json
-        quote = payload[0]['price']  # extract AAPL quote
-        if self.last_quote:
-            if quote > self.last_quote:
-                sink.append('AAPL is up')
-            elif quote < self.last_quote:
-                sink.append('AAPL is down')
-            else:
-                sink.append('AAPL is stable')
-        self.last_quote = quote
-
-
-comparator = Comparator.remote()  # instantiate comparator actor
-source.send_to(comparator)  # subscribe comparator to source
+    comparator = Comparator.remote()  # instantiate comparator actor
+    source.send_to(comparator)  # subscribe comparator to source
 
 # run for a while
 time.sleep(120)
