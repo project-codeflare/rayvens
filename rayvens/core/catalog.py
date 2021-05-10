@@ -39,29 +39,7 @@ def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
     if isinstance(config['spec'], str):
-        # Parse string to a Python dictionary.
-        generic_spec = yaml.safe_load(config['spec'])
-
-        # Ensure only a single source exists.
-        # TODO: enable support for multi-source Yaml.
-        if isinstance(generic_spec, list):
-            if len(generic_spec) > 1:
-                raise TypeError('Generic source has multiple sources.')
-            generic_spec = generic_spec[0]
-
-        # from will be inserted later.
-        if 'from' in generic_spec:
-            del generic_spec['from']
-
-        # A uri for the source must be present.
-        if 'uri' not in generic_spec:
-            raise TypeError('Generic source needs a source uri entry.')
-
-        # A steps field is required but can be empty by default.
-        if 'steps' not in generic_spec:
-            generic_spec['steps'] = []
-
-        return generic_spec
+        return _process_generic_spec_str(config)
 
     # If the source spec is given as non-string we assume it is a valid
     # dictionary of the form:
@@ -140,6 +118,12 @@ def test_sink(config):
 def generic_sink(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-sink requires a spec.')
+    if isinstance(config['spec'], str):
+        return _process_generic_spec_str(config)
+
+    # If the sink spec is given as non-string we assume it is a valid
+    # dictionary of the form:
+    # {'uri':<uri_value>, 'steps':[<more yaml or empty>]}
     return config['spec']
 
 
@@ -164,3 +148,32 @@ def construct_sink(config, endpoint):
     spec['uri'] = endpoint
     spec = [{'from': spec}]
     return spec
+
+
+def _process_generic_spec_str(config):
+    # Parse string to a Python dictionary.
+    generic_spec = yaml.safe_load(config['spec'])
+
+    # Ensure only a single source exists.
+    # TODO: enable support for multi-source Yaml.
+    if isinstance(generic_spec, list):
+        if len(generic_spec) > 1:
+            raise TypeError('Generic spec field has multiple sources.')
+        generic_spec = generic_spec[0]
+
+    # from will be inserted later.
+    if 'from' in generic_spec:
+        if generic_spec['from'] is None:
+            del generic_spec['from']
+        if generic_spec['from'] is not None:
+            generic_spec = generic_spec['from']
+
+    # A uri for the source must be present.
+    if 'uri' not in generic_spec:
+        raise TypeError('Generic spec needs a uri entry.')
+
+    # A steps field is required but can be empty by default.
+    if 'steps' not in generic_spec:
+        generic_spec['steps'] = []
+
+    return generic_spec
