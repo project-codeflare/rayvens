@@ -35,6 +35,20 @@ def kafka_source(config):
     return {'uri': f'kafka:{topic}?brokers={kafka_broker}', 'steps': []}
 
 
+def telegram_source(config):
+    if 'authorization_token' not in config:
+        raise TypeError('Telegram source requires an authorization token.')
+    authorization_token = config['authorization_token']
+    return {
+        'uri': f'telegram:bots?authorizationToken={authorization_token}',
+        'steps': [{
+            'marshal': {
+                'json': {}
+            }
+        }]
+    }
+
+
 def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
@@ -50,6 +64,7 @@ def generic_source(config):
 sources = {
     'http-source': http_source,
     'kafka-source': kafka_source,
+    'telegram-source': telegram_source,
     'generic-source': generic_source
 }
 
