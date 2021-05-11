@@ -19,8 +19,7 @@ import rayvens
 import time
 import sys
 
-# Receive message from stock price source and print it to console using the
-# operator implementation.
+# Receive message from stock price source and print it to console.
 
 # Initialize ray.
 if len(sys.argv) < 2:
