@@ -126,6 +126,37 @@ def kafka_sink(config):
     }
 
 
+def telegram_sink(config):
+    if 'authorization_token' not in config:
+        raise TypeError('Authorization token required for telegram sink.')
+    authorization_token = config['authorization_token']
+    chat_id = ""
+    if 'chat_id' in config:
+        chat_id = config['chat_id']
+
+    # The telegram sink yaml below allows to override the default chat ID where
+    # the messages are sent.
+    return {
+        'steps': [{
+            'convert-body-to': {
+                'type': "java.lang.String"
+            }
+        }, {
+            'to': {
+                'uri': 'telegram:bots',
+                'parameters': {
+                    'authorizationToken': authorization_token,
+                    'chatId': chat_id
+                }
+            }
+        }, {
+            'marshal': {
+                'json': {}
+            }
+        }]
+    }
+
+
 def test_sink(config):
     return {'steps': [{'log': {'message': "\"${body}\""}}]}
 
@@ -145,6 +176,7 @@ def generic_sink(config):
 sinks = {
     'slack-sink': slack_sink,
     'kafka-sink': kafka_sink,
+    'telegram-sink': telegram_sink,
     'generic-sink': generic_sink,
     'test-sink': test_sink
 }
