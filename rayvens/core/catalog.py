@@ -49,6 +49,41 @@ def telegram_source(config):
     }
 
 
+def _binance_route(period, coin):
+    return {
+        'uri':
+        f"timer:update?period={period}",
+        'steps': [{
+            'to':
+            "xchange:binance?service=marketdata&method=ticker&"
+            f"currencyPair={coin}/USDT"
+        }, {
+            'marshal': {
+                'json': {}
+            }
+        }]
+    }
+
+
+def binance_source(config):
+    if 'coin' not in config:
+        raise TypeError(
+            'Crypto source requires the official cryptocurrency symbol'
+            '(example, for Bitcoin the symbol is BTC).')
+    coin = config['coin']
+    period = 3000
+    if 'period' in config:
+        period = config['period']
+
+    if isinstance(coin, list):
+        routes = []
+        for coin_id in coin:
+            routes.append(_binance_route(period, coin_id))
+        return routes
+
+    return _binance_route(period, coin)
+
+
 def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
@@ -65,8 +100,18 @@ sources = {
     'http-source': http_source,
     'kafka-source': kafka_source,
     'telegram-source': telegram_source,
+    'binance-source': binance_source,
     'generic-source': generic_source
 }
+
+
+def _finalize_route(spec, endpoint, inverted):
+    if inverted:
+        spec['steps'].append({'bean': 'addToQueue'})
+    else:
+        spec['steps'].append({'to': endpoint})
+    spec = [{'from': spec}]
+    return spec
 
 
 # construct a camel source specification from a rayvens source config
@@ -77,22 +122,36 @@ def construct_source(config, endpoint, inverted=False):
     source_handler = sources.get(kind)
     if source_handler is None:
         raise TypeError(f'Unsupported Camel source: {kind}.')
+
     spec = source_handler(config)
+
+    # Multi-source integration with several routes:
+    if isinstance(spec, list):
+        spec_list = []
+        for spec_entry in spec:
+            spec_list.extend(_finalize_route(spec_entry, endpoint, inverted))
+        if inverted:
+            spec_list.append({
+                'from': {
+                    'uri': endpoint,
+                    'steps': [{
+                        'bean': 'takeFromQueue'
+                    }]
+                }
+            })
+        print(yaml.dump(spec_list))
+        return spec_list
+
+    # Regular integration with only one route:
+    spec = _finalize_route(spec, endpoint, inverted)
     if inverted:
-        spec['steps'].append({'bean': 'addToQueue'})
-        spec = [{
-            'from': spec
-        }, {
-            'from': {
+        spec.append(
+            {'from': {
                 'uri': endpoint,
                 'steps': [{
                     'bean': 'takeFromQueue'
                 }]
-            }
-        }]
-    else:
-        spec['steps'].append({'to': endpoint})
-        spec = [{'from': spec}]
+            }})
     return spec
 
 
