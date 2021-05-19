@@ -25,14 +25,30 @@ def http_source(config):
     return {'uri': f'timer:tick?period={period}', 'steps': [{'to': url}]}
 
 
+def _kafka_SASL_uri(topic, kafka_brokers, password):
+    security_protocol = 'SASL_SSL'
+    username = "token"
+    conf = 'org.apache.kafka.common.security.plain.PlainLoginModule' \
+           f' required username=\"{username}\" password=\"{password}\";'
+    uri = f'kafka:{topic}?brokers={kafka_brokers}' \
+          f'&securityProtocol={security_protocol}' \
+          f'&saslMechanism=PLAIN' \
+          f'&saslJaasConfig={conf}' \
+          f'&sslKeyPassword={password}'
+    return uri
+
+
 def kafka_source(config):
     if 'topic' not in config:
         raise TypeError('Kind kafka-source requires a topic.')
-    if 'broker' not in config:
+    if 'brokers' not in config:
         raise TypeError('Kind kafka-source requires a valid kafka broker.')
     topic = config['topic']
-    kafka_broker = config['broker']
-    return {'uri': f'kafka:{topic}?brokers={kafka_broker}', 'steps': []}
+    kafka_brokers = config['brokers']
+    uri = f'kafka:{topic}?brokers={kafka_brokers}'
+    if 'SASL_password' in config:
+        uri = _kafka_SASL_uri(topic, kafka_brokers, config['SASL_password'])
+    return {'uri': uri, 'steps': []}
 
 
 def telegram_source(config):
@@ -173,14 +189,17 @@ def slack_sink(config):
 def kafka_sink(config):
     if 'topic' not in config:
         raise TypeError('Kind kafka-sink requires a topic.')
-    if 'broker' not in config:
+    if 'brokers' not in config:
         raise TypeError('Kind kafka-sink requires a valid kafka broker.')
     topic = config['topic']
-    kafka_broker = config['broker']
+    kafka_brokers = config['brokers']
+    to = f'kafka:{topic}?brokers={kafka_brokers}'
+    if 'SASL_password' in config:
+        to = _kafka_SASL_uri(topic, kafka_brokers, config['SASL_password'])
 
     return {
         'steps': [{
-            'to': f'kafka:{topic}?brokers={kafka_broker}',
+            'to': to,
         }]
     }
 

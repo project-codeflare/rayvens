@@ -36,25 +36,36 @@ import time
 #
 
 # Command line arguments and validation:
-if len(sys.argv) < 1:
-    print(f'usage: {sys.argv[0]} <run_mode>')
+if len(sys.argv) < 2:
+    print(f'usage: {sys.argv[0]} <brokers> <password> <run_mode> or'
+          f'       {sys.argv[0]} <run_mode>')
     sys.exit(1)
 
-# Run mode.
+# Brokers and run mode:
+brokers = None
+password = None
 run_mode = sys.argv[1]
+if len(sys.argv) == 4:
+    brokers = sys.argv[1]
+    password = sys.argv[2]
+    run_mode = sys.argv[3]
+
 if run_mode not in ['local', 'mixed', 'operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 
 # The Kafka topic used for communication.
-topic = "externalTopicTopic"
+topic = "externalTopic"
 
 # If using the Kafka broker started by Rayvens the following brokers
 # are possible:
 # - from inside the cluster: kafka:9092
 # - from outside the cluster: localhost:31093
-broker = 'localhost:31093'
-if run_mode == 'operator':
-    broker = "kafka:9092"
+# If using a different Kafka service please provide the brokers in the
+# form of host:port,host1:port1, ... .
+if brokers is None:
+    brokers = 'localhost:31093'
+    if run_mode == 'operator':
+        brokers = "kafka:9092"
 
 # Initialize ray either on the cluster or locally otherwise.
 if run_mode == 'operator':
@@ -67,10 +78,13 @@ rayvens.init(mode=run_mode)
 
 # Create source stream and configuration.
 source_stream = rayvens.Stream('kafka-source-stream')
+
 source_config = dict(kind='kafka-source',
                      route='/fromkafka',
                      topic=topic,
-                     broker=broker)
+                     brokers=brokers)
+if password is not None:
+    source_config['SASL_password'] = password
 source = source_stream.add_source(source_config)
 # Log all events from stream-attached sources.
 source_stream >> (lambda event: print('KAFKA SOURCE:', event))
@@ -80,14 +94,18 @@ sink_stream = rayvens.Stream('kafka-sink-stream')
 sink_config = dict(kind='kafka-sink',
                    route='/tokafka',
                    topic=topic,
-                   broker=broker)
+                   brokers=brokers)
+if password is not None:
+    sink_config['SASL_password'] = password
 sink = sink_stream.add_sink(sink_config)
+
+time.sleep(10)
 
 # Sends message to all sinks attached to this stream.
 sink_stream << f'Sending message to Kafka sink in run mode {run_mode}.'
 
 # Give a grace period to the message to propagate then disconnect source
 # and sink.
-time.sleep(5)
+time.sleep(30)
 source_stream.disconnect_all()
 sink_stream.disconnect_all()

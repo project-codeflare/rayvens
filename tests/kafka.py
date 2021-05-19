@@ -45,7 +45,7 @@ sink_stream = rayvens.Stream('kafka-sink-stream')
 sink_config = dict(kind='kafka-sink',
                    route='/tokafka',
                    topic=topic,
-                   broker=broker)
+                   brokers=broker)
 sink = sink_stream.add_sink(sink_config)
 
 # Create source stream and configuration.
@@ -53,7 +53,7 @@ source_stream = rayvens.Stream('kafka-source-stream')
 source_config = dict(kind='kafka-source',
                      route='/fromkafka',
                      topic=topic,
-                     broker=broker)
+                     brokers=broker)
 source = source_stream.add_source(source_config)
 # Log all events from stream-attached sources.
 source_stream >> (lambda event: print('MESSAGE:', event))
