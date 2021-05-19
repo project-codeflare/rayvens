@@ -112,12 +112,41 @@ def generic_source(config):
     return config['spec']
 
 
+def periodic_generic_source(config):
+    if 'spec' not in config:
+        raise TypeError('Kind generic-source requires a spec.')
+    period = config.get('period', 1000)
+
+    # Parse string config if present otherwise spec is config:
+    spec = config
+    if isinstance(config['spec'], str):
+        spec = _process_generic_spec_str(config)
+
+    # The target uri is the uri we will periodically poll.
+    if 'uri' not in spec:
+        raise TypeError('Periodic generic source requires a uri.')
+    target_uri = spec['uri']
+
+    periodic_spec = {
+        'uri': f'timer:tick?period={period}',
+        'steps': [{
+            'to': target_uri
+        }]
+    }
+
+    # Append any additional steps:
+    periodic_spec['remaining_steps'] = spec['steps']
+
+    return periodic_spec
+
+
 sources = {
     'http-source': http_source,
     'kafka-source': kafka_source,
     'telegram-source': telegram_source,
     'binance-source': binance_source,
-    'generic-source': generic_source
+    'generic-source': generic_source,
+    'periodic-generic-source': periodic_generic_source
 }
 
 
@@ -141,8 +170,19 @@ def construct_source(config, endpoint, inverted=False):
 
     spec = source_handler(config)
 
+    # Extract remaining steps if any:
+    remaining_steps = None
+    if 'remaining_steps' in spec:
+        remaining_steps = spec['remaining_steps']
+        del spec['remaining_steps']
+
     # Multi-source integration with several routes:
     if isinstance(spec, list):
+        # Generic sources do now allow multiple routes:
+        if remaining_steps is not None:
+            raise TypeError(
+                'Generic source with multiple routes not supported')
+
         spec_list = []
         for spec_entry in spec:
             spec_list.extend(_finalize_route(spec_entry, endpoint, inverted))
@@ -155,19 +195,26 @@ def construct_source(config, endpoint, inverted=False):
                     }]
                 }
             })
-        print(yaml.dump(spec_list))
         return spec_list
 
     # Regular integration with only one route:
     spec = _finalize_route(spec, endpoint, inverted)
     if inverted:
-        spec.append(
-            {'from': {
+        # Route fetching from queue:
+        from_queue = {
+            'from': {
                 'uri': endpoint,
                 'steps': [{
                     'bean': 'takeFromQueue'
                 }]
-            }})
+            }
+        }
+
+        # Attach remaining steps after fetching from the queue.
+        if remaining_steps is not None:
+            from_queue['from']['steps'].extend(remaining_steps)
+
+        spec.append(from_queue)
     return spec
 
 
