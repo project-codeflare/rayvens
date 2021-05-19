@@ -103,13 +103,19 @@ def binance_source(config):
 def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
+    spec = config['spec']
     if isinstance(config['spec'], str):
-        return _process_generic_spec_str(config)
+        spec = _process_generic_spec_str(config)
 
     # If the source spec is given as non-string we assume it is a valid
     # dictionary of the form:
     # {'uri':<uri_value>, 'steps':[<more yaml or empty>]}
-    return config['spec']
+    if 'uri' not in spec:
+        raise TypeError('Generic source requires a uri.')
+    if 'steps' not in spec:
+        raise TypeError('Steps field missing.')
+
+    return spec
 
 
 def periodic_generic_source(config):
@@ -118,7 +124,7 @@ def periodic_generic_source(config):
     period = config.get('period', 1000)
 
     # Parse string config if present otherwise spec is config:
-    spec = config
+    spec = config['spec']
     if isinstance(config['spec'], str):
         spec = _process_generic_spec_str(config)
 
