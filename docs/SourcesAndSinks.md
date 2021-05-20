@@ -46,6 +46,7 @@ Sources:
 - `kafka-source`
 - `telegram-source`
 - `binance-source`
+- `cloud-object-store-source`
 
 Sinks:
 - `slack-sink`
@@ -103,6 +104,17 @@ This source supports multiple input routes based on the number of coins being in
 source_config = dict(kind='binance-source', coin=['BTC', 'ETH'])
 ```
 An individual event will be received with the price of each of coin in the list of coins.
+
+### `kind="cloud-object-store-source"`
+
+This source manages the receiving of objects from AWS S3 or IBM Cloud Object Storage. It supports the following fields:
+- `bucket_name` the name of the bucket
+- `access_key_id` found in the configuration of the Cloud Object Storage service.
+- `secret_access_key` found in the configuration of the Cloud Object Storage service.
+- `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`)
+- `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint
+
+Without any other option this source will fetch and delete the files in the bucket.
 
 ## Sinks
 
