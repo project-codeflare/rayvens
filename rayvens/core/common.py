@@ -75,6 +75,7 @@ def send_to(handle, server_address, route):
                 if response.status_code != 200:
                     time.sleep(1)
                     continue
+                response.encoding = 'latin-1'
                 handle.append.remote(response.text)
             except requests.exceptions.ConnectionError:
                 time.sleep(1)
