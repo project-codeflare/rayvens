@@ -332,6 +332,52 @@ def telegram_sink(config):
     }
 
 
+def cos_sink(config):
+    if 'bucket_name' not in config:
+        raise TypeError('Cloud object storage sink requires a bucket name.')
+    if 'access_key_id' not in config:
+        raise TypeError('Cloud object storage sink requires an access key id.')
+    if 'secret_access_key' not in config:
+        raise TypeError(
+            'Cloud object storage sink requires an secret access key.')
+    if 'endpoint' not in config:
+        raise TypeError('Cloud object storage sink requires an endpoint.')
+    if 'file_name' not in config:
+        raise TypeError('Created cloud object name.')
+    bucket_name = config['bucket_name']
+    access_key_id = config['access_key_id']
+    secret_access_key = config['secret_access_key']
+    endpoint = config['endpoint']
+    file_name = config['file_name']
+
+    # Ensure this is a valid, supported endpoint:
+    split_endpoint = _parse_endpoint(endpoint)
+
+    # Resolve region:
+    region = 'us-east'
+    if 'region' in config:
+        region = config['region']
+    else:
+        region = split_endpoint[1]
+
+    # Assemble URI:
+    uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
+          f'&secretKey={secret_access_key}' \
+          '&overrideEndpoint=true' \
+          f'&uriEndpointOverride={endpoint}' \
+          f'&region={region}'
+    return {
+        'steps': [{
+            'set-header': {
+                'name': 'CamelAwsS3Key',
+                'simple': f"{file_name}"
+            }
+        }, {
+            'to': uri
+        }]
+    }
+
+
 def test_sink(config):
     return {'steps': [{'log': {'message': "\"${body}\""}}]}
 
@@ -354,6 +400,7 @@ sinks = {
     'slack-sink': slack_sink,
     'kafka-sink': kafka_sink,
     'telegram-sink': telegram_sink,
+    'cloud-object-storage-sink': cos_sink,
     'generic-sink': generic_sink,
     'test-sink': test_sink
 }
