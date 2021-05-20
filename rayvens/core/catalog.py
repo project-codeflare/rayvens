@@ -136,11 +136,16 @@ def cos_source(config):
 
 
 def generic_source(config):
-    if 'spec' not in config:
-        raise TypeError('Kind generic-source requires a spec.')
-    spec = config['spec']
-    if isinstance(config['spec'], str):
-        spec = _process_generic_spec_str(config)
+    if 'spec' in config:
+        spec = config['spec']
+        if isinstance(config['spec'], str):
+            spec = _process_generic_spec_str(config)
+    elif 'uri' in config:
+        # A source URI has been passed in, incorporate it in the generic
+        # source YAML.
+        spec = {'uri': config['uri'], 'steps': []}
+    else:
+        raise TypeError('Kind generic-source requires a spec or a uri field.')
 
     # If the source spec is given as non-string we assume it is a valid
     # dictionary of the form:
@@ -153,15 +158,18 @@ def generic_source(config):
     return spec
 
 
-def periodic_generic_source(config):
-    if 'spec' not in config:
-        raise TypeError('Kind generic-source requires a spec.')
+def generic_periodic_source(config):
     period = config.get('period', 1000)
 
-    # Parse string config if present otherwise spec is config:
-    spec = config['spec']
-    if isinstance(config['spec'], str):
-        spec = _process_generic_spec_str(config)
+    if 'spec' in config:
+        # Parse string config if present otherwise spec is config:
+        spec = config['spec']
+        if isinstance(config['spec'], str):
+            spec = _process_generic_spec_str(config)
+    elif 'uri' in config:
+        spec = {'uri': config['uri'], 'steps': []}
+    else:
+        raise TypeError('Kind generic-source requires a spec or a uri field.')
 
     # The target uri is the uri we will periodically poll.
     if 'uri' not in spec:
@@ -188,7 +196,7 @@ sources = {
     'binance-source': binance_source,
     'cloud-object-storage-source': cos_source,
     'generic-source': generic_source,
-    'periodic-generic-source': periodic_generic_source
+    'generic-periodic-source': generic_periodic_source
 }
 
 
@@ -329,15 +337,17 @@ def test_sink(config):
 
 
 def generic_sink(config):
-    if 'spec' not in config:
-        raise TypeError('Kind generic-sink requires a spec.')
-    if isinstance(config['spec'], str):
-        return _process_generic_spec_str(config, sink=True)
-
-    # If the sink spec is given as non-string we assume it is a valid
-    # dictionary of the form:
-    # {'uri':<uri_value>, 'steps':[<more yaml or empty>]}
-    return config['spec']
+    if 'spec' in config:
+        if isinstance(config['spec'], str):
+            return _process_generic_spec_str(config, sink=True)
+        # If the sink spec is given as non-string we assume it is a valid
+        # dictionary of the form:
+        # {'uri':<uri_value>, 'steps':[<more yaml or empty>]}
+        return config['spec']
+    elif 'uri' in config:
+        return {'steps': [{'to': config['uri']}]}
+    else:
+        raise TypeError('Kind generic-sink requires a spec or uri field.')
 
 
 sinks = {

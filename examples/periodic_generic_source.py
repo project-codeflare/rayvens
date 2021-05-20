@@ -42,14 +42,9 @@ rayvens.init(mode=run_mode)
 stream = rayvens.Stream('http')
 
 # Event source config.
-source_config = dict(kind='periodic-generic-source',
-                     spec="""
-- from:
-  uri: http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo
-  steps:
-  - log:
-      message: '\"${body}\"'
-    """)
+source_config = dict(
+    kind='generic-periodic-source',
+    uri="http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo")
 
 # Attach source to stream.
 source = stream.add_source(source_config)

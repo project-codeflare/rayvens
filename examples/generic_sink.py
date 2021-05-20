@@ -46,12 +46,7 @@ stream = rayvens.Stream('slack')
 
 # Event sink config.
 sink_config = dict(kind='generic-sink',
-                   spec=f"""
-- from:
-    uri: platform-http:/toslack
-    steps:
-      - to: slack:{slack_channel}?webhookUrl={slack_webhook}
-    """)
+                   uri=f"slack:{slack_channel}?webhookUrl={slack_webhook}")
 
 # Attach source to stream.
 sink = stream.add_sink(sink_config)
