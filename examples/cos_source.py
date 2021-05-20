@@ -27,15 +27,17 @@ import time
 # WARNING: This example program deletes the objects from the bucket.
 
 # Parse command-line arguments
-if len(sys.argv) < 6:
+if len(sys.argv) < 5:
     print(f'usage: {sys.argv[0]} <bucket> <access_key_id> <secret_access_key>'
-          '<endpoint> <region>')
+          '<endpoint> [<region>]')
     sys.exit(1)
 bucket = sys.argv[1]
 access_key_id = sys.argv[2]
 secret_access_key = sys.argv[3]
 endpoint = sys.argv[4]
-region = sys.argv[5]
+region = None
+if len(sys.argv) == 6:
+    region = sys.argv[5]
 
 # Initialize Ray and Rayvens
 ray.init()
@@ -44,14 +46,15 @@ rayvens.init()
 # Create an object stream
 stream = rayvens.Stream('bucket')
 
-# Construct the URI for the S3 Camel source
-uri = f'aws2-s3://{bucket}?accessKey={access_key_id}'
-uri += f'&secretKey={secret_access_key}'
-uri += f'&overrideEndpoint=true&uriEndpointOverride={endpoint}'
-uri += '&region=region'
-
 # Configure the source
-source_config = dict(kind='generic-source', spec=f'uri: {uri}')
+source_config = dict(kind='cloud-object-storage-source',
+                     bucket_name=bucket,
+                     access_key_id=access_key_id,
+                     secret_access_key=secret_access_key,
+                     endpoint=endpoint)
+
+if region is not None:
+    source_config['region'] = region
 
 # Run the source
 source = stream.add_source(source_config)

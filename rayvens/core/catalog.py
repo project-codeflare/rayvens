@@ -100,6 +100,41 @@ def binance_source(config):
     return _binance_route(period, coin)
 
 
+def cos_source(config):
+    if 'bucket_name' not in config:
+        raise TypeError('Cloud object storage source requires a bucket name.')
+    if 'access_key_id' not in config:
+        raise TypeError(
+            'Cloud object storage source requires an access key id.')
+    if 'secret_access_key' not in config:
+        raise TypeError(
+            'Cloud object storage source requires an secret access key.')
+    if 'endpoint' not in config:
+        raise TypeError('Cloud object storage source requires an endpoint.')
+    bucket_name = config['bucket_name']
+    access_key_id = config['access_key_id']
+    secret_access_key = config['secret_access_key']
+    endpoint = config['endpoint']
+
+    # Ensure this is a valid, supported endpoint:
+    split_endpoint = _parse_endpoint(endpoint)
+
+    # Resolve region:
+    region = 'us-east'
+    if 'region' in config:
+        region = config['region']
+    else:
+        region = split_endpoint[1]
+
+    # Assemble URI:
+    uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
+          f'&secretKey={secret_access_key}' \
+          '&overrideEndpoint=true' \
+          f'&uriEndpointOverride={endpoint}' \
+          f'&region={region}'
+    return {'uri': uri, 'steps': []}
+
+
 def generic_source(config):
     if 'spec' not in config:
         raise TypeError('Kind generic-source requires a spec.')
@@ -151,6 +186,7 @@ sources = {
     'kafka-source': kafka_source,
     'telegram-source': telegram_source,
     'binance-source': binance_source,
+    'cloud-object-storage-source': cos_source,
     'generic-source': generic_source,
     'periodic-generic-source': periodic_generic_source
 }
@@ -355,3 +391,18 @@ def _process_generic_spec_str(config, sink=False):
         generic_spec['steps'] = []
 
     return generic_spec
+
+
+def _parse_endpoint(endpoint):
+    # Check URI scheme is valid:
+    if endpoint.startswith("https://"):
+        trimmed_endpoint = endpoint[len("https://"):]
+        split_endpoint = trimmed_endpoint.split(".")
+
+        if split_endpoint[0] != "s3":
+            raise TypeError(f"Endpoint {endpoint} is not an s3 endpoint.")
+
+        return split_endpoint
+
+    raise TypeError(
+        f"Unexpected or missing URI scheme in endpoint: {endpoint}")
