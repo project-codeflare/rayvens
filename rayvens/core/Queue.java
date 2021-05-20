@@ -31,33 +31,33 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 
 class Recv implements Processor {
-    BlockingQueue<String> queue;
+    BlockingQueue<Object> queue;
 
-    public Recv(BlockingQueue<String> queue) {
+    public Recv(BlockingQueue<Object> queue) {
         this.queue = queue;
     }
 
     public void process(Exchange exchange) throws Exception {
-        String body = exchange.getIn().getBody(String.class);
+        Object body = exchange.getIn().getBody();
         queue.add(body);
     }
 }
 
 class Send implements Processor {
-    BlockingQueue<String> queue;
+    BlockingQueue<Object> queue;
 
-    public Send(BlockingQueue<String> queue) {
+    public Send(BlockingQueue<Object> queue) {
         this.queue = queue;
     }
 
     public void process(Exchange exchange) throws Exception {
-        String body = queue.take();
+        Object body = queue.take();
         exchange.getIn().setBody(body);
     }
 }
 
 public class Queue extends RouteBuilder {
-    BlockingQueue<String> queue = new LinkedBlockingQueue<String>();
+    BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
 
     @BindToRegistry
     public Recv addToQueue() {
