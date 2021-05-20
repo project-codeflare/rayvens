@@ -52,6 +52,7 @@ Sinks:
 - `slack-sink`
 - `kafka-sink`
 - `telegram-sink`
+- `cloud-object-store-sink`
 
 In addition to the sources and sinks above, Rayvens also allows the user to specify any other source or sink supported by Apache Camel by using the following sources/sink kinds:
 - `generic-source`
@@ -136,6 +137,18 @@ The Kafka sink allows the application to publish events to a specific Kafka topi
 The Telegram sink sends messages to a Telegram Bot. It supports the following fields:
 - `authorization_token` the authorization token used to communicate with the Telegram Bot.
 - `chat_id` (optional) if present it enables the Telegram bot to send the message to another Telegram chat.
+
+### `kind="cloud-object-store-sink"`
+
+This sink manages the uploading of objects to AWS S3 or IBM Cloud Object Storage. It supports the following fields:
+- `bucket_name` the name of the bucket
+- `access_key_id` found in the configuration of the Cloud Object Storage service.
+- `secret_access_key` found in the configuration of the Cloud Object Storage service.
+- `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`)
+- `file_name` the name of the file under which the data will be stored in the Cloud Object Store
+- `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint
+
+Without any other option this sink will upload the data to the Cloud Object Storage and put it in a file with name specified by the user.
 
 ## Generic sources
 
