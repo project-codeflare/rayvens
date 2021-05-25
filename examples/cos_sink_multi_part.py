@@ -67,8 +67,6 @@ if region is not None:
 # Run the sink
 sink = stream.add_sink(sink_config)
 
-time.sleep(10)
-
 # Local:
 if run_mode == "local":
     stream << Path("test_files/test.txt")
