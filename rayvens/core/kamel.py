@@ -15,6 +15,7 @@
 #
 
 import os
+import yaml
 from rayvens.core import kamel_utils
 from rayvens.core.mode import mode
 
@@ -84,8 +85,10 @@ def run(integration_content, mode, integration_name, envVars=[]):
     command = ["run"]
 
     # Append ProcessFile.java file.
-    process_file = os.path.join(os.path.dirname(__file__), 'ProcessFile.java')
-    command.append(process_file)
+    if _integration_requires_file_processor(integration_content):
+        process_file = os.path.join(os.path.dirname(__file__),
+                                    'ProcessFile.java')
+        command.append(process_file)
 
     if mode.transport == 'http':
         # Append Queue.java file.
@@ -123,8 +126,10 @@ def local_run(integration_content,
     command = ["local", "run"]
 
     # Append ProcessFile.java file.
-    process_file = os.path.join(os.path.dirname(__file__), 'ProcessFile.java')
-    command.append(process_file)
+    if _integration_requires_file_processor(integration_content):
+        process_file = os.path.join(os.path.dirname(__file__),
+                                    'ProcessFile.java')
+        command.append(process_file)
 
     if mode.transport == 'http':
         # Append Queue.java file.
@@ -177,3 +182,10 @@ def delete(integration_invocation, integration_name):
     return kamel_utils.invoke_kamel_command(command,
                                             integration_invocation.mode,
                                             integration_name)
+
+
+def _integration_requires_file_processor(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: processFile' in configuration:
+        return True
+    return False

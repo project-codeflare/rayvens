@@ -393,20 +393,17 @@ def cos_sink(config):
             if 'part_size' in config:
                 part_size = config['part_size']
             uri += f'&partSize={part_size}'
-            if 'file_name' not in config:
-                file_name = '${header[file]}'
-            return {
-                'steps': [{
+            spec = {'steps': [{'bean': 'processFile'}]}
+            # Overwrite existing file name if user provided a new name.
+            if 'file_name' in config:
+                spec['steps'].append({
                     'set-header': {
                         'name': 'CamelAwsS3Key',
                         'simple': file_name
                     }
-                }, {
-                    'bean': 'processFile'
-                }, {
-                    'to': uri
-                }]
-            }
+                })
+            spec['steps'].append({'to': uri})
+            return spec
         else:
             raise TypeError(
                 "Unrecognized upload type. Use one of: stream, multi-part.")

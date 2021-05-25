@@ -63,9 +63,7 @@ class ProducerActor:
     def append(self, data):
         try:
             if isinstance(data, Path):
-                requests.post(self.url,
-                              str(data),
-                              params={'file': str(data.name)})
+                requests.post(self.url, str(data))
             else:
                 requests.post(self.url, data)
         except requests.exceptions.ConnectionError:
@@ -102,7 +100,10 @@ class KafkaProducerActor:
         self.producer = ProducerHelper(name)
 
     def append(self, data):
-        self.producer.produce(data)
+        if isinstance(data, Path):
+            self.producer.produce(str(data))
+        else:
+            self.producer.produce(data)
 
 
 class ProducerHelper:

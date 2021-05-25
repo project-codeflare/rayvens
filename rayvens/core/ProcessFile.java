@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.camel.BindToRegistry;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.aws2.s3.AWS2S3Constants;
 
 class FileProcessor implements Processor {
     public void process(Exchange exchange) throws Exception {
-        String body = exchange.getIn().getBody(String.class);
-        exchange.getIn().setBody(new File(body));
+        Path path = Paths.get(exchange.getIn().getBody(String.class));
+        exchange.getIn().setHeader(AWS2S3Constants.KEY, path.getFileName());
+        exchange.getIn().setBody(path.toFile());
     }
 }
 
