@@ -231,7 +231,7 @@ air-gapped execution environments, Rayvens does not handle this yet.
 To run Camel event sources and sinks locally, a [Camel-K
 client](https://camel.apache.org/camel-k/latest/cli/cli.html) installation is
 required. Download the Camel-K client from the [release
-page](https://github.com/apache/camel-k/releases/tag/v1.3.1) and put it in your
+page](https://github.com/apache/camel-k/releases/tag/v1.4.0) and put it in your
 path. Install a Java 11 JDK. Install Apache Maven 3.6.3.
 
 Test your installation with:

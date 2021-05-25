@@ -16,7 +16,7 @@
 
 FROM rayproject/ray:1.3.0-py38
 
-COPY --from=docker.io/apache/camel-k:1.3.1 /usr/local/bin/kamel /usr/local/bin/
+COPY --from=docker.io/apache/camel-k:1.4.0 /usr/local/bin/kamel /usr/local/bin/
 
 RUN sudo apt-get update \
     && sudo apt-get install -y --no-install-recommends openjdk-11-jdk maven \
