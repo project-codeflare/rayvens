@@ -70,4 +70,4 @@ def process_file(event):
 stream >> process_file
 
 # Run for a while
-time.sleep(60)
+time.sleep(10)

@@ -19,6 +19,7 @@ import requests
 import time
 import threading
 import os
+from pathlib import Path
 from confluent_kafka import Consumer, Producer
 from rayvens.core import kamel
 from rayvens.core.mode import mode, RayvensMode
@@ -61,8 +62,14 @@ class ProducerActor:
 
     def append(self, data):
         try:
-            requests.post(self.url, data)
+            if isinstance(data, Path):
+                requests.post(self.url,
+                              str(data),
+                              params={'file': str(data.name)})
+            else:
+                requests.post(self.url, data)
         except requests.exceptions.ConnectionError:
+            print("Connection error!")
             pass
 
 

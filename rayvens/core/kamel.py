@@ -83,6 +83,10 @@ def uninstall(install_invocation):
 def run(integration_content, mode, integration_name, envVars=[]):
     command = ["run"]
 
+    # Append ProcessFile.java file.
+    process_file = os.path.join(os.path.dirname(__file__), 'ProcessFile.java')
+    command.append(process_file)
+
     if mode.transport == 'http':
         # Append Queue.java file.
         queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
@@ -117,6 +121,10 @@ def local_run(integration_content,
               envVars=[],
               port=None):
     command = ["local", "run"]
+
+    # Append ProcessFile.java file.
+    process_file = os.path.join(os.path.dirname(__file__), 'ProcessFile.java')
+    command.append(process_file)
 
     if mode.transport == 'http':
         # Append Queue.java file.

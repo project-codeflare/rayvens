@@ -366,6 +366,49 @@ def cos_sink(config):
           '&overrideEndpoint=true' \
           f'&uriEndpointOverride={endpoint}' \
           f'&region={region}'
+
+    # Streaming is only supported in latest Camel. Camel-K currently
+    # supports Camel 3.9.0 only. Camel 3.10 or newer is required for
+    # this feature.
+    if 'upload_type' in config:
+        if config['upload_type'] == "stream":
+            uri += '&streamingUploadMode=true'
+            uri += '&namingStrategy=progressive'
+            uri += '&restartingPolicy=lastPart'
+            # 1 MB sized batches are default in streaming mode.
+            batch_size = 1000000  # bytes
+            if 'batch_size' in config:
+                batch_size = config['batch_size']
+            uri += f'&batchSize={batch_size}'
+
+            # 10 messages per batch is default in upload mode.
+            messages_per_batch = 10
+            if 'messages_per_batch' in config:
+                messages_per_batch = config['messages_per_batch']
+            uri += f'&batchMessageNumber={messages_per_batch}'
+            raise TypeError("Streaming uploads not yet supported.")
+        elif config['upload_type'] == "multi-part":
+            uri += '&multiPartUpload=true'
+            # 25 MB size per part is the default in streaming mode.
+            part_size = 26214400  # bytes
+            if 'part_size' in config:
+                part_size = config['part_size']
+            uri += f'&partSize={part_size}'
+            return {
+                'steps': [{
+                    'set-header': {
+                        'name': 'CamelAwsS3Key',
+                        'simple': '${header[file]}'
+                    }
+                }, {
+                    'bean': 'processFile'
+                }, {
+                    'to': uri
+                }]
+            }
+        else:
+            raise TypeError(
+                "Unrecognized upload type. Use one of: stream, multi-part.")
     return {
         'steps': [{
             'set-header': {

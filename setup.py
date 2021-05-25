@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(name='rayvens',
       packages=['rayvens', 'rayvens.core'],
-      package_data={'rayvens.core': ['Queue.java']},
+      package_data={'rayvens.core': ['Queue.java', 'ProcessFile.java']},
       include_package_data=True,
       install_requires=[
           'kubernetes>=12.0.1', 'confluent-kafka>=1.6.1',
