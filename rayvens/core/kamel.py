@@ -81,7 +81,11 @@ def uninstall(install_invocation):
 
 
 # Kamel run invocation.
-def run(integration_content, mode, integration_name, envVars=[]):
+def run(integration_content,
+        mode,
+        integration_name,
+        envVars=[],
+        integration_type=None):
     command = ["run"]
 
     # Append ProcessFile.java file.
@@ -90,7 +94,7 @@ def run(integration_content, mode, integration_name, envVars=[]):
                                     'ProcessFile.java')
         command.append(process_file)
 
-    if mode.transport == 'http':
+    if mode.transport == 'http' and integration_type == 'source':
         # Append Queue.java file.
         queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
         command.append(queue)
@@ -122,7 +126,8 @@ def local_run(integration_content,
               mode,
               integration_name,
               envVars=[],
-              port=None):
+              port=None,
+              integration_type=None):
     command = ["local", "run"]
 
     # Append ProcessFile.java file.
@@ -133,8 +138,9 @@ def local_run(integration_content,
 
     if mode.transport == 'http':
         # Append Queue.java file.
-        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-        command.append(queue)
+        if integration_type == 'source':
+            queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+            command.append(queue)
 
         # Port is mandatory.
         if port is None:

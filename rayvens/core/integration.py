@@ -22,6 +22,9 @@ from rayvens.core import kubernetes
 
 class Integration:
     def __init__(self, stream_name, source_sink_name, config):
+        if 'integration_type' not in config:
+            raise RuntimeError(
+                "Unreachable: integration must have an integration_type.")
         self.stream_name = stream_name
         self.source_sink_name = source_sink_name
         self.config = config
@@ -33,14 +36,19 @@ class Integration:
         self.server_address = None
 
     def invoke_local_run(self, mode, integration_content):
-        self.invocation = kamel.local_run([integration_content],
-                                          mode,
-                                          self.integration_name,
-                                          port=self.port)
+        self.invocation = kamel.local_run(
+            [integration_content],
+            mode,
+            self.integration_name,
+            port=self.port,
+            integration_type=self.config['integration_type'])
 
     def invoke_run(self, mode, integration_content):
-        self.invocation = kamel.run([integration_content], mode,
-                                    self.integration_name)
+        self.invocation = kamel.run(
+            [integration_content],
+            mode,
+            self.integration_name,
+            integration_type=self.config['integration_type'])
 
         # If running in mixed mode, i.e. Ray locally and kamel in the cluster,
         # then we have to also start a service the allows outside processes to

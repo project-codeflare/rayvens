@@ -105,6 +105,7 @@ class StreamActor:
         self._operator = operator
 
     def add_source(self, stream, source_config):
+        source_config["integration_type"] = 'source'
         source_name = name_source(source_config)
         if source_name in self._sources:
             raise RuntimeError(
@@ -115,6 +116,7 @@ class StreamActor:
         return source_name
 
     def add_sink(self, stream, sink_config):
+        sink_config["integration_type"] = 'sink'
         sink_name = name_sink(sink_config)
         if sink_name in self._sinks:
             raise RuntimeError(
