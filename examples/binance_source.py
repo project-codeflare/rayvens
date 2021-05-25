@@ -58,7 +58,7 @@ def process_message(event):
     parsed_event = json.loads(event)
 
     # Extract currency name:
-    currency = parsed_event['currencyPair'].split("/")[0]
+    currency = parsed_event['instrument'].split("/")[0]
 
     # Extract price:
     price = parsed_event['last']
