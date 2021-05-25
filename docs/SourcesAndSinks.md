@@ -148,8 +148,10 @@ This sink manages the uploading of objects to AWS S3 or IBM Cloud Object Storage
 - `file_name` (optional when `upload_type` is `multi-part`) the name of the file under which the data will be stored in the Cloud Object Store. If specified in conjunction with `upload_type` being `multi-part` the name of the uploaded file will be overwritten;
 - `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint;
 - `upload_type` (optional) the special type of the upload:
+
   Possible values:
     - `upload_type="multi-part"` the input must be a file which will be split into multiple parts;
+
   Related options:
     - `part_size` (optional, only used when `upload_type` is set to `multi-part`) the size in bytes of the parts;
 

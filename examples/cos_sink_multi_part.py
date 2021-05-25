@@ -57,7 +57,6 @@ sink_config = dict(kind='cloud-object-storage-sink',
                    access_key_id=access_key_id,
                    secret_access_key=secret_access_key,
                    endpoint=endpoint,
-                   file_name="multi-part-file.txt",
                    upload_type="multi-part",
                    part_size=2 * 1024 * 1024)
 

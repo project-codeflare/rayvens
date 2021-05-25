@@ -342,13 +342,12 @@ def cos_sink(config):
             'Cloud object storage sink requires an secret access key.')
     if 'endpoint' not in config:
         raise TypeError('Cloud object storage sink requires an endpoint.')
-    if 'file_name' not in config:
-        raise TypeError('Created cloud object name.')
     bucket_name = config['bucket_name']
     access_key_id = config['access_key_id']
     secret_access_key = config['secret_access_key']
     endpoint = config['endpoint']
-    file_name = config['file_name']
+    if 'file_name' in config:
+        file_name = config['file_name']
 
     # Ensure this is a valid, supported endpoint:
     split_endpoint = _parse_endpoint(endpoint)
@@ -394,11 +393,13 @@ def cos_sink(config):
             if 'part_size' in config:
                 part_size = config['part_size']
             uri += f'&partSize={part_size}'
+            if 'file_name' not in config:
+                file_name = '${header[file]}'
             return {
                 'steps': [{
                     'set-header': {
                         'name': 'CamelAwsS3Key',
-                        'simple': '${header[file]}'
+                        'simple': file_name
                     }
                 }, {
                     'bean': 'processFile'
@@ -409,6 +410,10 @@ def cos_sink(config):
         else:
             raise TypeError(
                 "Unrecognized upload type. Use one of: stream, multi-part.")
+
+    if 'file_name' not in config:
+        raise TypeError('Created cloud object name is required.')
+
     return {
         'steps': [{
             'set-header': {
