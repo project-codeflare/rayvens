@@ -209,7 +209,7 @@ def _finalize_route(spec, endpoint, inverted):
     return spec
 
 
-# construct a camel source specification from a rayvens source config
+# Construct a camel source specification from a rayvens source config
 def construct_source(config, endpoint, inverted=False):
     if 'kind' not in config:
         raise TypeError('A Camel source needs a kind.')
@@ -451,7 +451,7 @@ sinks = {
 }
 
 
-# construct a camel sink specification from a rayvens sink config
+# Construct a camel sink specification from a rayvens sink config.
 def construct_sink(config, endpoint):
     if 'kind' not in config:
         raise TypeError('A Camel sink needs a kind.')
@@ -464,6 +464,36 @@ def construct_sink(config, endpoint):
     spec['uri'] = endpoint
     spec = [{'from': spec}]
     return spec
+
+
+def no_restriction(config):
+    return dict(restricted_message_types=[])
+
+
+def cos_sink_restriction(config):
+    # The input type for this sink is a file denoted by the type Path.
+    if 'upload_type' in config and config['upload_type'] == 'multi-part':
+        from pathlib import Path
+        return dict(restricted_message_types=[Path])
+    return no_restriction(config)
+
+
+sink_input_restriction = {
+    'slack-sink': no_restriction,
+    'kafka-sink': no_restriction,
+    'telegram-sink': no_restriction,
+    'cloud-object-storage-sink': cos_sink_restriction,
+    'generic-sink': no_restriction,
+    'test-sink': no_restriction
+}
+
+
+# Return a dict of valid message types
+def input_restriction(config):
+    if 'kind' not in config:
+        raise TypeError('A Camel sink needs a kind.')
+    handler = sink_input_restriction.get(config['kind'])
+    return handler(config)
 
 
 def _process_generic_spec_str(config, sink=False):

@@ -16,18 +16,27 @@
 
 from rayvens.core.utils import random_port
 from rayvens.core.name import name_integration
+from rayvens.core import catalog
 from rayvens.core import kamel
 from rayvens.core import kubernetes
 
 
 class Integration:
     def __init__(self, stream_name, source_sink_name, config):
+        self.stream_name = stream_name
+        self.source_sink_name = source_sink_name
+
+        # Integration must be marked as either a source or sink.
         if 'integration_type' not in config:
             raise RuntimeError(
                 "Unreachable: integration must have an integration_type.")
-        self.stream_name = stream_name
-        self.source_sink_name = source_sink_name
         self.config = config
+
+        # Sinks may accept only certain message types ensure that only
+        # messages with the correct type reach a particular sink.
+        if self.config['integration_type'] == 'sink':
+            self.input_restrictions = catalog.input_restriction(config)
+
         self.integration_name = name_integration(self.stream_name,
                                                  self.source_sink_name)
         self.port = random_port()
@@ -83,6 +92,20 @@ class Integration:
         # integration is running locally. In that case we only need to kill the
         # process that runs it.
         self.invocation.kill()
+
+    # Check if the sink we are routing the message to has any restrictions
+    # in terms of message type. A message will only be routed to a sink
+    # if the sink accepts its type.
+    def accepts_data_type(self, data):
+        # If there are no restrictions return immediately:
+        restricted_message_types = self.input_restrictions[
+            'restricted_message_types']
+        if len(restricted_message_types) == 0:
+            return True
+        for restricted_type in restricted_message_types:
+            if isinstance(data, restricted_type):
+                return True
+        return False
 
     def route(self, default=None):
         if 'route' in self.config and self.config['route'] is not None:

@@ -98,7 +98,11 @@ class StreamActor:
             return
         if self._operator is not None:
             data = _eval(self._operator, data)
-        for subscriber in self._subscribers.values():
+        for name, subscriber in self._subscribers.items():
+            if name in self._sinks:
+                integration = self._sinks[name]
+                if not integration.accepts_data_type(data):
+                    continue
             _eval(subscriber, data)
 
     def add_operator(self, operator):
@@ -127,9 +131,8 @@ class StreamActor:
 
     def unsubscribe(self, subscriber_name):
         if subscriber_name not in self._subscribers:
-            raise RuntimeError(
-                f'Stream {self.name} has no subscriber named {subscriber_name}.'
-            )
+            raise RuntimeError(f'Stream {self.name} has no subscriber named'
+                               f' {subscriber_name}.')
         self._subscribers.pop(subscriber_name)
 
     def disconnect_source(self, source_name):
