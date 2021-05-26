@@ -42,7 +42,7 @@ rayvens.init()
 # Create an object stream
 stream = rayvens.Stream('upload-file')
 
-# Configure the source
+# Configure the sink
 sink_config = dict(kind='cloud-object-storage-sink',
                    bucket_name=bucket,
                    access_key_id=access_key_id,

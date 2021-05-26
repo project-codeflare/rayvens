@@ -67,7 +67,6 @@ class ProducerActor:
             else:
                 requests.post(self.url, data)
         except requests.exceptions.ConnectionError:
-            print("Connection error!")
             pass
 
 

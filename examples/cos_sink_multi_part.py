@@ -51,7 +51,9 @@ rayvens.init(mode=run_mode)
 # Create an object stream
 stream = rayvens.Stream('upload-file')
 
-# Configure the source to upload a message in 2 MB chunks
+# Configure the sink to upload a file in 2 MB chunks on demand i.e. when
+# the user passes the file as `Path("test_files/test.txt")` to the stream.
+# The file is not deleted after upload.
 sink_config = dict(kind='cloud-object-storage-sink',
                    bucket_name=bucket,
                    access_key_id=access_key_id,
@@ -66,11 +68,9 @@ if region is not None:
 # Run the sink
 sink = stream.add_sink(sink_config)
 
-# Local:
+# Upload a local file to the COS.
 if run_mode == "local":
     stream << Path("test_files/test.txt")
-
-# TODO: add cluster file.
 
 # Run for a while
 time.sleep(20)

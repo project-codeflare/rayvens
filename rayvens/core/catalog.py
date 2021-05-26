@@ -15,6 +15,7 @@
 #
 
 import yaml
+from pathlib import Path
 
 
 def http_source(config):
@@ -276,11 +277,13 @@ def slack_sink(config):
     channel = config['channel']
     webhookUrl = config['webhookUrl']
 
-    return {
+    final_spec = {
         'steps': [{
             'to': f'slack:{channel}?webhookUrl={webhookUrl}',
         }]
     }
+
+    return [(final_spec, None)]
 
 
 def kafka_sink(config):
@@ -294,11 +297,12 @@ def kafka_sink(config):
     if 'SASL_password' in config:
         to = _kafka_SASL_uri(topic, kafka_brokers, config['SASL_password'])
 
-    return {
+    final_spec = {
         'steps': [{
             'to': to,
         }]
     }
+    return [(final_spec, None)]
 
 
 def telegram_sink(config):
@@ -311,7 +315,7 @@ def telegram_sink(config):
 
     # The telegram sink yaml below allows to override the default chat ID where
     # the messages are sent.
-    return {
+    final_spec = {
         'steps': [{
             'convert-body-to': {
                 'type': "java.lang.String"
@@ -330,6 +334,7 @@ def telegram_sink(config):
             }
         }]
     }
+    return [(final_spec, None)]
 
 
 def cos_sink(config):
@@ -346,6 +351,8 @@ def cos_sink(config):
     access_key_id = config['access_key_id']
     secret_access_key = config['secret_access_key']
     endpoint = config['endpoint']
+
+    file_name = None
     if 'file_name' in config:
         file_name = config['file_name']
 
@@ -365,6 +372,9 @@ def cos_sink(config):
           '&overrideEndpoint=true' \
           f'&uriEndpointOverride={endpoint}' \
           f'&region={region}'
+
+    # Final result is a list of spec and uri pairs: [(spec, uri)]
+    spec_list = []
 
     # Streaming is only supported in latest Camel. Camel-K currently
     # supports Camel 3.9.0 only. Camel 3.10 or newer is required for
@@ -393,9 +403,12 @@ def cos_sink(config):
             if 'part_size' in config:
                 part_size = config['part_size']
             uri += f'&partSize={part_size}'
-            spec = {'steps': [{'bean': 'processFile'}]}
+
+            # Initialize spec that has its source in Rayvens:
+            spec = {'steps': []}
+            spec['steps'].append({'bean': 'processFile'})
             # Overwrite existing file name if user provided a new name.
-            if 'file_name' in config:
+            if file_name is not None:
                 spec['steps'].append({
                     'set-header': {
                         'name': 'CamelAwsS3Key',
@@ -403,40 +416,73 @@ def cos_sink(config):
                     }
                 })
             spec['steps'].append({'to': uri})
-            return spec
+            spec_list.append((spec, None))
         else:
             raise TypeError(
                 "Unrecognized upload type. Use one of: stream, multi-part.")
 
-    if 'file_name' not in config:
-        raise TypeError('Created cloud object name is required.')
+    # If the from_file option is active we need to create a route
+    # from the local file to the cloud object storage. For this route
+    # we do not allow the overwriting of the original file name since
+    # that may cause a clash with the file uploaded on the Rayvens-to-
+    # COS route above for which name overwriting is supported.
+    if 'from_file' in config:
+        # Process file path and create from_uri:
+        from_file_path = Path(config['from_file'])
+        uploaded_file_name = from_file_path.name
+        file_dir = str(from_file_path.parent)
+        from_uri = f'file:{file_dir}?filename={uploaded_file_name}'
+        # Delete file after it is uploaded to avoid the files being
+        # copied to a temporary folder after being uploaded.
+        if 'keep_from_file' in config and config['keep_from_file']:
+            from_uri += '&delete=false'
+        else:
+            from_uri += '&delete=true'
 
-    return {
-        'steps': [{
+        # Create new file route for final spec:
+        file_spec = {'steps': []}
+        file_spec['steps'].append({
             'set-header': {
                 'name': 'CamelAwsS3Key',
-                'simple': f"{file_name}"
+                'simple': uploaded_file_name
             }
-        }, {
-            'to': uri
-        }]
-    }
+        })
+        file_spec['steps'].append({'to': uri})
+        spec_list.append((file_spec, from_uri))
+    else:
+        # This is the default behavior when a message from the user is
+        # written into a COS file.
+        if 'file_name' not in config:
+            raise TypeError('Created cloud object name is required.')
+        regular_spec = {
+            'steps': [{
+                'set-header': {
+                    'name': 'CamelAwsS3Key',
+                    'simple': f"{file_name}"
+                }
+            }, {
+                'to': uri
+            }]
+        }
+        spec_list.append((regular_spec, None))
+
+    return spec_list
 
 
 def test_sink(config):
-    return {'steps': [{'log': {'message': "\"${body}\""}}]}
+    return [({'steps': [{'log': {'message': "\"${body}\""}}]}, None)]
 
 
 def generic_sink(config):
     if 'spec' in config:
         if isinstance(config['spec'], str):
-            return _process_generic_spec_str(config, sink=True)
+            return [(_process_generic_spec_str(config, sink=True), None)]
         # If the sink spec is given as non-string we assume it is a valid
         # dictionary of the form:
         # {'uri':<uri_value>, 'steps':[<more yaml or empty>]}
-        return config['spec']
+        return [(config['spec'], None)]
     elif 'uri' in config:
-        return {'steps': [{'to': config['uri']}]}
+        return [({'steps': [{'to': config['uri']}]}, None)]
     else:
         raise TypeError('Kind generic-sink requires a spec or uri field.')
 
@@ -460,10 +506,19 @@ def construct_sink(config, endpoint):
     if sink_handler is None:
         raise TypeError(f'Unsupported Camel sink: {kind}.')
 
-    spec = sink_handler(config)
-    spec['uri'] = endpoint
-    spec = [{'from': spec}]
-    return spec
+    spec_list = sink_handler(config)
+
+    # Add the from uri construct to each route and finalize spec.
+    final_spec_list = []
+    for spec_uri_pair in spec_list:
+        spec = spec_uri_pair[0]
+        from_uri = spec_uri_pair[1]
+        if from_uri is None:
+            spec['uri'] = endpoint
+        else:
+            spec['uri'] = from_uri
+        final_spec_list.append({'from': spec})
+    return final_spec_list
 
 
 def no_restriction(config):
@@ -473,7 +528,6 @@ def no_restriction(config):
 def cos_sink_restriction(config):
     # The input type for this sink is a file denoted by the type Path.
     if 'upload_type' in config and config['upload_type'] == 'multi-part':
-        from pathlib import Path
         return dict(restricted_message_types=[Path])
     return no_restriction(config)
 
