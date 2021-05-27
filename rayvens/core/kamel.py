@@ -137,10 +137,16 @@ def local_run(integration_content,
         command.append(process_file)
 
     if mode.transport == 'http':
-        # Append Queue.java file.
+        # Append Queue.java or FileQueue.java files.
         if integration_type == 'source':
-            queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-            command.append(queue)
+            if _integration_requires_file_queue(integration_content):
+                queue = os.path.join(os.path.dirname(__file__),
+                                     'FileQueue.java')
+                command.append(queue)
+
+            if _integration_requires_queue(integration_content):
+                queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+                command.append(queue)
 
         # Port is mandatory.
         if port is None:
@@ -193,5 +199,19 @@ def delete(integration_invocation, integration_name):
 def _integration_requires_file_processor(integration_content):
     configuration = yaml.dump(integration_content)
     if 'bean: processFile' in configuration:
+        return True
+    return False
+
+
+def _integration_requires_file_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileQueue' in configuration:
+        return True
+    return False
+
+
+def _integration_requires_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToQueue' in configuration:
         return True
     return False

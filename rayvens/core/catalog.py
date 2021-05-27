@@ -136,6 +136,28 @@ def cos_source(config):
     return {'uri': uri, 'steps': []}
 
 
+def file_source(config):
+    if 'path' not in config:
+        raise TypeError('File source requires a path name.')
+    path = Path(config['path'])
+    if path.is_dir():
+        uri = f'file:{str(path)}?'
+    else:
+        uri = f'file:{str(path.parent)}?filename={path.name}&'
+
+    # Keep files after being processed, default is true.
+    if 'keep_files' not in config or not config['keep_files']:
+        uri += 'delete=true'
+    else:
+        uri += 'delete=false'
+
+    # Recursive traversal of the directory, default is false.
+    if 'recursive' in config and config['recursive']:
+        uri += '&recursive=true'
+
+    return {'uri': uri, 'steps': []}
+
+
 def generic_source(config):
     if 'spec' in config:
         spec = config['spec']
@@ -196,14 +218,15 @@ sources = {
     'telegram-source': telegram_source,
     'binance-source': binance_source,
     'cloud-object-storage-source': cos_source,
+    'file-source': file_source,
     'generic-source': generic_source,
     'generic-periodic-source': generic_periodic_source
 }
 
 
-def _finalize_route(spec, endpoint, inverted):
+def _finalize_route(spec, endpoint, inverted, add_to_queue):
     if inverted:
-        spec['steps'].append({'bean': 'addToQueue'})
+        spec['steps'].append({'bean': add_to_queue})
     else:
         spec['steps'].append({'to': endpoint})
     spec = [{'from': spec}]
@@ -227,6 +250,13 @@ def construct_source(config, endpoint, inverted=False):
         remaining_steps = spec['remaining_steps']
         del spec['remaining_steps']
 
+    # Manage Queue access methods.
+    take_from_queue = 'takeFromQueue'
+    add_to_queue = 'addToQueue'
+    if config['kind'] == 'file-source':
+        take_from_queue = 'takeFromFileQueue'
+        add_to_queue = 'addToFileQueue'
+
     # Multi-source integration with several routes:
     if isinstance(spec, list):
         # Generic sources do now allow multiple routes:
@@ -236,27 +266,29 @@ def construct_source(config, endpoint, inverted=False):
 
         spec_list = []
         for spec_entry in spec:
-            spec_list.extend(_finalize_route(spec_entry, endpoint, inverted))
+            spec_list.extend(
+                _finalize_route(spec_entry, endpoint, inverted, add_to_queue))
         if inverted:
+
             spec_list.append({
                 'from': {
                     'uri': endpoint,
                     'steps': [{
-                        'bean': 'takeFromQueue'
+                        'bean': take_from_queue
                     }]
                 }
             })
         return spec_list
 
     # Regular integration with only one route:
-    spec = _finalize_route(spec, endpoint, inverted)
+    spec = _finalize_route(spec, endpoint, inverted, add_to_queue)
     if inverted:
         # Route fetching from queue:
         from_queue = {
             'from': {
                 'uri': endpoint,
                 'steps': [{
-                    'bean': 'takeFromQueue'
+                    'bean': take_from_queue
                 }]
             }
         }
@@ -465,7 +497,6 @@ def cos_sink(config):
             }]
         }
         spec_list.append((regular_spec, None))
-
     return spec_list
 
 

@@ -147,7 +147,7 @@ class KamelInvocation:
 
     def _check_kamel_output(self, end_condition, with_output=False):
         while True:
-            # Log progress of kamel subprocess.
+            # Log progress of kamel subprocess:
             output = utils.print_log_from_subprocess(self.subprocess_name,
                                                      self.process.stdout,
                                                      with_output=with_output)
