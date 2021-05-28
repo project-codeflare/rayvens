@@ -110,12 +110,32 @@ An individual event will be received with the price of each of coin in the list 
 
 This source manages the receiving of objects from AWS S3 or IBM Cloud Object Storage. It supports the following fields:
 - `bucket_name` the name of the bucket
-- `access_key_id` found in the configuration of the Cloud Object Storage service.
-- `secret_access_key` found in the configuration of the Cloud Object Storage service.
-- `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`)
-- `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint
+- `access_key_id` found in the configuration of the Cloud Object Storage service;
+- `secret_access_key` found in the configuration of the Cloud Object Storage service;
+- `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`);
+- `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint;
+- `move_after_read` (optional) enables moving of any read file from bucket specified by `bucket_name` to new bucket that is the value of this field. If using the Cloud Object Storage, the new bucket has to be created ahead of time. The new bucket name is provided as the value of this field;
 
-Without any other option this source will fetch and delete the files in the bucket.
+This source will fetch and delete the files in the bucket unless the `move_after_read` option is enabled in which case the read files are moved to the bucket specified by the `move_after_read` field value.
+
+Example of the simplest configuration where the source consumes any files written to the bucket specified by the `bucket_name`:
+```
+source_config = dict(kind='cloud-object-storage-source',
+                     bucket_name="input_bucket_name",
+                     access_key_id=access_key_id,
+                     secret_access_key=secret_access_key,
+                     endpoint=endpoint)
+```
+
+Example of configuration with move after read enabled:
+```
+source_config = dict(kind='cloud-object-storage-source',
+                     bucket_name="input_bucket_name",
+                     access_key_id=<access_key_id>,
+                     secret_access_key=<secret_access_key>,
+                     endpoint=<endpoint>,
+                     move_after_read="new-bucket-name")
+```
 
 ### `kind="file-source"`
 
