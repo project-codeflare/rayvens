@@ -34,7 +34,9 @@ class Recv implements Processor {
 
     public void process(Exchange exchange) throws Exception {
         Object eventType = exchange.getIn().getHeader("CamelFileEventType");
-        queue.add(eventType.toString());
+        File file = exchange.getIn().getBody(File.class);
+        // TODO: use Cloud event.
+        queue.add(eventType.toString()+":file="+file.toString());
     }
 }
 
