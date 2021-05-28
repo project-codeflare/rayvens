@@ -19,8 +19,12 @@ import rayvens
 import sys
 import time
 
-# This example demonstrates how to send objects to the AWS S3 or
-# IBM Cloud Object Storage.
+# This example demonstrates how to receive objects from AWS S3 or
+# IBM Cloud Object Storage. It requires a bucket name, HMAC credentials,
+# and the endpoint url. It simply pulls objects from the bucket and
+# output the size of each object.
+#
+# WARNING: This example program deletes the objects from the bucket.
 
 # Parse command-line arguments
 if len(sys.argv) < 5:
@@ -40,24 +44,31 @@ ray.init()
 rayvens.init()
 
 # Create an object stream
-stream = rayvens.Stream('upload-file')
+stream = rayvens.Stream('bucket')
 
-# Configure the sink
-sink_config = dict(kind='cloud-object-storage-sink',
-                   bucket_name=bucket,
-                   access_key_id=access_key_id,
-                   secret_access_key=secret_access_key,
-                   endpoint=endpoint,
-                   file_name="test-file-name.txt")
+# Configure the source
+source_config = dict(kind='cloud-object-storage-source',
+                     bucket_name=bucket,
+                     access_key_id=access_key_id,
+                     secret_access_key=secret_access_key,
+                     endpoint=endpoint,
+                     move_after_read="new-bucket-name")
 
 if region is not None:
-    sink_config['region'] = region
+    source_config['region'] = region
 
-# Run the sink
-source = stream.add_sink(sink_config)
+# Run the source
+source = stream.add_source(source_config)
 
-# Send file contents to Cloud Object Storage:
-stream << "File contents sample!"
+
+def process_file(event):
+    print(f'received {len(event)} bytes')
+    print("Contents:")
+    print(event)
+
+
+# Log object sizes to the console
+stream >> process_file
 
 # Run for a while
 time.sleep(10)

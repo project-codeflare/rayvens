@@ -133,6 +133,16 @@ def cos_source(config):
           '&overrideEndpoint=true' \
           f'&uriEndpointOverride={endpoint}' \
           f'&region={region}'
+
+    # Move afte read options:
+    if 'move_after_read' in config:
+        # Autocreation is not supported for COS:
+        uri += '&autoCreateBucket=false'
+        uri += '&moveAfterRead=true'
+
+        new_bucket_name = config['move_after_read']
+        uri += f'&destinationBucket={new_bucket_name}'
+
     return {'uri': uri, 'steps': []}
 
 
@@ -334,6 +344,7 @@ def construct_source(config, endpoint, inverted=False):
             from_queue['from']['steps'].extend(remaining_steps)
 
         spec.append(from_queue)
+    print(yaml.dump(spec))
     return spec
 
 
