@@ -158,6 +158,38 @@ def file_source(config):
     return {'uri': uri, 'steps': []}
 
 
+def file_watch_source(config):
+    if 'path' not in config:
+        raise TypeError('File watch source requires a directory path name.')
+    path = Path(config['path'])
+    if not path.is_dir():
+        raise RuntimeError(f'Path {str(path)} is not a directory.')
+
+    uri = f'file-watch:{str(path)}'
+
+    # Set up the events to be monitored. Use the events set by the user
+    # otherwise enable all valid events.
+    valid_events = ["DELETE", "CREATE", "MODIFY"]
+    if 'events' in config:
+        events = config['events']
+        event_types = events.split(",")
+        for event in event_types:
+            if event not in valid_events:
+                raise RuntimeError(f'Event type {event} is not supported,'
+                                   ' must be one of: DELETE, CREATE, MODIFY')
+        uri += f'?events={events}'
+    else:
+        uri += f'?events={",".join(valid_events)}'
+
+    # Recursive traversal of the directory, default is false.
+    if 'recursive' in config and config['recursive']:
+        uri += '&recursive=true'
+
+    uri += "&autoCreate=false"
+
+    return {'uri': uri, 'steps': []}
+
+
 def generic_source(config):
     if 'spec' in config:
         spec = config['spec']
@@ -219,6 +251,7 @@ sources = {
     'binance-source': binance_source,
     'cloud-object-storage-source': cos_source,
     'file-source': file_source,
+    'file-watch-source': file_watch_source,
     'generic-source': generic_source,
     'generic-periodic-source': generic_periodic_source
 }
@@ -256,6 +289,9 @@ def construct_source(config, endpoint, inverted=False):
     if config['kind'] == 'file-source':
         take_from_queue = 'takeFromFileQueue'
         add_to_queue = 'addToFileQueue'
+    elif config['kind'] == 'file-watch-source':
+        take_from_queue = 'takeFromFileWatchQueue'
+        add_to_queue = 'addToFileWatchQueue'
 
     # Multi-source integration with several routes:
     if isinstance(spec, list):

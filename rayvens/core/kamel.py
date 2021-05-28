@@ -144,6 +144,11 @@ def local_run(integration_content,
                                      'FileQueue.java')
                 command.append(queue)
 
+            if _integration_requires_file_watch_queue(integration_content):
+                queue = os.path.join(os.path.dirname(__file__),
+                                     'FileWatchQueue.java')
+                command.append(queue)
+
             if _integration_requires_queue(integration_content):
                 queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
                 command.append(queue)
@@ -206,6 +211,13 @@ def _integration_requires_file_processor(integration_content):
 def _integration_requires_file_queue(integration_content):
     configuration = yaml.dump(integration_content)
     if 'bean: addToFileQueue' in configuration:
+        return True
+    return False
+
+
+def _integration_requires_file_watch_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileWatchQueue' in configuration:
         return True
     return False
 
