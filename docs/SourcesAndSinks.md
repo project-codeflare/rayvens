@@ -117,6 +117,43 @@ This source manages the receiving of objects from AWS S3 or IBM Cloud Object Sto
 
 Without any other option this source will fetch and delete the files in the bucket.
 
+### `kind="file-source"`
+
+This source reads a file from the file system when the file becomes available. The event is triggered automatically whenever the file becomes available. The file content is read to memory and returned by the source to be processed further by the application. This source has the following options:
+- `path` the path to the file being monitored;
+- `keep_files` (optional) by default the files are deleted i.e. the value is `False`;
+
+Example configuration for this source:
+```
+source_config = dict(kind='file-source',
+                     path='test_files/test2.txt',
+                     keep_files=True)
+```
+
+### `kind="file-watch-source"`
+
+This source monitors a given directory for file-related events: modifications, deletion and creation. The source has the following configuration fields:
+- `path` the path to the directory being monitored;
+- `events` the list of events being monitored: `DELETE`, `CREATE` and `MODIFY`. By default all three events are enabled. The user can specify a subset of events only by setting the value of this field to a comma separated list example: `events=DELETE,CREATE`
+
+Example of configuration for this source:
+```
+source_config = dict(kind='file-watch-source',
+                     path='test_files',
+                     events='DELETE,CREATE')
+```
+
+The event format for this source is:
+```
+<event_type>:file=<filename>
+```
+
+For example, when the file `test.txt` is deleted from the watched folder the event returned is:
+```
+DELETE:file=/absolute/path/to/test.txt
+```
+
+
 ## Sinks
 
 ### `kind="slack-sink"`
