@@ -203,10 +203,15 @@ This sink manages the uploading of objects to AWS S3 or IBM Cloud Object Storage
 - `secret_access_key` found in the configuration of the Cloud Object Storage service;
 - `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`);
 - `file_name` (optional when `upload_type` is `multi-part`) the name of the file under which the data will be stored in the Cloud Object Store. If specified in conjunction with `upload_type` being `multi-part` the name of the uploaded file will be overwritten;
-- `from_file` (optional) uploads a file to Cloud Object Storage. The upload event is triggered when the file is av available. The file is deleted after the upload. If the `upload_type` is specified to be `multi-part` the file will be uploaded in multiple parts of size `part_size`;
+- `from_file` (optional) uploads a file to Cloud Object Storage. The upload event is triggered when the file is available. The file is deleted after the upload. If the `upload_type` is specified to be `multi-part` the file will be uploaded in multiple parts of size `part_size`;
 
   Related options:
-  - `keep_from_file` (optional) this option signals that the file specified by `from_file` should not be deleted after upload;
+  - `keep_file` (optional) this option signals that the file specified by `from_file` or the files dumped inside the `from_directory` should not be deleted after upload;
+
+- `from_directory` (optional) uploads the files dumped into a file system directory to Cloud Object Storage. The upload event is triggered whenever a file is dropped inside the directory. The file is deleted after the upload. If the `upload_type` is specified to be `multi-part` the file will be uploaded in multiple parts of size `part_size`;
+
+  Related options:
+  - `keep_file` (optional) this option signals that the files dumped inside the `from_directory` should not be deleted after upload;
 
 - `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint;
 - `upload_type` (optional) the special type of the upload:

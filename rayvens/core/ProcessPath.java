@@ -16,7 +16,6 @@
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.io.File;
 
 import org.apache.camel.BindToRegistry;
 import org.apache.camel.Exchange;
@@ -24,19 +23,19 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.aws2.s3.AWS2S3Constants;
 
-class FileProcessor implements Processor {
+class PathProcessor implements Processor {
     public void process(Exchange exchange) throws Exception {
-        // Input is a file and all we do is set the header entry to the file name.
-        File file = exchange.getIn().getBody(File.class);
-        Path path = Paths.get(file.toString());
+        // Input is a string with the path to the file.
+        Path path = Paths.get(exchange.getIn().getBody(String.class));
         exchange.getIn().setHeader(AWS2S3Constants.KEY, path.getFileName());
+        exchange.getIn().setBody(path.toFile());
     }
 }
 
-public class ProcessFile extends RouteBuilder {
+public class ProcessPath extends RouteBuilder {
     @BindToRegistry
-    public FileProcessor processFile() {
-        return new FileProcessor();
+    public PathProcessor processPath() {
+        return new PathProcessor();
     }
 
     @Override

@@ -445,6 +445,12 @@ def cos_sink(config):
     else:
         region = split_endpoint[1]
 
+    # If we are uploading a file either directly or by monitoring a directory,
+    # multi-part must be enabled:
+    uploads_file = 'from_file' in config or 'from_directory' in config
+    if uploads_file:
+        config['upload_type'] = "multi-part"
+
     # Assemble URI:
     uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
           f'&secretKey={secret_access_key}' \
@@ -483,9 +489,10 @@ def cos_sink(config):
                 part_size = config['part_size']
             uri += f'&partSize={part_size}'
 
-            # Initialize spec that has its source in Rayvens:
+            # Initialize the part of the spec that has its source in Rayvens,
+            # i.e. the part which takes as input file names from the user.
             spec = {'steps': []}
-            spec['steps'].append({'bean': 'processFile'})
+            spec['steps'].append({'bean': 'processPath'})
             # Overwrite existing file name if user provided a new name.
             if file_name is not None:
                 spec['steps'].append({
@@ -496,54 +503,76 @@ def cos_sink(config):
                 })
             spec['steps'].append({'to': uri})
             spec_list.append((spec, None))
+
+            # If the from_file option is active we need to create a route
+            # from the local file to the cloud object storage. For this route
+            # we do not allow the overwriting of the original file name since
+            # that may cause a clash with the file uploaded on the Rayvens-to-
+            # COS route above for which name overwriting is supported.
+            # When from_directory option is active all the files dumped into
+            # a file system directory will be uploaded to Cloud Object Storage.
+            # `from_file` and `from_directory` cannot be active at the same
+            # time.
+            if 'from_file' in config:
+                # Process file path and create from_uri:
+                from_file_path = Path(config['from_file'])
+                uploaded_file_name = from_file_path.name
+                file_dir = str(from_file_path.parent)
+                from_uri = f'file:{file_dir}?filename={uploaded_file_name}'
+                # Delete file after it is uploaded to avoid the files being
+                # copied to a temporary folder after being uploaded.
+                if 'keep_file' in config and config['keep_file']:
+                    from_uri += '&delete=false'
+                else:
+                    from_uri += '&delete=true'
+
+                # Create new file route for final spec:
+                file_spec = {'steps': []}
+                file_spec['steps'].append({'bean': 'processFile'})
+                # file_spec['steps'].append({
+                #     'set-header': {
+                #         'name': 'CamelAwsS3Key',
+                #         'simple': uploaded_file_name
+                #     }
+                # })
+                file_spec['steps'].append({'to': uri})
+                spec_list.append((file_spec, from_uri))
+            elif 'from_directory' in config:
+                # Process file path and create from_uri:
+                from_directory_path = config['from_directory']
+                from_uri = f'file:{from_directory_path}'
+                # Delete file after it is uploaded to avoid the files being
+                # copied to a temporary folder after being uploaded.
+                if 'keep_file' in config and config['keep_file']:
+                    from_uri += '?delete=false'
+                else:
+                    from_uri += '?delete=true'
+
+                # Create new file route for final spec:
+                file_spec = {'steps': []}
+                file_spec['steps'].append({'bean': 'processFile'})
+                file_spec['steps'].append({'to': uri})
+                spec_list.append((file_spec, from_uri))
+            return spec_list
         else:
             raise TypeError(
                 "Unrecognized upload type. Use one of: stream, multi-part.")
 
-    # If the from_file option is active we need to create a route
-    # from the local file to the cloud object storage. For this route
-    # we do not allow the overwriting of the original file name since
-    # that may cause a clash with the file uploaded on the Rayvens-to-
-    # COS route above for which name overwriting is supported.
-    if 'from_file' in config:
-        # Process file path and create from_uri:
-        from_file_path = Path(config['from_file'])
-        uploaded_file_name = from_file_path.name
-        file_dir = str(from_file_path.parent)
-        from_uri = f'file:{file_dir}?filename={uploaded_file_name}'
-        # Delete file after it is uploaded to avoid the files being
-        # copied to a temporary folder after being uploaded.
-        if 'keep_from_file' in config and config['keep_from_file']:
-            from_uri += '&delete=false'
-        else:
-            from_uri += '&delete=true'
-
-        # Create new file route for final spec:
-        file_spec = {'steps': []}
-        file_spec['steps'].append({
+    # This is the default behavior when user application data is
+    # written into a COS file directly.
+    if 'file_name' not in config:
+        raise TypeError('Created cloud object name is required.')
+    regular_spec = {
+        'steps': [{
             'set-header': {
                 'name': 'CamelAwsS3Key',
-                'simple': uploaded_file_name
+                'simple': f"{file_name}"
             }
-        })
-        file_spec['steps'].append({'to': uri})
-        spec_list.append((file_spec, from_uri))
-    else:
-        # This is the default behavior when a message from the user is
-        # written into a COS file.
-        if 'file_name' not in config:
-            raise TypeError('Created cloud object name is required.')
-        regular_spec = {
-            'steps': [{
-                'set-header': {
-                    'name': 'CamelAwsS3Key',
-                    'simple': f"{file_name}"
-                }
-            }, {
-                'to': uri
-            }]
-        }
-        spec_list.append((regular_spec, None))
+        }, {
+            'to': uri
+        }]
+    }
+    spec_list.append((regular_spec, None))
     return spec_list
 
 
@@ -596,6 +625,7 @@ def construct_sink(config, endpoint):
         else:
             spec['uri'] = from_uri
         final_spec_list.append({'from': spec})
+    print(yaml.dump(final_spec_list))
     return final_spec_list
 
 
@@ -605,7 +635,8 @@ def no_restriction(config):
 
 def cos_sink_restriction(config):
     # The input type for this sink is a file denoted by the type Path.
-    if 'upload_type' in config and config['upload_type'] == 'multi-part':
+    if 'upload_type' in config and config['upload_type'] == 'multi-part' and \
+       'from_directory' not in config:
         return dict(restricted_message_types=[Path])
     return no_restriction(config)
 

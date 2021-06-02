@@ -88,16 +88,32 @@ def run(integration_content,
         integration_type=None):
     command = ["run"]
 
+    # Append ProcessPath.java file.
+    if _integration_requires_path_processor(integration_content):
+        process_file = os.path.join(os.path.dirname(__file__),
+                                    'ProcessPath.java')
+        command.append(process_file)
+
     # Append ProcessFile.java file.
     if _integration_requires_file_processor(integration_content):
         process_file = os.path.join(os.path.dirname(__file__),
                                     'ProcessFile.java')
         command.append(process_file)
 
+    # Use appropriate Queue type(s).
     if mode.transport == 'http' and integration_type == 'source':
-        # Append Queue.java file.
-        queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-        command.append(queue)
+        if _integration_requires_file_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
+            command.append(queue)
+
+        if _integration_requires_file_watch_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__),
+                                 'FileWatchQueue.java')
+            command.append(queue)
+
+        if _integration_requires_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+            command.append(queue)
 
     # Integration name.
     command.append("--name")
@@ -130,6 +146,12 @@ def local_run(integration_content,
               integration_type=None):
     command = ["local", "run"]
 
+    # Append ProcessPath.java file.
+    if _integration_requires_path_processor(integration_content):
+        process_file = os.path.join(os.path.dirname(__file__),
+                                    'ProcessPath.java')
+        command.append(process_file)
+
     # Append ProcessFile.java file.
     if _integration_requires_file_processor(integration_content):
         process_file = os.path.join(os.path.dirname(__file__),
@@ -137,7 +159,7 @@ def local_run(integration_content,
         command.append(process_file)
 
     if mode.transport == 'http':
-        # Append Queue.java or FileQueue.java files.
+        # Use appropriate Queue type(s).
         if integration_type == 'source':
             if _integration_requires_file_queue(integration_content):
                 queue = os.path.join(os.path.dirname(__file__),
@@ -199,6 +221,13 @@ def delete(integration_invocation, integration_name):
     return kamel_utils.invoke_kamel_command(command,
                                             integration_invocation.mode,
                                             integration_name)
+
+
+def _integration_requires_path_processor(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: processPath' in configuration:
+        return True
+    return False
 
 
 def _integration_requires_file_processor(integration_content):

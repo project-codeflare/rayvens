@@ -53,9 +53,11 @@ stream = rayvens.Stream('upload-file')
 
 # Configure the sink to upload a message from a file system file whenever
 # the file is updated. The upload will consume (i.e. delete) the file unless
-# the `keep_from_file` is set to True. The upload event is triggered
+# the `keep_file` is set to True. The upload event is triggered
 # automatically without any user intervention if the file is present initially
-# or created/written after the sink is started.
+# or created/written after the sink is started. The file is uploaded in parts
+# but since no custom part size has been specified, the default 25 MB part
+# size will be used.
 file_to_sink_config = dict(kind='cloud-object-storage-sink',
                            name='sink-1',
                            bucket_name=bucket,
