@@ -202,17 +202,6 @@ This sink manages the uploading of objects to AWS S3 or IBM Cloud Object Storage
 - `access_key_id` found in the configuration of the Cloud Object Storage service;
 - `secret_access_key` found in the configuration of the Cloud Object Storage service;
 - `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`);
-- `file_name` (optional when `upload_type` is `multi-part`) the name of the file under which the data will be stored in the Cloud Object Store. If specified in conjunction with `upload_type` being `multi-part` the name of the uploaded file will be overwritten;
-- `from_file` (optional) uploads a file to Cloud Object Storage. The upload event is triggered when the file is available. The file is deleted after the upload. If the `upload_type` is specified to be `multi-part` the file will be uploaded in multiple parts of size `part_size`;
-
-  Related options:
-  - `keep_file` (optional) this option signals that the file specified by `from_file` or the files dumped inside the `from_directory` should not be deleted after upload;
-
-- `from_directory` (optional) uploads the files dumped into a file system directory to Cloud Object Storage. The upload event is triggered whenever a file is dropped inside the directory. The file is deleted after the upload. If the `upload_type` is specified to be `multi-part` the file will be uploaded in multiple parts of size `part_size`;
-
-  Related options:
-  - `keep_file` (optional) this option signals that the files dumped inside the `from_directory` should not be deleted after upload;
-
 - `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint;
 - `upload_type` (optional) the special type of the upload:
 
@@ -222,7 +211,18 @@ This sink manages the uploading of objects to AWS S3 or IBM Cloud Object Storage
   Related options:
     - `part_size` (optional, only used when `upload_type` is set to `multi-part`) the size in bytes of the parts;
 
-Without any other option this sink will upload the data to the Cloud Object Storage and put it in a file with name specified by the user. The data is the file contents in this case. See example `cos_sink.py`.
+- `file_name` (optional when `upload_type` is `multi-part`) the name of the file under which the data will be stored in the Cloud Object Store. If specified in conjunction with `upload_type` being `multi-part` the name of the uploaded file will be overwritten;
+- `from_file` (optional) uploads a file to Cloud Object Storage. The upload event is triggered when the file is available. The file is deleted after the upload unless the `keep_file` option is specified. When this option is enabled, the `upload_type` is by default `multi-part` and the file will be uploaded in multiple parts of size `part_size`;
+
+  Related options:
+  - `keep_file` (optional) this option signals that the file specified by `from_file` or the files dumped inside the `from_directory` should not be deleted after upload;
+
+- `from_directory` (optional) uploads the files dropped into a file system directory to Cloud Object Storage. The upload event is triggered whenever a file is dropped inside the directory. The file is deleted after the upload. When this option is enabled, the `upload_type` is by default `multi-part` and the file will be uploaded in multiple parts of size `part_size`;
+
+  Related options:
+  - `keep_file` (optional) this option signals that the files dumped inside the `from_directory` should not be deleted after upload;
+
+Without using any of the optional fields, this sink will upload application data to the Cloud Object Storage and put it in a file with name specified by the user. The data is the file contents in this case. See example `cos_sink.py`.
 
 In addition to the default mode described above this sink type also supports the uploading of files in multiple parts. To enable this mode the upload type field named `upload_type` must be specified as `multi-part`. The configuration also accepts an optional argument `part_size` that specifies the size of the parts. The size needs to be specified in bytes and its default value is 10 MB (i.e. 26214400 bytes).
 
@@ -237,7 +237,7 @@ sink_config = dict(kind='cloud-object-storage-sink',
                    part_size=2 * 1024 * 1024)
 ```
 
-To pass a file to the Rayvens stream containing a multi-part Cloud Object Storage sink use the following:
+The file to be uploaded can be specified by the user at runtime and can be passed to the Rayvens stream containing a multi-part Cloud Object Storage sink use in the following way:
 ```
 from pathlib import Path
 stream << Path("test_files/test.txt")
@@ -245,7 +245,7 @@ stream << Path("test_files/test.txt")
 
 This will ensure that the input is treated as the path to a file on the target system. Unless overwritten by the `file_name` option the name of the uploaded file will be the original file name (in this case `test.txt`).
 
-In the future more modes will be supported.
+When `from_file` or `from_directory` fields are used, the input will be a file system file which is uploaded in multi-part mode. Since the multi-part mode is the only one currently supported it will be selected by default. To adjust the part size consider using the `part_size` option.
 
 ## Generic sources
 
