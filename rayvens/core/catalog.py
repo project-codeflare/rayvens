@@ -134,7 +134,7 @@ def cos_source(config):
           f'&uriEndpointOverride={endpoint}' \
           f'&region={region}'
 
-    # Move afte read options:
+    # Move after read options:
     if 'move_after_read' in config:
         # Autocreation is not supported for COS:
         uri += '&autoCreateBucket=false'
@@ -142,6 +142,12 @@ def cos_source(config):
 
         new_bucket_name = config['move_after_read']
         uri += f'&destinationBucket={new_bucket_name}'
+
+    # Only send an event that data is available do not send the
+    # actual data.
+    if 'meta_event_only' in config and config['meta_event_only']:
+        uri += '&includeBody=false'
+        uri += '&autocloseBody=true'
 
     return {'uri': uri, 'steps': []}
 
@@ -302,6 +308,10 @@ def construct_source(config, endpoint, inverted=False):
     elif config['kind'] == 'file-watch-source':
         take_from_queue = 'takeFromFileWatchQueue'
         add_to_queue = 'addToFileWatchQueue'
+    elif config['kind'] == 'cloud-object-storage-source' and \
+            'meta_event_only' in config and config['meta_event_only']:
+        take_from_queue = 'takeFromMetaEventQueue'
+        add_to_queue = 'addToMetaEventQueue'
 
     # Multi-source integration with several routes:
     if isinstance(spec, list):
