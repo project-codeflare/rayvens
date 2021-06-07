@@ -136,7 +136,7 @@ class KamelInvocation:
 
     def _check_logs(self, message):
         # Check logs.
-        success = self._check_kamel_output(message)
+        success = self._check_kamel_output(message, with_output=True)
 
         # Emit success/fail message.
         log = "Logs checked successfully."
