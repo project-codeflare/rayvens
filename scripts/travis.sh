@@ -16,10 +16,9 @@
 
 set -eu
 
-KAMEL_VERSION=1.4.0
+KAMEL_VERSION=v1.4.0
 KIND_VERSION=v0.10.0
 KUBECTL_VERSION=v1.18.8
-
 
 # Download and install command line tools
 pushd /tmp
@@ -37,7 +36,7 @@ pushd /tmp
 
   # kamel
   echo 'installing kamel'
-  curl -L https://github.com/apache/camel-k/releases/download/v1.4.0/camel-k-client-$KAMEL_VERSION-linux-64bit.tar.gz | tar zx ./kamel
+  curl -L https://github.com/apache/camel-k/releases/download/$KAMEL_VERSION/camel-k-client-${KAMEL_VERSION#?}-linux-64bit.tar.gz | tar zx ./kamel
   sudo cp kamel /usr/local/bin/kamel
 
 popd
