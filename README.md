@@ -478,12 +478,12 @@ the necessary configuration parameters.
 
 Run the example locally with:
 ```shell
-python rayvens/examples/sink.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
+python rayvens/examples/slack.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
 ```
 
 Run the example on Kind with:
 ```shell
-ray submit rayvens/scripts/cluster.yaml rayvens/examples/sink.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
+ray submit rayvens/scripts/cluster.yaml rayvens/examples/slack.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
 ```
 
 ## Combining Sources, Sinks, and Operators
