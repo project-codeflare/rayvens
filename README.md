@@ -364,7 +364,7 @@ stream.
 
 Run the example locally with:
 ```shell
-python run rayvens/examples/source.py
+python rayvens/examples/source.py
 ```
 
 Run the example on Kind with:
@@ -478,7 +478,7 @@ the necessary configuration parameters.
 
 Run the example locally with:
 ```shell
-python run rayvens/examples/sink.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
+python rayvens/examples/sink.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
 ```
 
 Run the example on Kind with:
