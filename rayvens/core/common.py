@@ -63,9 +63,9 @@ class ProducerActor:
     def append(self, data):
         try:
             if isinstance(data, Path):
-                requests.post(self.url, str(data))
+                requests.post(self.url, str(data), timeout=(5, None))
             else:
-                requests.post(self.url, data)
+                requests.post(self.url, data, timeout=(5, None))
         except requests.exceptions.ConnectionError:
             pass
 
@@ -75,7 +75,8 @@ def send_to(handle, server_address, route):
     def append():
         while True:
             try:
-                response = requests.get(f'{server_address}{route}')
+                response = requests.get(f'{server_address}{route}',
+                                        timeout=(5, None))
                 if response.status_code != 200:
                     time.sleep(1)
                     continue
