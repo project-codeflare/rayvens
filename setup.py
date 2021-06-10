@@ -16,16 +16,46 @@
 
 from setuptools import setup
 
-setup(name='rayvens',
-      packages=['rayvens', 'rayvens.core'],
-      package_data={'rayvens.core': ['Queue.java', 'ProcessFile.java']},
-      include_package_data=True,
-      install_requires=[
-          'confluent-kafka>=1.6.1', 'ray[default,serve,k8s]>=1.3.0'
-      ],
-      version='0.1',
-      description='Ray eventing',
-      license='apache-2.0',
-      author='Rayvens authors',
-      author_email='tardieu@us.ibm.com;gheorghe-teod.bercea@ibm.com',
-      url='https://github.ibm.com/codeflare/rayvens')
+long_description = '''Rayvens augments [Ray](https://ray.io) with events. With
+Rayvens, Ray applications can subscribe to event streams, process and produce
+events. Rayvens leverages [Apache Camel](https://camel.apache.org) to make it
+possible for data scientists to access hundreds of data services with little
+effort.
+
+For the full documentation see
+[https://github.ibm.com/codeflare/rayvens](https://github.ibm.com/codeflare/rayvens).
+'''
+
+setup(
+    name='rayvens',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    packages=['rayvens', 'rayvens.core'],
+    package_data={'rayvens.core': ['*.java']},
+    install_requires=[
+        'confluent-kafka>=1.6.1', 'ray[default,serve,k8s]>=1.3.0'
+    ],
+    version='0.1',
+    python_requires='>=3.6',
+    description='Rayvens augments Ray with events.',
+    license='Apache 2.0',
+    author='Rayvens authors',
+    author_email='tardieu@us.ibm.com, gheorghe-teod.bercea@ibm.com',
+    keywords=("ray events kubernetes"),
+    url='https://github.ibm.com/codeflare/rayvens',
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Java',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
+        'Operating System :: OS Independent',
+        'Topic :: System :: Distributed Computing',
+    ],
+    project_urls={
+        'Bug Reports': 'https://github.ibm.com/codeflare/rayvens/issues',
+        'Source': 'https://github.ibm.com/codeflare/rayvens',
+    },
+)

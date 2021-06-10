@@ -23,9 +23,9 @@ Status](https://travis.ibm.com/codeflare/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
-applications can produce events, subscribe to event streams, and process events.
-Rayvens leverages [Apache Camel](https://camel.apache.org) to make it possible
-for data scientists to access hundreds of data services with little effort.
+applications can subscribe to event streams, process and produce events. Rayvens
+leverages [Apache Camel](https://camel.apache.org) to make it possible for data
+scientists to access hundreds of data services with little effort.
 
 For example, we can periodically fetch the AAPL stock price from a REST API with
 code:
