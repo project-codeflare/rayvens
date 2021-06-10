@@ -21,7 +21,7 @@ namespace="ray"
 image="quay.io/ibm/rayvens"
 service_account="rayvens"
 cpu="1"
-mem="2Gi"
+mem="2G"
 
 while [ -n "$1" ]; do
     case "$1" in
@@ -36,7 +36,7 @@ while [ -n "$1" ]; do
         --kamel) kamel="1";;
         --kamel-options) shift; options="$1";;
         --skip) skip="1";;
-        --ce) service_account="$namespace"-writer; ce="1";;
+        --ce) ce="1";;
         --cpu) shift; cpu=$1;;
         --mem) shift; mem=$1;;
         --example) example="1";;
@@ -54,6 +54,10 @@ while [ -n "$1" ]; do
     shift
 done
 
+if [ -n "$ce" ]; then
+  service_account="$namespace"-writer;
+fi
+
 if [ -n "$help" ]; then
     cat << EOF
 Configure and launch Rayvens-enabled Ray cluster on Kubernetes cluster.
@@ -63,7 +67,7 @@ Usage: setup-rayvens.sh [options]
     -n --namespace <namespace>      Kubernetes namespace to target (defaults to "ray")
     --image <image>                 Rayvens container image name (defaults to "quay.io/ibm/rayvens")
     --cpu <cpus>                    cpu quota for each Ray node (defaults to 1)
-    --mem <mem>                     memory quota for each Ray node (defaults to 2Gi)
+    --mem <mem>                     memory quota for each Ray node (defaults to 2G)
     --skip                          reuse existing cluster configuration file (skip generation)
     --ce                            skip service account setup on IBM Cloud Code Engine and use built-in namespace writer account
     --registry                      setup or reuse an insecure container registry running on localhost:5000
