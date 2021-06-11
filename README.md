@@ -59,9 +59,10 @@ source >> (lambda event: print('LOG:', event))
 
 ## Setup Rayvens
 
-Rayvens requires Ray 1.3.0.
-
 These instructions have been tested on Big Sur and Ubuntu 18.04.4.
+
+Rayvens requires Ray 1.3.0. The default Rayvens container image is based on Ray
+1.4 (specifically the `rayproject/ray:1.4.0-py38` container image).
 
 We recommend installing Python 3.8.7 using
 [pyenv](https://github.com/pyenv/pyenv).

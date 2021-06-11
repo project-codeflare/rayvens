@@ -14,7 +14,8 @@
 # limitations under the License.
 #
 
-FROM rayproject/ray:1.3.0-py38
+ARG base_image=rayproject/ray:1.4.0-py38
+FROM ${base_image}
 
 COPY --from=docker.io/apache/camel-k:1.4.0 /usr/local/bin/kamel /usr/local/bin/
 
