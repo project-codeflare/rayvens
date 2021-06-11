@@ -115,10 +115,10 @@ available_node_types:
                             mountPath: /etc/podinfo
                       resources:
                           requests:
-                              cpu: 2000m
-                              memory: 512Mi
+                              cpu: 1000m
+                              memory: 2G
                           limits:
-                              memory: 2Gi
+                              memory: 2G
     head_node:
         min_workers: 0
         max_workers: 0
@@ -165,10 +165,10 @@ available_node_types:
                             mountPath: /etc/podinfo
                       resources:
                           requests:
-                              cpu: 2000m
-                              memory: 512Mi
+                              cpu: 1000m
+                              memory: 2G
                           limits:
-                              memory: 2Gi
+                              memory: 2G
                       env:
                           - name: RAY_ADDRESS
                             value: auto
