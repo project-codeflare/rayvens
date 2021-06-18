@@ -19,7 +19,7 @@
 </p>
 
 [![Build
-Status](https://travis.ibm.com/codeflare/rayvens.svg?token=U6PyxAbhWqm58XLxT7je&branch=master)](https://travis.ibm.com/codeflare/rayvens)
+Status](https://travis-ci.com/project-codeflare/rayvens.svg?branch=main)](https://travis-ci.com/github/project-codeflare/rayvens)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rayvens augments [Ray](https://ray.io) with events. With Rayvens, Ray
@@ -69,7 +69,7 @@ We recommend installing Python 3.8.7 using
 
 Clone this repository and install Rayvens:
 ```shell
-git clone https://github.ibm.com/codeflare/rayvens.git
+git clone https://github.com/project-codeflare/rayvens
 pip install --upgrade pip
 pip install ./rayvens
 ```
