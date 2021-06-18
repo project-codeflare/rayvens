@@ -16,9 +16,11 @@
 # limitations under the License.
 #
 
+rayvens_version=0.2.0
+
 config="rayvens.yaml"
 namespace="ray"
-image="quay.io/ibm/rayvens"
+image="quay.io/ibm/rayvens:$rayvens_version"
 service_account="rayvens"
 cpu="1"
 mem="2G"
@@ -41,6 +43,7 @@ while [ -n "$1" ]; do
         --mem) shift; mem=$1;;
         --example) example="1";;
         --preload) preload="1";;
+        --version) version="1";;
 
         --dev)
             kind="1";
@@ -78,6 +81,7 @@ Usage: rayvens-setup.sh [options]
     --build                         build and push custom Rayvens container image from Rayvens source code in parent folder
     --example                       generate example file "example.py" in current working directory
     --preload                       preload main camel jars into maven repository
+    --version                       shows the version of this script
 
     --kind                          setup a development Kind cluster on localhost instead of deploying to current Kubernetes context
                                     (destroy existing Kind cluster if any, set Kubernetes context to Kind)
@@ -85,6 +89,11 @@ Usage: rayvens-setup.sh [options]
     --dev                           shorthand for: --registry --build --image localhost:5000/rayvens --kind --kafka --kamel
 EOF
     exit 0
+fi
+
+if [ -n "$version" ]; then
+  echo $rayvens_version
+  exit 0
 fi
 
 if [ -n "$preload" ]; then

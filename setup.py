@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import re
 from setuptools import setup
 
 long_description = '''Rayvens augments [Ray](https://ray.io) with events. With
@@ -26,6 +27,9 @@ For the full documentation see
 [https://github.com/project-codeflare/rayvens](https://github.com/project-codeflare/rayvens).
 '''
 
+with open('scripts/rayvens-setup.sh') as f:
+    version = re.findall('rayvens_version=([0-9.]+)', f.read())[0]
+
 setup(
     name='rayvens',
     long_description=long_description,
@@ -36,7 +40,7 @@ setup(
         'confluent-kafka>=1.6.1', 'ray[default,serve,k8s]>=1.3.0'
     ],
     scripts=['scripts/rayvens-setup.sh'],
-    version='0.1',
+    version=version,
     python_requires='>=3.6',
     description='Rayvens augments Ray with events.',
     license='Apache 2.0',
