@@ -16,7 +16,7 @@
 
 # Setup
 
-We provide a self-contained [setup-rayvens.sh](../scripts/setup-rayvens.sh)
+We provide a self-contained [rayvens-setup.sh](../scripts/rayvens-setup.sh)
 script to setup a Rayvens cluster on [Kubernetes](https://kubernetes.io),
 [Openshift](https://www.openshift.com), or [IBM Cloud Code
 Engine](https://www.ibm.com/cloud/code-engine). This script supports running
@@ -31,10 +31,10 @@ Rayvens but can also use a custom image. It can build a container image from a
 local checkout of the Rayvens code as well.
 
 ```
-./setup-rayvens.sh  --help
+./rayvens-setup.sh  --help
 Configure and launch Rayvens-enabled Ray cluster on Kubernetes cluster.
 
-Usage: setup-rayvens.sh [options]
+Usage: rayvens-setup.sh [options]
     -c --config <rayens.yaml>       Ray cluster configuration file to use/generate (defaults to "rayvens.yaml" in current working directory)
     -n --namespace <namespace>      Kubernetes namespace to target (defaults to "ray")
     --image <image>                 Rayvens container image name (defaults to "quay.io/ibm/rayvens")
@@ -61,7 +61,7 @@ To create a Kind cluster, a Ray cluster configuration file, deploy a Ray cluster
 to the `ray` namespace on the Kind cluster, and produce an example Rayvens
 program run:
 ```
-./setup-rayvens.sh --kind --example
+./rayvens-setup.sh --kind --example
 ```
 To try the example run:
 ```
@@ -72,7 +72,7 @@ This deployment does not include the Camel-K operator so it only supports
 
 To also deploy the Camel-K operator to the cluster run instead:
 ```
-./setup-rayvens.sh --kind --example --registry --kamel
+./rayvens-setup.sh --kind --example --registry --kamel
 ```
 Try the example in `operator` mode with:
 ```
@@ -100,7 +100,7 @@ oc new-project ray
 ```
 To deploy Rayvens on the `ray` project:
 ```
-./setup-rayvens.sh --kamel
+./rayvens-setup.sh --kamel
 ```
 The Camel-K operator is automatically configured to use the OpenShift container
 registry.
@@ -120,7 +120,7 @@ NAME          STATUS   AGE
 ```
 Deploy Rayvens with:
 ```
-./setup-rayvens.sh --ce --namespace 9fv37pz936r
+./rayvens-setup.sh --ce --namespace 9fv37pz936r
 ```
 The Camel-K operator cannot be deployed to Code Engine at this time so only
 `local` mode is supported.
@@ -129,11 +129,11 @@ The Camel-K operator cannot be deployed to Code Engine at this time so only
 
 To deploy Rayvens on the `ray` namespace of an IKS cluster run:
 ```
-./setup-rayvens.sh
+./rayvens-setup.sh
 ```
 Access to a container registry is required to deploy the Camel-K operator on
 IKS. For instance, in order to use organization `myorg` on [Docker
 Hub](https://hub.docker.com) run:
 ```
-./setup-rayvens.sh --kamel --kamel-options "--registry docker.io --organization myorg --registry-auth-username myname --registry-auth-password mypassword"
+./rayvens-setup.sh --kamel --kamel-options "--registry docker.io --organization myorg --registry-auth-username myname --registry-auth-password mypassword"
 ```

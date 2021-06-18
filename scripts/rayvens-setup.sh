@@ -62,7 +62,7 @@ if [ -n "$help" ]; then
     cat << EOF
 Configure and launch Rayvens-enabled Ray cluster on Kubernetes cluster.
 
-Usage: setup-rayvens.sh [options]
+Usage: rayvens-setup.sh [options]
     -c --config <rayens.yaml>       Ray cluster configuration file to use/generate (defaults to "rayvens.yaml" in current working directory)
     -n --namespace <namespace>      Kubernetes namespace to target (defaults to "ray")
     --image <image>                 Rayvens container image name (defaults to "quay.io/ibm/rayvens")
