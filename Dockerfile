@@ -29,5 +29,6 @@ RUN kamel local run Preloader.java --dependency camel-k:loader-yaml; rm Preloade
 
 COPY --chown=ray:users setup.py rayvens/
 COPY --chown=ray:users rayvens rayvens/rayvens/
+COPY --chown=ray:users scripts/rayvens-setup.sh rayvens/scripts/
 
 RUN pip install -e ./rayvens
