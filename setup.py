@@ -23,7 +23,7 @@ possible for data scientists to access hundreds of data services with little
 effort.
 
 For the full documentation see
-[https://github.ibm.com/codeflare/rayvens](https://github.ibm.com/codeflare/rayvens).
+[https://github.com/project-codeflare/rayvens](https://github.com/project-codeflare/rayvens).
 '''
 
 setup(
@@ -42,7 +42,7 @@ setup(
     author='Rayvens authors',
     author_email='tardieu@us.ibm.com, gheorghe-teod.bercea@ibm.com',
     keywords=("ray events kubernetes"),
-    url='https://github.ibm.com/codeflare/rayvens',
+    url='https://github.com/project-codeflare/rayvens',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
@@ -55,7 +55,7 @@ setup(
         'Topic :: System :: Distributed Computing',
     ],
     project_urls={
-        'Bug Reports': 'https://github.ibm.com/codeflare/rayvens/issues',
-        'Source': 'https://github.ibm.com/codeflare/rayvens',
+        'Bug Reports': 'https://github.com/project-codeflare/rayvens/issues',
+        'Source': 'https://github.com/project-codeflare/rayvens',
     },
 )
