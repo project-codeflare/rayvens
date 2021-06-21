@@ -226,7 +226,7 @@ for specifics.
 ### Operator Mode Prerequisites
 
 Operator mode requires access to a Kubernetes cluster running the Camel-K
-operator and configured with the proper RBAC rules. See [below](#cluster-setup)
+operator and configured with the proper RBAC rules. See [below](#ray-cluster-setup)
 for details.
 
 At this time, operator mode requires the Ray code to also run inside the same
@@ -261,18 +261,20 @@ assume [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) is installed.
 Follow [instructions](https://kind.sigs.k8s.io/docs/user/quick-start) to install
 the Kind client.
 
-To create a Kind cluster and run a Rayvens-enabled Ray cluster on this cluster,
-run:
+To create a Kind cluster and run a Rayvens-enabled Ray cluster on this Kind
+cluster, run:
 ```shell
 rayvens-setup.sh --kind --registry --kamel
 ```
-The resulting cluster supports both local and operator modes. This command not
+The resulting cluster supports both local and operator modes. The command not
 only initializes the Kind cluster but also launches a docker registry on port
 5000 to be used by the Camel-K operator. See [here](docs/setup.md) for details.
+The command produces a `rayvens.yaml` Ray cluster configuration file in the
+current working directory.
 
 Try running on this cluster with:
 ```shell
-ray submit rayvens/scripts/cluster.yaml rayvens/examples/stream.py
+ray submit rayvens.yaml rayvens/examples/stream.py
 ```
 
 To take down the Kind cluster run:
@@ -366,7 +368,7 @@ python rayvens/examples/source.py
 
 Run the example on Kind with:
 ```shell
-ray submit rayvens/scripts/cluster.yaml rayvens/examples/source.py
+ray submit rayvens.yaml rayvens/examples/source.py
 ```
 
 When running in local mode, the Camel-K client has to download and cache
@@ -480,7 +482,7 @@ python rayvens/examples/slack.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
 
 Run the example on Kind with:
 ```shell
-ray submit rayvens/scripts/cluster.yaml rayvens/examples/slack.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
+ray submit rayvens.yaml rayvens/examples/slack.py "$SLACK_CHANNEL" "$SLACK_WEBHOOK"
 ```
 
 ## Combining Sources, Sinks, and Operators
