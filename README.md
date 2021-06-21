@@ -268,11 +268,15 @@ rayvens-setup.sh --kind --registry --kamel
 ```
 The resulting cluster supports both local and operator modes. The command not
 only initializes the Kind cluster but also launches a docker registry on port
-5000 to be used by the Camel-K operator. See [here](docs/setup.md) for details.
-The command produces a `rayvens.yaml` Ray cluster configuration file in the
-current working directory.
+5000 to be used by the Camel-K operator. To skip the registry and Camel-K setup, run instead:
+```shell
+rayvens-setup.sh --kind
+```
+In this configuration, only local mode is supported. See [here](docs/setup.md)
+for details.
 
-Try running on this cluster with:
+The setup script produces a `rayvens.yaml` Ray cluster configuration file in the
+current working directory. Try running on this cluster with:
 ```shell
 ray submit rayvens.yaml rayvens/examples/stream.py
 ```
