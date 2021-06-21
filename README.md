@@ -163,7 +163,7 @@ the stream.
 ## Stream and StreamActor
 
 Under the hood, streams are implemented as Ray actors. Concretely, the `Stream`
-class is a stateless, serializable, wrapper around the `StreamActor` actor
+class is a stateless, serializable, wrapper around the `StreamActor` Ray actor
 class. All rules applicable to Ray actors (lifecycle, serialization, queuing,
 ordering) are applicable to streams. In particular, the stream actor will be
 reclaimed when the original stream handle goes out of scope.
@@ -187,9 +187,11 @@ stream.actor.send_to.remote(lambda event: print('LOG:', event))
 
 ## Camel Setup
 
-Rayvens is based on
+Rayvens uses
 [Camel-K](https://developers.redhat.com/blog/2020/05/12/six-reasons-to-love-camel-k).
-Camel-K augments Apache Camel with support for Kubernetes and serverless
+to interact with a wide range of external source and sink types such as Slack, Cloud
+Object Storage, Telegram or Binance (to name a few). Camel-K augments Apache
+Camel's extensive component catalog with support for Kubernetes and serverless
 platforms. Rayvens is compatible with Camel-K 1.3 and up.
 
 To run Rayvens programs including Camel sources and sinks, there are two
@@ -209,19 +211,22 @@ Rayvens:
 rayvens.init(mode='operator')
 ```
 
-The mode can also be specified using environment variable `RAYVENS_MODE`. But
-the mode specified in the code if any takes precedence.
+The mode can also be specified using environment variable `RAYVENS_MODE`. 
+The mode specified in the code (if any) takes precedence.
 
 ### Local Mode Prerequisites
 
-Local mode is intended to permit running Rayvens anywhere Ray can: on a
-developer laptop, in a virtual machine, inside a Ray cluster, or standalone.
-While operator mode is tailored for container platforms like Kubernetes and
-OpenShift, it possible to use local mode on these platforms as well.
+Local mode is intended to permit running Rayvens anywhere Ray runs: on a
+developer laptop, in a virtual machine, inside a Ray cluster (running on
+Kubernetes or OpenShift for example), or standalone.
 
 Local mode requires the [Camel-K
 client](https://camel.apache.org/camel-k/latest/cli/cli.html), Java, and Maven
-to be installed. These can be added to an existing Ray installation or image.
+to be installed in the context in which the source or sink will be run.
+When running in a cluster, Java and Maven can be added to an existing Ray
+installation or image. The Rayvens image is based on a Ray image onto which we
+add the necessary dependencies to enable the running of Camel-K sources and
+sinks in local mode inside the container.
 The all-in-one Rayvens container image distributed on
 [quay.io](https://quay.io/repository/ibm/rayvens) adds Camel-K 1.4 to a base
 `rayproject/ray:1.4.0-py38` image. See [Dockerfile.release](Dockerfile.release)
@@ -233,10 +238,12 @@ Operator mode requires access to a Kubernetes cluster running the Camel-K
 operator and configured with the proper RBAC rules. See
 [below](#ray-cluster-setup) for details.
 
-At this time, operator mode requires the Ray code to also run inside the same
-Kubernetes cluster. Operator mode also for now requires the Camel-K client to be
-deployed to the Ray nodes (but Java or Maven are not required). We intend to
-lift these restrictions shortly.
+At this time, the operator mode requires the Ray code to also run inside the same
+Kubernetes cluster and requires the Camel-K client to be deployed to the Ray
+nodes. We intend to lift these restrictions shortly.
+
+Installing and using the Camel-K operator to deploy sources and sinks does not
+require Java or Maven.
 
 ## Dynamic Dependencies
 
