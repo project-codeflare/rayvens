@@ -187,18 +187,21 @@ stream.actor.send_to.remote(lambda event: print('LOG:', event))
 
 ## Camel Setup
 
-Rayvens is compatible with Camel-K 1.3 and up.
+Rayvens is based on
+[Camel-K](https://developers.redhat.com/blog/2020/05/12/six-reasons-to-love-camel-k).
+Camel-K augments Apache Camel with support for Kubernetes and serverless
+platforms. Rayvens is compatible with Camel-K 1.3 and up.
 
 To run Rayvens programs including Camel sources and sinks, there are two
 choices:
-- local mode: run a Camel source or sink in the same execution context as
-   the stream actor it is attached to using the [Camel-K
-   client](https://camel.apache.org/camel-k/latest/cli/cli.html): same
-   container, same virtual or physical machine.
-- operator mode: run a Camel source or sink inside a Kubernetes cluster
-   relying on the [Camel-K
-   operator](https://camel.apache.org/camel-k/latest/architecture/operator.html)
-   to manage dedicated Camel pods.
+- local mode: run a Camel source or sink in the same execution context as the
+  stream actor it is attached to using the [Camel-K
+  client](https://camel.apache.org/camel-k/latest/cli/cli.html): same container,
+  same virtual or physical machine.
+- operator mode: run a Camel source or sink inside a Kubernetes cluster relying
+  on the [Camel-K
+  operator](https://camel.apache.org/camel-k/latest/architecture/operator.html)
+  to manage dedicated Camel pods.
 
 The default mode is the local mode. The mode can be specified when initializing
 Rayvens:
@@ -209,11 +212,12 @@ rayvens.init(mode='operator')
 The mode can also be specified using environment variable `RAYVENS_MODE`. But
 the mode specified in the code if any takes precedence.
 
-Camel is designed to pull dependencies dynamically from Maven Central at run
-time. While it is possible to preload dependencies to support air-gapped
-execution environments, Rayvens does not handle this yet.
-
 ### Local Mode Prerequisites
+
+Local mode is intended to permit running Rayvens anywhere Ray can: on a
+developer laptop, in a virtual machine, inside a Ray cluster, or standalone.
+While operator mode is tailored for container platforms like Kubernetes and
+OpenShift, it possible to use local mode on these platforms as well.
 
 Local mode requires the [Camel-K
 client](https://camel.apache.org/camel-k/latest/cli/cli.html), Java, and Maven
@@ -226,13 +230,19 @@ for specifics.
 ### Operator Mode Prerequisites
 
 Operator mode requires access to a Kubernetes cluster running the Camel-K
-operator and configured with the proper RBAC rules. See [below](#ray-cluster-setup)
-for details.
+operator and configured with the proper RBAC rules. See
+[below](#ray-cluster-setup) for details.
 
 At this time, operator mode requires the Ray code to also run inside the same
 Kubernetes cluster. Operator mode also for now requires the Camel-K client to be
 deployed to the Ray nodes (but Java or Maven are not required). We intend to
 lift these restrictions shortly.
+
+## Dynamic Dependencies
+
+Camel-K is designed to pull dependencies dynamically from Maven Central at run
+time. While it is possible to preload dependencies to support air-gapped
+execution environments, Rayvens does not handle this yet.
 
 ## Ray Cluster Setup
 
@@ -249,6 +259,21 @@ also be obtained directly:
 curl -Lo rayvens-setup.sh https://raw.githubusercontent.com/project-codeflare/rayvens/main/scripts/rayvens-setup.sh
 ```
 The full documentation for the script is available [here](docs/setup.md).
+
+The script is provided for convenience. It is of course possible to setup a
+Rayvens-enabled Ray cluster directly. We provide an example cluster
+configuration in [cluster.yaml](scripts/cluster.yaml). This configuration file
+is derived from Ray's
+[example-full.yaml](https://github.com/ray-project/ray/blob/master/python/ray/autoscaler/kubernetes/example-full.yaml)
+configuration file. The key changes are:
+- use of Rayvens container image,
+- RBAC enhancements to support the Camel-K operator,
+- adjustments to resource requests and limits to account for the needs of Camel
+  in local mode.
+
+The generated and example configuration files also set `RAY_ADDRESS=auto` on the
+head node, making it possible to run our example codes on the Ray cluster
+unchanged.
 
 ### Kind Cluster Setup
 
@@ -268,7 +293,8 @@ rayvens-setup.sh --kind --registry --kamel
 ```
 The resulting cluster supports both local and operator modes. The command not
 only initializes the Kind cluster but also launches a docker registry on port
-5000 to be used by the Camel-K operator. To skip the registry and Camel-K setup, run instead:
+5000 to be used by the Camel-K operator. To skip the registry and Camel-K setup,
+run instead:
 ```shell
 rayvens-setup.sh --kind
 ```
@@ -516,7 +542,8 @@ reducing latency.
 ## Further Reading
 
 - The `rayvens-setup.sh` script is documented in [setup.md](docs/setup.md).
-- The configuration of the Camel sources and sinks is explained in [connectors.md](docs/connectors.md).
+- The configuration of the Camel sources and sinks is explained in
+  [connectors.md](docs/connectors.md).
 
 ## License
 
