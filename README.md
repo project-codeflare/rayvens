@@ -222,7 +222,7 @@ Kubernetes or OpenShift for example), or standalone.
 
 Local mode requires the [Camel-K
 client](https://camel.apache.org/camel-k/latest/cli/cli.html), Java, and Maven
-to be installed installed in the context in which the source or sink will be run.
+to be installed in the context in which the source or sink will be run.
 When running in a cluster, Java and Maven can be added to an existing Ray
 installation or image. The Rayvens image is based on a Ray image onto which we
 add the necessary dependencies to enable the running of Camel-K sources and
