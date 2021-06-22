@@ -548,6 +548,7 @@ reducing latency.
 
 ## Further Reading
 
+- Rayvens related blogs are published on [Medium](https://medium.com/codeflare).
 - The `rayvens-setup.sh` script is documented in [setup.md](docs/setup.md).
 - The configuration of the Camel sources and sinks is explained in
   [connectors.md](docs/connectors.md).
