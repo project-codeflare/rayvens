@@ -31,7 +31,7 @@ rayvens.init()
 # create a source stream
 source_config = dict(
     kind='http-source',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     period=3000)
 source = rayvens.Stream('http', source_config=source_config)
 
@@ -47,7 +47,7 @@ class Comparator:
 
     def append(self, event):
         payload = json.loads(event)  # parse event string to json
-        quote = payload[0]['price']  # payload[0] is AAPL
+        quote = payload['quoteResponse']['result'][0]['regularMarketPrice']
         try:
             if self.last_quote:
                 if quote > self.last_quote:

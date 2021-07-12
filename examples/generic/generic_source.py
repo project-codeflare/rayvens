@@ -47,7 +47,7 @@ source_config = dict(kind='generic-source',
 - from:
   uri: timer:tick?period=3000
   steps:
-    - to: http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo
+    - to: https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL
     """)
 
 # Attach source to stream.

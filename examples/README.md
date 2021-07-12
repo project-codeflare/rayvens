@@ -163,7 +163,7 @@ In `source.py` we configure an HTTP source:
 ```
 source_config = dict(
     kind='http-source',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     period=3000)
 source = rayvens.Stream('http', source_config=source_config)
 ```

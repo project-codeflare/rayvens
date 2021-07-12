@@ -46,7 +46,7 @@ stream = rayvens.Stream('http')
 source_config = dict(
     kind='http-source',
     name='source-1',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     route='/from-http',
     period=3000)
 
@@ -57,7 +57,7 @@ source = stream.add_source(source_config)
 another_source_config = dict(
     kind='http-source',
     name='source-2',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     route='/from-another-http',
     period=5000)
 
