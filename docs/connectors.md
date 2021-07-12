@@ -91,7 +91,7 @@ source_config = dict(kind='http-source',
                      period=3000)
 ```
 
-Example of a URL value: `http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo`
+Example of a URL value: `https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL`
 
 ### `kind="kafka-source"`
 
@@ -295,7 +295,7 @@ source_config = dict(kind='generic-source',
 - from:
   uri: timer:tick?period=2000
   steps:
-    - to: http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo
+    - to: https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL
     """)
 ```
 
@@ -307,14 +307,14 @@ Using the `generic-periodic-source` type instead of the `generic-source` simplif
 
 ```
 source_config = dict(kind='generic-periodic-source',
-                     spec="uri: http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo",
+                     spec="uri: https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL",
                      period=2000)
 ```
 
 Using the `uri` syntax:
 ```
 source_config = dict(kind='generic-periodic-source',
-                     uri="http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo",
+                     uri="https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL",
                      period=2000)
 ```
 

@@ -41,7 +41,10 @@ class Counter:
         self.ready = asyncio.Event()
 
     def append(self, event):
-        print('AAPL is', json.loads(event)[0]['price'])
+        print(
+            'AAPL is',
+            json.loads(event)['quoteResponse']['result'][0]
+            ['regularMarketPrice'])
         self.count += 1
         if self.count > 5:
             self.ready.set()
@@ -61,7 +64,7 @@ source_config = dict(kind='generic-source',
 - from:
   uri: timer:tick?period=3000
   steps:
-    - to: http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo
+    - to: https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL
     """)
 
 # Create stream where we can attach sinks, sources and operators.
