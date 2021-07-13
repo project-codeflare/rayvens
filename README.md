@@ -228,7 +228,7 @@ installation or image. The Rayvens image is based on a Ray image onto which we
 add the necessary dependencies to enable the running of Camel-K sources and
 sinks in local mode inside the container.
 The all-in-one Rayvens container image distributed on
-[quay.io](https://quay.io/repository/ibm/rayvens) adds Camel-K 1.4 to a base
+[quay.io](https://quay.io/repository/ibm/rayvens) adds Camel-K 1.5 to a base
 `rayproject/ray:1.4.1-py38` image. See [Dockerfile.release](Dockerfile.release)
 for specifics.
 

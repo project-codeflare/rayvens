@@ -25,7 +25,7 @@ RUN sudo apt-get update \
     && sudo apt-get clean
 
 COPY --chown=ray:users scripts/Preloader.java .
-RUN kamel local run Preloader.java --dependency camel-k:loader-yaml; rm Preloader.java
+RUN kamel local run Preloader.java --dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl; rm Preloader.java
 
 COPY --chown=ray:users setup.py rayvens/
 COPY --chown=ray:users rayvens rayvens/rayvens/
