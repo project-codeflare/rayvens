@@ -76,7 +76,7 @@ def kamel_command_end_condition(subcommand_type, base_name):
     if subcommand_type == KamelCommand.BUILD:
         return ""
     if subcommand_type == KamelCommand.RUN:
-        return f"integration \"{base_name}\""
+        return f"Integration \"{base_name}\""
     if subcommand_type == KamelCommand.LOCAL_BUILD:
         return ""
     if subcommand_type == KamelCommand.LOCAL_RUN:
