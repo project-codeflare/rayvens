@@ -55,6 +55,8 @@ sink = stream.actor.add_sink.remote(stream, sink_config)
 # Wait for sink to reach running state.
 ray.get(sink)
 
+time.sleep(15)
+
 # Sends message to all sinks attached to this stream.
 stream << f'Sending message to Slack sink in run mode {run_mode}.'
 
