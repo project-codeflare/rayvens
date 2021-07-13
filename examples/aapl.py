@@ -45,7 +45,7 @@ rayvens.init()
 # create a source stream
 source_config = dict(
     kind='http-source',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     period=3000)
 source = rayvens.Stream('http', source_config=source_config)
 
@@ -67,7 +67,8 @@ if slack_channel != '':
 
         def append(self, event):
             payload = json.loads(event)  # parse event payload to json
-            quote = payload[0]['price']  # extract AAPL quote
+            quote = payload['quoteResponse']['result'][0][
+                'regularMarketPrice']  # extract AAPL quote
             if self.last_quote:
                 if quote > self.last_quote:
                     sink.append('AAPL is up')

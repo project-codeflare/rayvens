@@ -44,7 +44,7 @@ stream = rayvens.Stream('http')
 # Event source config.
 source_config = dict(
     kind='generic-periodic-source',
-    uri="http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo")
+    uri="https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL")
 
 # Attach source to stream.
 source = stream.add_source(source_config)

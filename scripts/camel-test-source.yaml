@@ -15,8 +15,8 @@
 #
 
 - from:
-        uri: timer:tick?period=3000
-        steps:
-              - to: http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo
-              - log:
-                      message: "${body}"
+          uri: timer:tick?period=3000
+          steps:
+                  - to: https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL
+                  - log:
+                            message: "${body}"

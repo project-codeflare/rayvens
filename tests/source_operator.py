@@ -33,7 +33,10 @@ class Counter:
         self.ready = asyncio.Event()
 
     def append(self, event):
-        print('AAPL is', json.loads(event)[0]['price'])
+        print(
+            'AAPL is',
+            json.loads(event)['quoteResponse']['result'][0]
+            ['regularMarketPrice'])
         self.count += 1
         if self.count > 5:
             self.ready.set()
@@ -50,7 +53,7 @@ rayvens.init(mode=run_mode)
 # Config for the source.
 source_config = dict(
     kind='http-source',
-    url='http://financialmodelingprep.com/api/v3/quote-short/AAPL?apikey=demo',
+    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     route='/test-from-http',
     period=3000)
 
