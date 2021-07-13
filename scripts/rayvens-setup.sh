@@ -139,7 +139,7 @@ public class Preloader extends RouteBuilder {
   }
 }
 EOF
-    kamel local run "$tmp"/Preloader.java --dependency camel-k:loader-yaml
+    kamel local run "$tmp"/Preloader.java --dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl
     rm "$tmp"/Preloader.java
     rmdir "$tmp"
     exit 0
