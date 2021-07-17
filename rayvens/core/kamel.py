@@ -128,6 +128,10 @@ def run(integration_content,
     command.append("-n")
     command.append(mode.namespace)
 
+    # Include health check:
+    command.append("-d")
+    command.append("camel:camel-quarkus-microprofile-health")
+
     for envVar in envVars:
         if envVar not in os.environ:
             raise RuntimeError("Variable %s not set in current environment" %
@@ -192,6 +196,10 @@ def local_run(integration_content,
         # In the case of HTTP, add the port:
         command.append('--property')
         command.append(f'quarkus.http.port={port}')
+
+    # Include health check:
+    command.append("-d")
+    command.append("camel:camel-quarkus-microprofile-health")
 
     return kamel_utils.invoke_kamel_command(
         command,

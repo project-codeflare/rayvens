@@ -60,6 +60,6 @@ time.sleep(15)
 # Sends message to all sinks attached to this stream.
 stream << f'Sending message to Slack sink in run mode {run_mode}.'
 
-time.sleep(5)
+time.sleep(10)
 
 ray.get(stream.actor.disconnect_all.remote())
