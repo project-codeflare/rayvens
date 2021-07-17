@@ -59,17 +59,13 @@ def await_start(mode, integration):
     health_check_address = f"{server_address}/q/health"
     while True:
         response = requests.get(health_check_address, timeout=(5, None))
-        print(response.status_code)
-        print(response.content)
         json_response = json.loads(response.content)
         all_routes_are_up = True
         for check in json_response['checks']:
             if check['name'] == 'camel-readiness-checks' and check[
                     'status'] == 'UP':
-                print('camel-readiness-checks is UP')
                 data = check['data']
                 if data['context'] == 'UP':
-                    print('data context is UP')
                     # Ensure all routes are up.
                     route_index = 1
                     route = f'route:route{route_index}'
@@ -81,8 +77,6 @@ def await_start(mode, integration):
                         route = f'route:route{route_index}'
         if all_routes_are_up:
             break
-        time.sleep(1)
-        print('tick')
 
     return integration_is_running
 
