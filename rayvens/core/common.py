@@ -38,23 +38,7 @@ def get_run_mode(camel_mode):
     return mode
 
 
-# Wait for an integration to reach its running state and not only that but
-# also be in a state where it can immediately execute incoming requests.
-def await_start(mode, integration):
-    # Only needed when operator is used.
-    if mode.is_local():
-        return True
-
-    # Check logs of the integration to make sure it was installed properly.
-    invocation = kamel.log(mode, integration.integration_name,
-                           "Installed features:")
-    integration_is_running = invocation is not None
-    if integration_is_running:
-        print(f'Integration {integration.integration_name} is running.')
-    else:
-        print('Integration did not start correctly.')
-
-    # Perform health check:
+def _wait_for_ready_integration(mode, integration):
     server_address = mode.server_address(integration)
     health_check_address = f"{server_address}/q/health"
     while True:
@@ -77,6 +61,27 @@ def await_start(mode, integration):
                         route = f'route:route{route_index}'
         if all_routes_are_up:
             break
+        time.sleep(1)
+
+
+# Wait for an integration to reach its running state and not only that but
+# also be in a state where it can immediately execute incoming requests.
+def await_start(mode, integration):
+    # Only needed when operator is used.
+    if mode.is_local():
+        return True
+
+    # Check logs of the integration to make sure it was installed properly.
+    invocation = kamel.log(mode, integration.integration_name,
+                           "Installed features:")
+    integration_is_running = invocation is not None
+    if integration_is_running:
+        print(f'Integration {integration.integration_name} is running.')
+    else:
+        print('Integration did not start correctly.')
+
+    # Perform health check and wait for integration to be ready.
+    _wait_for_ready_integration(mode, integration)
 
     return integration_is_running
 
