@@ -17,7 +17,6 @@
 import ray
 import rayvens
 import sys
-import time
 
 # Send message to Slack sink using the kamel anywhere operator implementation.
 
@@ -50,14 +49,11 @@ sink_config = dict(kind='slack-sink',
                    webhookUrl=slack_webhook)
 
 # Add sink to stream.
-sink = stream.actor.add_sink.remote(stream, sink_config)
-
-# Wait for sink to reach running state.
-ray.get(sink)
+sink = stream.add_sink(sink_config)
 
 # Sends message to all sinks attached to this stream.
 stream << f'Sending message to Slack sink in run mode {run_mode}.'
 
-time.sleep(5)
-
-ray.get(stream.actor.disconnect_all.remote())
+# Disconnect any sources or sinks attached to the stream 2 seconds after
+# the stream is idle (i.e. no events were propagated by the stream).
+stream.disconnect_all(after_idle_for=2)

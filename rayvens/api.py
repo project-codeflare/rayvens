@@ -16,6 +16,7 @@
 
 import os
 import ray
+import time
 
 from rayvens.core.local import start as start_http
 from rayvens.core.kafka import start as start_kafka
@@ -63,17 +64,37 @@ class Stream:
     def unsubscribe(self, subscriber_name):
         return ray.get(self.actor.unsubscribe.remote(subscriber_name))
 
-    def disconnect_source(self, source_name):
+    def disconnect_source(self, source_name, after_idle_for=None, after=None):
+        self._wait_for_timeout(after_idle_for)
         return ray.get(self.actor.disconnect_source.remote(source_name))
 
-    def disconnect_sink(self, sink_name):
+    def disconnect_sink(self, sink_name, after_idle_for=None, after=None):
+        self._wait_for_timeout(after_idle_for)
         return ray.get(self.actor.disconnect_sink.remote(sink_name))
 
-    def disconnect_all(self):
+    def disconnect_all(self, after_idle_for=None, after=None):
+        self._wait_for_timeout(after_idle_for, after)
         return ray.get(self.actor.disconnect_all.remote())
 
     def _meta(self, action, *args, **kwargs):
         return ray.get(self.actor._meta.remote(action, *args, **kwargs))
+
+    def _wait_for_timeout(self, after_idle_for, after):
+        if after_idle_for is not None and after_idle_for > 0:
+            while True:
+                time_elapsed_since_last_event = self._idle_time()
+
+                # Idle timeout exceeds the user-specified time limit:
+                if time_elapsed_since_last_event > after_idle_for:
+                    break
+
+                # Check again after waiting for the rest of the timeout time:
+                time.sleep(after_idle_for - time_elapsed_since_last_event + 1)
+        if after is not None and after > 0:
+            time.sleep(after)
+
+    def _idle_time(self):
+        return time.time() - ray.get(self.actor._get_latest_timestamp.remote())
 
 
 @ray.remote(num_cpus=0)
@@ -84,6 +105,7 @@ class StreamActor:
         self._operator = operator
         self._sources = {}
         self._sinks = {}
+        self._latest_sent_event_timestamp = None
 
     def send_to(self, subscriber, name=None):
         if name in self._subscribers:
@@ -104,6 +126,7 @@ class StreamActor:
                 if not integration.accepts_data_type(data):
                     continue
             _eval(subscriber, data)
+        self._latest_sent_event_timestamp = time.time()
 
     def add_operator(self, operator):
         self._operator = operator
@@ -158,6 +181,9 @@ class StreamActor:
 
     def _meta(self, action, *args, **kwargs):
         return verify_do(self, _global_camel, action, *args, **kwargs)
+
+    def _get_latest_timestamp(self):
+        return self._latest_sent_event_timestamp
 
 
 def _eval(f, data):
