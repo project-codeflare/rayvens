@@ -74,7 +74,7 @@ class Camel:
         # Start running the source integration.
         integration.invoke_run(self.mode, integration_content)
 
-        if not await_start(self.mode, integration.integration_name):
+        if not await_start(self.mode, integration):
             raise RuntimeError('Could not start source')
         return integration
 
@@ -111,7 +111,7 @@ class Camel:
         stream.actor.send_to.remote(helper, sink_name)
 
         # Wait for integration to finish.
-        if not await_start(self.mode, integration_name):
+        if not await_start(self.mode, integration):
             raise RuntimeError('Could not start sink')
 
         return integration

@@ -49,7 +49,7 @@ class Camel:
         # Set up source for the HTTP connector case.
         send_to(stream.actor, self.mode.server_address(integration), route)
 
-        if not await_start(self.mode, integration.integration_name):
+        if not await_start(self.mode, integration):
             raise RuntimeError('Could not start source')
         return integration
 
@@ -71,7 +71,7 @@ class Camel:
         stream.actor.send_to.remote(helper, sink_name)
 
         # Wait for integration to finish.
-        if not await_start(self.mode, integration.integration_name):
+        if not await_start(self.mode, integration):
             raise RuntimeError('Could not start sink')
 
         return integration
