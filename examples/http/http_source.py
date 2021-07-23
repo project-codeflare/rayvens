@@ -16,7 +16,6 @@
 
 import ray
 import rayvens
-import time
 import sys
 
 # Receive message from stock price source and print it to console using the
@@ -27,7 +26,7 @@ if len(sys.argv) < 2:
     print(f'usage: {sys.argv[0]} <run_mode>')
     sys.exit(1)
 run_mode = sys.argv[1]
-if run_mode not in ['operator']:
+if run_mode not in ['local', 'operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 
 # Initialize ray either on the cluster or locally otherwise.
@@ -67,7 +66,5 @@ another_source = stream.add_source(another_source_config)
 # Log all events from stream-attached sources.
 stream >> (lambda event: print('LOG:', event))
 
-# Wait before ending program.
-time.sleep(20)
-
-stream.disconnect_all()
+# Disconnect all sources after 20 seconds.
+stream.disconnect_all(after=20)
