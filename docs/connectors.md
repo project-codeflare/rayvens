@@ -131,6 +131,7 @@ This source manages the receiving of objects from AWS S3 or IBM Cloud Object Sto
 - `endpoint` the name of the public endpoint from the bucket configuration qualified by the URI scheme (for example, `https://`);
 - `region` (optional) the region of the bucket, if left empty the region will be automatically parsed by Rayvens from the endpoint;
 - `move_after_read` (optional) enables moving of any read file from bucket specified by `bucket_name` to new bucket that is the value of this field. If using the Cloud Object Storage, the new bucket has to be created ahead of time. The new bucket name is provided as the value of this field;
+- `meta_event_only` (optional) this option only allows for the filename to be propagated;
 
 This source will fetch and delete the files in the bucket unless the `move_after_read` option is enabled in which case the read files are moved to the bucket specified by the `move_after_read` field value.
 
@@ -151,6 +152,23 @@ source_config = dict(kind='cloud-object-storage-source',
                      secret_access_key=<secret_access_key>,
                      endpoint=<endpoint>,
                      move_after_read="new-bucket-name")
+```
+
+The event returned by this source is a JSON string of the form:
+
+```
+{"filename": <filename_value>, "body": <body_value>}
+```
+
+Convert the event to JSON when handling the event:
+
+```
+json_event = json.loads(event)
+```
+and then access its field like so:
+```
+print(json_event['filename'])
+print(json_event['body'])
 ```
 
 ### `kind="file-source"`
