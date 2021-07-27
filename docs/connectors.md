@@ -163,12 +163,13 @@ The event returned by this source is a JSON string of the form:
 Convert the event to JSON when handling the event:
 
 ```
+import json
 json_event = json.loads(event)
 ```
 and then access its field like so:
 ```
-print(json_event['filename'])
-print(json_event['body'])
+json_event['filename']
+json_event['body']
 ```
 
 ### `kind="file-source"`
