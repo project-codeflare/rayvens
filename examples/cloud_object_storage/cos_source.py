@@ -17,7 +17,7 @@
 import ray
 import rayvens
 import sys
-import time
+import json
 
 # This example demonstrates how to receive objects from AWS S3 or
 # IBM Cloud Object Storage. It requires a bucket name, HMAC credentials,
@@ -62,12 +62,14 @@ source = stream.add_source(source_config)
 
 def process_file(event):
     print(f'received {len(event)} bytes')
+    json_event = json.loads(event)
     print("Contents:")
-    print(event)
+    print(json_event['filename'])
+    print(json_event['body'])
 
 
 # Log object sizes to the console
 stream >> process_file
 
 # Run for a while
-time.sleep(10)
+stream.disconnect_all(after_idle_for=2)
