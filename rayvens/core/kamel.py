@@ -106,6 +106,14 @@ def run(integration_content,
             queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
             command.append(queue)
 
+        if _integration_requires_file_queue_json(integration_content):
+            queue = os.path.join(os.path.dirname(__file__),
+                                 'FileQueueJson.java')
+            command.append(queue)
+
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
+
         if _integration_requires_file_watch_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'FileWatchQueue.java')
@@ -167,13 +175,22 @@ def local_run(integration_content,
                                     'ProcessFile.java')
         command.append(process_file)
 
+    # Use appropriate Queue type(s).
     if mode.transport == 'http':
-        # Use appropriate Queue type(s).
         if integration_type == 'source':
             if _integration_requires_file_queue(integration_content):
                 queue = os.path.join(os.path.dirname(__file__),
                                      'FileQueue.java')
                 command.append(queue)
+
+            if _integration_requires_file_queue_json(integration_content):
+                queue = os.path.join(os.path.dirname(__file__),
+                                     'FileQueueJson.java')
+                command.append(queue)
+
+                command.append("-d")
+                command.append(
+                    "mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
             if _integration_requires_file_watch_queue(integration_content):
                 queue = os.path.join(os.path.dirname(__file__),
@@ -184,6 +201,10 @@ def local_run(integration_content,
                 queue = os.path.join(os.path.dirname(__file__),
                                      'MetaEventQueue.java')
                 command.append(queue)
+
+                command.append("-d")
+                command.append(
+                    "mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
             if _integration_requires_queue(integration_content):
                 queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
@@ -258,6 +279,13 @@ def _integration_requires_file_processor(integration_content):
 def _integration_requires_file_queue(integration_content):
     configuration = yaml.dump(integration_content)
     if 'bean: addToFileQueue' in configuration:
+        return True
+    return False
+
+
+def _integration_requires_file_queue_json(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileJsonQueue' in configuration:
         return True
     return False
 

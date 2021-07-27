@@ -54,7 +54,7 @@ if region is not None:
     sink_config['region'] = region
 
 # Run the sink
-source = stream.add_sink(sink_config)
+sink = stream.add_sink(sink_config)
 
 # Send file contents to Cloud Object Storage:
 stream << "File contents sample!"

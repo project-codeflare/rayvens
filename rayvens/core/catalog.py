@@ -312,6 +312,9 @@ def construct_source(config, endpoint, inverted=False):
             'meta_event_only' in config and config['meta_event_only']:
         take_from_queue = 'takeFromMetaEventQueue'
         add_to_queue = 'addToMetaEventQueue'
+    elif config['kind'] == 'cloud-object-storage-source':
+        take_from_queue = 'takeFromFileJsonQueue'
+        add_to_queue = 'addToFileJsonQueue'
 
     # Multi-source integration with several routes:
     if isinstance(spec, list):
@@ -538,12 +541,6 @@ def cos_sink(config):
                 # Create new file route for final spec:
                 file_spec = {'steps': []}
                 file_spec['steps'].append({'bean': 'processFile'})
-                # file_spec['steps'].append({
-                #     'set-header': {
-                #         'name': 'CamelAwsS3Key',
-                #         'simple': uploaded_file_name
-                #     }
-                # })
                 file_spec['steps'].append({'to': uri})
                 spec_list.append((file_spec, from_uri))
             elif 'from_directory' in config:

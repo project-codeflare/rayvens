@@ -17,8 +17,6 @@
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.io.File;
-import java.io.InputStream;
-import java.io.FileInputStream;
 
 import org.apache.camel.BindToRegistry;
 import org.apache.camel.Exchange;
@@ -35,6 +33,9 @@ class Recv implements Processor {
 
     public void process(Exchange exchange) throws Exception {
         JSONObject returnJsonObject = new JSONObject();
+        String body = exchange.getIn().getBody(String.class);
+        returnJsonObject.put("body", body);
+
         Object key = exchange.getIn().getHeader("CamelAwsS3Key");
         returnJsonObject.put("filename", key.toString());
         queue.add(returnJsonObject.toString());
@@ -54,16 +55,16 @@ class Send implements Processor {
     }
 }
 
-public class MetaEventQueue extends RouteBuilder {
+public class FileQueueJson extends RouteBuilder {
     BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
 
     @BindToRegistry
-    public Recv addToMetaEventQueue() {
+    public Recv addToFileJsonQueue() {
         return new Recv(queue);
     }
 
     @BindToRegistry
-    public Send takeFromMetaEventQueue() {
+    public Send takeFromFileJsonQueue() {
         return new Send(queue);
     }
 

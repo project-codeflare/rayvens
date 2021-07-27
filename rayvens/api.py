@@ -84,17 +84,25 @@ class Stream:
             while True:
                 time_elapsed_since_last_event = self._idle_time()
 
-                # Idle timeout exceeds the user-specified time limit:
-                if time_elapsed_since_last_event > after_idle_for:
-                    break
+                if time_elapsed_since_last_event is not None:
+                    # Idle timeout exceeds the user-specified time limit:
+                    if time_elapsed_since_last_event > after_idle_for:
+                        break
 
-                # Check again after waiting for the rest of the timeout time:
-                time.sleep(after_idle_for - time_elapsed_since_last_event + 1)
+                    # Check again after waiting for the rest of the timeout
+                    # time:
+                    time.sleep(after_idle_for - time_elapsed_since_last_event +
+                               1)
+                else:
+                    time.sleep(after_idle_for)
         if after is not None and after > 0:
             time.sleep(after)
 
     def _idle_time(self):
-        return time.time() - ray.get(self.actor._get_latest_timestamp.remote())
+        latest_timestamp = ray.get(self.actor._get_latest_timestamp.remote())
+        if latest_timestamp is None:
+            return None
+        return time.time() - latest_timestamp
 
 
 @ray.remote(num_cpus=0)
