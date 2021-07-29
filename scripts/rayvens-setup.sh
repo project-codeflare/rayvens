@@ -425,7 +425,7 @@ EOF
             for pip_dependency in "${project_pip_dependencies[@]}"
             do
                 cat >> "$config" << EOF
-    - sudo apt-get -y install $pip_dependency
+    - pip install $pip_dependency
 EOF
             done
         fi
@@ -466,7 +466,7 @@ EOF
             for pip_dependency in "${project_pip_dependencies[@]}"
             do
                 cat >> "$config" << EOF
-    - sudo apt-get -y install $pip_dependency
+    - pip install $pip_dependency
 EOF
             done
         fi
