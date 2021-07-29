@@ -24,6 +24,10 @@ image="quay.io/ibm/rayvens:$rayvens_version"
 service_account="rayvens"
 cpu="1"
 mem="2G"
+project_dir=""
+project_requirements_file=""
+project_dependencies=()
+project_pip_dependencies=()
 
 while [ -n "$1" ]; do
     case "$1" in
@@ -44,6 +48,12 @@ while [ -n "$1" ]; do
         --example) example="1";;
         --preload) preload="1";;
         --version) version="1";;
+        --install-project) install_project="1";;
+        --project-dir) shift; project_dir=$1;;
+        -d|--project-dep) shift; project_dependencies+=("$1");;
+        -p|--project-pip-dep) shift; project_pip_dependencies+=("$1");;
+        --project-requirements) shift; project_requirements_file=$1;;
+        --requirements-in-project-dir) requirements_in_project_dir="1";;
 
         --dev)
             kind="1";
@@ -82,6 +92,13 @@ Usage: rayvens-setup.sh [options]
     --example                       generate example file "example.py" in current working directory
     --preload                       preload main camel jars into maven repository
     --version                       shows the version of this script
+
+    --install-project               install project on cluster nodes, use --project-dir <absolute_dir_path>, --project-requirements <absolute_file_path> or --requirements-in-project-dir
+      --project-dir <absolute_dir_path>             directory of the user project to be pip installed on the cluster nodes
+      --project-requirements <absolute_file_path>   file containing python dependencies to be pip installed on the cluster nodes via requirements file
+      --requirements-in-project-dir                 when true, the requirements file in the project directory will be used, if missing the requirements file will be ignored
+      --project-dep <dep>                           system project dependency that will use "apt-get install -y <dep>"
+      --project-pip-dep <dep>                       python dependency to be pip installed using "pip install <dep>"
 
     --kind                          setup a development Kind cluster on localhost instead of deploying to current Kubernetes context
                                     (destroy existing Kind cluster if any, set Kubernetes context to Kind)
@@ -335,6 +352,142 @@ worker_start_ray_commands:
     - ray stop
     - ulimit -n 65536; ray start --address=\$RAY_HEAD_IP:6379
 EOF
+
+    if [ -n "$install_project" ]; then
+        if [ -z "$project_dir" ]; then
+            echo "ERROR: project directory name has not been specified, use flag --project-dir <absolute_path_to_dir>"
+            exit 1
+        fi
+
+        if [ -z "$(dirname "${project_dir}")" ]; then
+            echo "ERROR: project directory specified: ${project_dir} but it is not an absolute path"
+            exit 1
+        fi
+
+        echo "--- mount project from directory $(dirname "${project_dir}")"
+        echo "$(dirname "${project_dir}")" ; echo "$(basename "${project_dir}")"
+        dir_name="$(basename "${project_dir}")"
+        requirements_file_name=""
+
+        if [ -z "${dir_name}" ]; then
+            echo "ERROR: project directory name missing from path: ${project_dir}"
+            exit 1
+        fi
+
+        cat >> "$config" << EOF
+file_mounts:
+    {
+        "/home/ray/$dir_name": "$project_dir"
+EOF
+
+        if [ ! -z "$project_requirements_file" ]; then
+            if [ -z "$(dirname "${project_requirements_file}")" ]; then
+                echo "ERROR: project requirements file specified: ${project_requirements_file} but it is not an absolute path"
+                exit 1
+            fi
+
+            requirements_file_name="$(basename "${project_requirements_file}")"
+
+            if [ -z "${requirements_file_name}" ]; then
+                echo "ERROR: project requirements file missing from path: ${project_requirements_file}"
+                exit 1
+            fi
+
+            cat >> "$config" << EOF
+        "/home/ray/$requirements_file_name": "$project_requirements_file"
+EOF
+
+        fi
+        cat >> "$config" << EOF
+    }
+file_mounts_sync_continuously: false
+EOF
+    fi
+
+    if [ -n "$install_project" ]; then
+        cat >> "$config" << EOF
+head_setup_commands:
+EOF
+
+        if [ "${#project_dependencies[@]}" -gt "0"  ]; then
+            cat >> "$config" << EOF
+    - sudo apt-get update
+EOF
+            for dependency in "${project_dependencies[@]}"
+            do
+                cat >> "$config" << EOF
+    - sudo apt-get -y install $dependency
+EOF
+            done
+        fi
+
+        if [ "${#project_pip_dependencies[@]}" -gt "0"  ]; then
+            for pip_dependency in "${project_pip_dependencies[@]}"
+            do
+                cat >> "$config" << EOF
+    - sudo apt-get -y install $pip_dependency
+EOF
+            done
+        fi
+
+        if [ -n "$requirements_in_project_dir" ]; then
+            cat >> "$config" << EOF
+    - pip install -r /home/ray/$dir_name/requirements.txt
+EOF
+        fi
+
+        if [ ! -z "$requirements_file_name" ]; then
+            cat >> "$config" << EOF
+    - pip install -r /home/ray/$requirements_file_name
+EOF
+        fi
+
+        cat >> "$config" << EOF
+    - pip install /home/ray/$dir_name
+EOF
+
+        cat >> "$config" << EOF
+worker_setup_commands:
+EOF
+
+        if [ "${#project_dependencies[@]}" -gt "0"  ]; then
+            cat >> "$config" << EOF
+    - sudo apt-get update
+EOF
+            for dependency in "${project_dependencies[@]}"
+            do
+                cat >> "$config" << EOF
+    - sudo apt-get -y install $dependency
+EOF
+            done
+        fi
+
+        if [ "${#project_pip_dependencies[@]}" -gt "0"  ]; then
+            for pip_dependency in "${project_pip_dependencies[@]}"
+            do
+                cat >> "$config" << EOF
+    - sudo apt-get -y install $pip_dependency
+EOF
+            done
+        fi
+
+        if [ -n "$requirements_in_project_dir" ]; then
+            cat >> "$config" << EOF
+    - pip install -r /home/ray/$dir_name/requirements.txt
+EOF
+        fi
+
+        if [ ! -z "$requirements_file_name" ]; then
+            cat >> "$config" << EOF
+    - pip install -r /home/ray/$requirements_file_name
+EOF
+        fi
+
+        cat >> "$config" << EOF
+    - pip install /home/ray/$dir_name
+EOF
+    fi
+
 else
     echo "--- skipping generation of cluster configuration file"
     if [ ! -f "$config" ]; then
