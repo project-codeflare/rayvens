@@ -72,8 +72,8 @@ def process_file(event, filename_obj):
     print(f'received {len(event)} bytes')
     json_event = json.loads(event)
     print("Contents:")
-    print(json_event['filename'])
-    print(json_event['event_type'])
+    print("Filename:", json_event['filename'])
+    print("Event type:", json_event['event_type'])
     filename_obj.set_filename.remote(json_event['filename'])
 
     # filename = json_event['filename']
@@ -83,7 +83,7 @@ def process_file(event, filename_obj):
     # print(ds)
 
 
-# Log object sizes to the console
+# Process incoming file name.
 stream >> (lambda event: process_file(event, filename_obj))
 
 # Create a data set and write the csv file using datasets.
@@ -92,19 +92,13 @@ stream >> (lambda event: process_file(event, filename_obj))
 # test_ds = ray.experimental.data.range(100)
 # test_ds.write_csv("test_files/test.csv")
 
-# # Write JSON file:
-# with open('test_files/test.txt', 'w') as file:
-#     json_data = {"greeting": "Hello!"}
-#     json.dump(json_data, file)
-
-# Read JSON file:
+# Read JSON file to Ray dataset:
 timeout_counter = 100
 filename = ray.get(filename_obj.get_filename.remote())
 while filename is None and timeout_counter > 0:
     filename = ray.get(filename_obj.get_filename.remote())
     timeout_counter -= 1
     time.sleep(1)
-
 if filename is not None:
     ds = ray.experimental.data.read_json([filename])
     print(ds)
