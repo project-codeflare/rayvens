@@ -18,6 +18,7 @@ import ray
 import rayvens
 import sys
 import json
+import time
 
 # This example demonstrates how to receive events.
 
@@ -46,22 +47,70 @@ stream = rayvens.Stream('bucket')
 # Configure the source:
 source_config = dict(kind='file-watch-source',
                      path='test_files',
-                     events='DELETE,CREATE')
+                     events='CREATE')
 
 # Run the source:
 source = stream.add_source(source_config)
 
 
-def process_file(event):
+@ray.remote
+class Filename:
+    def __init__(self):
+        self.filename = None
+
+    def set_filename(self, filename):
+        self.filename = filename
+
+    def get_filename(self):
+        return self.filename
+
+
+filename_obj = Filename.remote()
+
+
+def process_file(event, filename_obj):
     print(f'received {len(event)} bytes')
     json_event = json.loads(event)
     print("Contents:")
     print(json_event['filename'])
     print(json_event['event_type'])
+    filename_obj.set_filename.remote(json_event['filename'])
+
+    # filename = json_event['filename']
+    # WARNING: Cannot pickle Ray itself so we cannot read a
+    #          file using Datasets API in response to an event.
+    # ds = ray.experimental.data.read_json([filename])
+    # print(ds)
 
 
 # Log object sizes to the console
-stream >> process_file
+stream >> (lambda event: process_file(event, filename_obj))
 
-# Run for a while
+# Create a data set and write the csv file using datasets.
+# TODO: Ray 1.5.1 uses pandas to write a CSV file so we avoid
+#       using this method for writing CSV files.
+# test_ds = ray.experimental.data.range(100)
+# test_ds.write_csv("test_files/test.csv")
+
+# # Write JSON file:
+# with open('test_files/test.txt', 'w') as file:
+#     json_data = {"greeting": "Hello!"}
+#     json.dump(json_data, file)
+
+# Read JSON file:
+timeout_counter = 100
+filename = ray.get(filename_obj.get_filename.remote())
+while filename is None and timeout_counter > 0:
+    filename = ray.get(filename_obj.get_filename.remote())
+    timeout_counter -= 1
+    time.sleep(1)
+
+if filename is not None:
+    ds = ray.experimental.data.read_json([filename])
+    print(ds)
+    print("Dataset constructed correctly")
+else:
+    print("No file was received")
+
+# Run while events are still being received then stop if not.
 stream.disconnect_all(after_idle_for=2)
