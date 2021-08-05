@@ -119,6 +119,9 @@ def run(integration_content,
                                  'FileWatchQueue.java')
             command.append(queue)
 
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
+
         if _integration_requires_meta_event_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'MetaEventQueue.java')
@@ -196,6 +199,10 @@ def local_run(integration_content,
                 queue = os.path.join(os.path.dirname(__file__),
                                      'FileWatchQueue.java')
                 command.append(queue)
+
+                command.append("-d")
+                command.append(
+                    "mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
             if _integration_requires_meta_event_queue(integration_content):
                 queue = os.path.join(os.path.dirname(__file__),

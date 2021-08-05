@@ -24,6 +24,7 @@ import org.apache.camel.BindToRegistry;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.json.simple.JSONObject;
 
 class Recv implements Processor {
     BlockingQueue<Object> queue;
@@ -33,10 +34,16 @@ class Recv implements Processor {
     }
 
     public void process(Exchange exchange) throws Exception {
+        JSONObject returnJsonObject = new JSONObject();
+
+        // Record event type:
         Object eventType = exchange.getIn().getHeader("CamelFileEventType");
+        returnJsonObject.put("event_type", eventType.toString());
+
+        // Record event type:
         File file = exchange.getIn().getBody(File.class);
-        // TODO: use Cloud event.
-        queue.add(eventType.toString()+":file="+file.toString());
+        returnJsonObject.put("filename", file.toString());
+        queue.add(returnJsonObject.toString());
     }
 }
 

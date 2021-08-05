@@ -17,7 +17,6 @@
 import ray
 import rayvens
 import sys
-import time
 
 # This example shows how a file is used to trigger an event to process
 # the file.
@@ -57,4 +56,4 @@ def process_file(event):
 stream >> process_file
 
 # Run for a while.
-time.sleep(100)
+stream.disconnect_all(after_idle_for=2)
