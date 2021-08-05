@@ -198,16 +198,32 @@ source_config = dict(kind='file-watch-source',
                      events='DELETE,CREATE')
 ```
 
-The event format for this source is:
+The returned result is a JSON message with the following structure:
+
 ```
-<event_type>:file=<filename>
+{"filename": <filename_value>, "event_type": <event_type>}
 ```
+where event_type is one of `DELETE`, `CREATE` or `MODIFY`
 
 For example, when the file `test.txt` is deleted from the watched folder the event returned is:
 ```
-DELETE:file=/absolute/path/to/test.txt
+{
+  "filename": "/absolute/path/to/test.txt",
+  "event_type": "DELETE"
+}
 ```
 
+Convert the event to JSON when handling the event:
+
+```
+import json
+json_event = json.loads(event)
+```
+and then access its field like so:
+```
+json_event['filename']
+json_event['event_type']
+```
 
 ## Sinks
 
