@@ -19,6 +19,7 @@ from rayvens.core.name import name_integration
 from rayvens.core import catalog
 from rayvens.core import kamel
 from rayvens.core import kubernetes
+from rayvens.core import kafka_topics
 
 
 class Integration:
@@ -43,6 +44,7 @@ class Integration:
         self.invocation = None
         self.service_name = None
         self.server_address = None
+        self.environment_preparators = []
 
     def invoke_local_run(self, mode, integration_content):
         self.invocation = kamel.local_run(
@@ -106,6 +108,21 @@ class Integration:
             if isinstance(data, restricted_type):
                 return True
         return False
+
+    # Method that checks if, based on the configuration, the integration
+    # requires something to be run or created before the integration is run.
+    def prepare_environment(self):
+        # Create a multi-partition topic in Kafka.
+        if (self.config['kind'] == 'kafka-source' or
+            self.config['kind'] == 'kafka-sink') and \
+           'partitions' in self.config and self.config['partitions'] > 0:
+            partitions = self.config['partitions']
+            topic = self.config['topic']
+            brokers = self.config['brokers']
+            kafka_invocation = kafka_topics.create_topic(
+                topic, partitions, brokers)
+            if kafka_invocation is not None:
+                self.environment_preparators.append(kafka_invocation)
 
     def route(self, default=None):
         if 'route' in self.config and self.config['route'] is not None:
