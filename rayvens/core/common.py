@@ -26,7 +26,7 @@ from rayvens.core import kamel
 from rayvens.core.mode import mode, RayvensMode
 
 
-def get_run_mode(camel_mode):
+def get_run_mode(camel_mode, check_port):
     if camel_mode == 'auto' or camel_mode == 'local':
         mode.run_mode = RayvensMode.LOCAL
     elif camel_mode == 'mixed':
@@ -35,6 +35,7 @@ def get_run_mode(camel_mode):
         mode.run_mode = RayvensMode.CLUSTER_OPERATOR
     else:
         raise RuntimeError("Unsupported camel mode.")
+    mode.check_port = check_port
     return mode
 
 

@@ -39,12 +39,13 @@ class Integration:
 
         self.integration_name = name_integration(self.stream_name,
                                                  self.source_sink_name)
-        self.port = random_port()
+        self.port = None
         self.invocation = None
         self.service_name = None
         self.server_address = None
 
     def invoke_local_run(self, mode, integration_content):
+        self.port = random_port(mode.check_port)
         self.invocation = kamel.local_run(
             [integration_content],
             mode,
@@ -53,6 +54,7 @@ class Integration:
             integration_type=self.config['integration_type'])
 
     def invoke_run(self, mode, integration_content):
+        self.port = random_port(mode.check_port)
         self.invocation = kamel.run(
             [integration_content],
             mode,
