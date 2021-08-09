@@ -298,18 +298,26 @@ class KafkaInvocation:
                                         stderr=subprocess.PIPE,
                                         start_new_session=True)
 
-    def invoke(self):
-        return self._check_kafka_output()
+    def invoke(self, checked_topic):
+        return self._check_kafka_output(checked_topic)
 
-    def _check_kafka_output(self):
+    def _check_kafka_output(self, checked_topic):
         while True:
             # Log progress of kafka topic creation subprocess:
-            utils.print_log_from_subprocess(self.subprocess_name,
-                                            self.process.stdout,
-                                            with_output=True)
+            output = utils.print_log_from_subprocess(self.subprocess_name,
+                                                     self.process.stdout,
+                                                     with_output=True)
+            if checked_topic is not None and checked_topic in output:
+                return True
+
+            if checked_topic is None and "Created topic" in output:
+                return True
+
+            if checked_topic is None and "already exists" in output:
+                return True
 
             # Check process has not exited prematurely.
             if self.process.poll() is not None:
-                return True
+                break
 
         return False

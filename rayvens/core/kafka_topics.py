@@ -33,10 +33,18 @@ def create_topic(topic, partitions, brokers):
     command.append("--bootstrap-server")
     command.append(brokers)
 
-    # Only create topic if it does not exist already:
-    command.append("--if-not-exists")
-
     return _invoke_kafka_command(command)
+
+
+# Check topic exists:
+def check_topic_exists(topic, brokers):
+    command = ["--list"]
+
+    # Bootstrap server:
+    command.append("--bootstrap-server")
+    command.append(brokers)
+
+    return _invoke_kafka_command(command, checked_topic=topic)
 
 
 # Method to delete a kafka topic.
@@ -45,12 +53,12 @@ def delete_topic():
     pass
 
 
-def _invoke_kafka_command(command):
+def _invoke_kafka_command(command, checked_topic=None):
     # Invoke command using the Kamel invocation actor.
     kafka_invocation = invocation.KafkaInvocation(command)
 
     # Wait for kamel command to finish launching the integration.
-    if kafka_invocation.invoke():
+    if kafka_invocation.invoke(checked_topic):
         return kafka_invocation
 
     return None

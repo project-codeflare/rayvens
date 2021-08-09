@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 from confluent_kafka import Consumer, Producer
 from rayvens.core import kamel
+from rayvens.core import kafka_topics
 from rayvens.core.mode import mode, RayvensMode
 
 
@@ -84,6 +85,16 @@ def await_start(mode, integration):
     _wait_for_ready_integration(mode, integration)
 
     return integration_is_running
+
+
+# Await Kafka topic crestion.
+def await_topic_creation(topic, brokers):
+    # Check logs of the integration to make sure it was installed properly.
+    invocation = kafka_topics.check_topic_exists(topic, brokers)
+    if invocation is not None:
+        print(f'Kafka topic {topic} exists.')
+    else:
+        print(f'Topic {topic} could not be created.')
 
 
 @ray.remote(num_cpus=0)

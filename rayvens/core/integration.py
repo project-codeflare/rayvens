@@ -20,6 +20,7 @@ from rayvens.core import catalog
 from rayvens.core import kamel
 from rayvens.core import kubernetes
 from rayvens.core import kafka_topics
+from rayvens.core import common
 
 
 class Integration:
@@ -123,6 +124,7 @@ class Integration:
                 topic, partitions, brokers)
             if kafka_invocation is not None:
                 self.environment_preparators.append(kafka_invocation)
+            common.await_topic_creation(topic, brokers)
 
     def route(self, default=None):
         if 'route' in self.config and self.config['route'] is not None:
