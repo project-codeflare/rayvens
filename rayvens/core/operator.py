@@ -37,7 +37,7 @@ class Camel:
         route = integration.route()
 
         # Prepare env:
-        integration.prepare_environment()
+        integration.prepare_environment(self.mode)
 
         # Determine the `to` endpoint value made up of a base address and
         # a custom route provided by the user. Use this to construct the
@@ -64,7 +64,7 @@ class Camel:
         route = integration.route()
 
         # Prepare env:
-        integration.prepare_environment()
+        integration.prepare_environment(self.mode)
 
         # Get integration source code.
         integration_content = construct_sink(sink, f'platform-http:{route}')

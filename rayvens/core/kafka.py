@@ -31,18 +31,10 @@ class Camel:
 
     def add_source(self, stream, config, source_name):
         integration = Integration(stream.name, source_name, config)
-
-        # Establish topic name:
-        topic_name = integration.integration_name
-        if "kafka_transport_topic" in config:
-            topic_name = config["kafka_transport_topic"]
-        else:
-            config["kafka_transport_topic"] = topic_name
-
         spec = catalog.construct_source(
             config,
             f'kafka:{integration.kafka_transport_topic}?brokers={brokers()}')
-        integration.prepare_environment()
+        integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
         kafka_send_to(integration.kafka_transport_topic, stream.actor)
         return integration
@@ -52,7 +44,7 @@ class Camel:
         spec = catalog.construct_sink(
             config,
             f'kafka:{integration.kafka_transport_topic}?brokers={brokers()}')
-        integration.prepare_environment()
+        integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
         kafka_recv_from(sink_name, stream.actor)
         return integration

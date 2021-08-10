@@ -117,7 +117,7 @@ class Integration:
 
     # Method that checks if, based on the configuration, the integration
     # requires something to be run or created before the integration is run.
-    def prepare_environment(self):
+    def prepare_environment(self, mode):
         # Create a multi-partition topic for a kafka source/sink.
         if (self.config['kind'] == 'kafka-source' or
             self.config['kind'] == 'kafka-sink') and \
@@ -131,7 +131,8 @@ class Integration:
 
         # Create a multi-partition topic for the Kafka transport of a
         # source/sink.
-        if 'kafka_transport_partitions' in self.config and \
+        if mode.transport == "kafka" and \
+           'kafka_transport_partitions' in self.config and \
            self.config['kafka_transport_partitions'] > 1:
             partitions = self.config['kafka_transport_partitions']
 
