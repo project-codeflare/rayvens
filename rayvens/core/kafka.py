@@ -46,7 +46,8 @@ class Camel:
             f'kafka:{integration.kafka_transport_topic}?brokers={brokers()}')
         integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
-        kafka_recv_from(sink_name, stream.actor)
+        kafka_recv_from(sink_name, integration.kafka_transport_topic,
+                        stream.actor)
         return integration
 
     def disconnect(self, integration):

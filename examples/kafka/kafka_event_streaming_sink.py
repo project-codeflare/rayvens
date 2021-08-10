@@ -18,28 +18,33 @@ import ray
 import rayvens
 import sys
 
-# Event streaming from a third-party external source using Kafka.
+# Send message to Slack sink using the kafka transport.
 
 # Command line arguments and validation:
-if len(sys.argv) < 2:
-    print(f'usage: {sys.argv[0]} <brokers> <password> <run_mode> OR'
-          f'       {sys.argv[0]} <run_mode>')
+if len(sys.argv) < 4:
+    print(f'usage: {sys.argv[0]} <brokers> <password> <slack_channel>'
+          '<slack_webhook> <run_mode> OR'
+          f'       {sys.argv[0]} <slack_channel> <slack_webhook> <run_mode>')
     sys.exit(1)
 
 # Brokers and run mode:
 brokers = None
 password = None
-run_mode = sys.argv[1]
-if len(sys.argv) == 4:
+slack_channel = sys.argv[1]
+slack_webhook = sys.argv[2]
+run_mode = sys.argv[3]
+if len(sys.argv) == 6:
     brokers = sys.argv[1]
     password = sys.argv[2]
-    run_mode = sys.argv[3]
+    slack_channel = sys.argv[3]
+    slack_webhook = sys.argv[4]
+    run_mode = sys.argv[5]
 
 if run_mode not in ['local', 'mixed', 'operator']:
     raise RuntimeError(f'Invalid run mode provided: {run_mode}')
 
 # The Kafka topic used for communication.
-topic = "externalTopicSource"
+topic = "externalTopicSink"
 
 # Initialize ray either on the cluster or locally otherwise.
 if run_mode == 'operator':
@@ -51,22 +56,21 @@ else:
 rayvens.init(mode=run_mode, transport="kafka")
 
 # Create stream.
-stream = rayvens.Stream('http')
+stream = rayvens.Stream('slack')
 
-# Event source config.
-source_config = dict(
-    kind='http-source',
-    url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
-    route='/from-http',
-    period=3000,
-    kafka_transport_topic=topic,
-    kafka_transport_partitions=3)
+# Event sink config.
+sink_config = dict(kind='slack-sink',
+                   channel=slack_channel,
+                   webhookUrl=slack_webhook,
+                   kafka_transport_topic=topic,
+                   kafka_transport_partitions=3)
 
-# Attach source to stream.
-source = stream.add_source(source_config)
+# Add sink to stream.
+sink = stream.add_sink(sink_config)
 
-# Log all events from stream-attached sources.
-stream >> (lambda event: print('LOG:', event))
+# Sends message to all sinks attached to this stream.
+stream << f'Message to Slack sink in run mode {run_mode} and Kafka transport.'
 
-# Disconnect source after 10 seconds.
-stream.disconnect_all(after=10)
+# Disconnect any sources or sinks attached to the stream 2 seconds after
+# the stream is idle (i.e. no events were propagated by the stream).
+stream.disconnect_all(after_idle_for=2)

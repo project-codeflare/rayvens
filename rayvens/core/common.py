@@ -168,9 +168,9 @@ def kafka_send_to(kafka_transport_topic, handle):
     threading.Thread(target=append).start()
 
 
-def kafka_recv_from(integration_name, handle):
+def kafka_recv_from(integration_name, kafka_transport_topic, handle):
     # use kafka producer actor to push from rayvens stream to camel sink
-    helper = KafkaProducerActor.remote(integration_name)
+    helper = KafkaProducerActor.remote(kafka_transport_topic)
     handle.send_to.remote(helper, integration_name)
 
 
