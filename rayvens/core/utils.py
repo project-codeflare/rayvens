@@ -32,10 +32,9 @@ def random_port(check_port):
     if not check_port:
         return port
 
-    port_is_free = _port_is_free(port)
-    while not port_is_free:
+    while not _port_is_free(port):
+        print(f"Port {port} busy, trying new port.")
         port = rayvens_random.randint(49152, 65535)
-        port_is_free = _port_is_free(port)
 
     return port
 
