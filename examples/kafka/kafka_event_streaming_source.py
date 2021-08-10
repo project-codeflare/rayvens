@@ -41,17 +41,6 @@ if run_mode not in ['local', 'mixed', 'operator']:
 # The Kafka topic used for communication.
 topic = "externalTopic2"
 
-# If using the Kafka broker started by Rayvens the following brokers
-# are possible:
-# - from inside the cluster: kafka:9092
-# - from outside the cluster: localhost:31093
-# If using a different Kafka service please provide the brokers in the
-# form of host:port,host1:port1, ... .
-if brokers is None:
-    brokers = 'localhost:31093'
-    if run_mode == 'operator':
-        brokers = "kafka:9092"
-
 # Initialize ray either on the cluster or locally otherwise.
 if run_mode == 'operator':
     ray.init(address='auto')
