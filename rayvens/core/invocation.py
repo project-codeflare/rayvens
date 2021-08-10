@@ -152,7 +152,7 @@ class KamelInvocation:
                             end_condition,
                             with_output=False,
                             with_timeout=False):
-        # Implicit 100s timer.
+        # Implicit 30s timer.
         countdown = None
         if with_timeout:
             countdown = 30
