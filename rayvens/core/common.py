@@ -147,7 +147,7 @@ class ProducerHelper:
             self.producer.produce(self.name, data.encode('utf-8'))
 
 
-def kafka_send_to(kafka_transport_topic, handle):
+def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
     # use kafka consumer thread to push from camel source to rayvens stream
     consumer = Consumer({
         'bootstrap.servers': brokers(),
