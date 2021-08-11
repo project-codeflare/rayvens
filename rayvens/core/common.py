@@ -24,6 +24,8 @@ from pathlib import Path
 from confluent_kafka import Consumer, Producer
 from rayvens.core import kamel
 from rayvens.core.mode import mode, RayvensMode
+from ray.actor import ActorHandle, ActorMethod
+from ray.remote_function import RemoteFunction
 
 
 def get_run_mode(camel_mode):
@@ -147,8 +149,91 @@ class ProducerHelper:
             self.producer.produce(self.name, data.encode('utf-8'))
 
 
+@ray.remote(num_cpus=0.05)
+class KafkaConsumer(object):
+    def __init__(self, kafka_transport_topic, stream_actor):
+        # The subscribers to the stream:
+        self.stream_actor = stream_actor
+        self.subscribers = {}
+        self.sinks = {}
+        self.operator = None
+
+        # Set up a Kafka Consumer:
+        from confluent_kafka import Consumer
+        self.kafka_consumer = Consumer({
+            'bootstrap.servers': brokers(),
+            'group.id': 'ray',
+            'auto.offset.reset': 'latest'
+        })
+
+        # Subscribe the Kafka Consumer to the transport topic:
+        self.kafka_consumer.subscribe([kafka_transport_topic])
+
+    def enable_consumer(self):
+        self.enabled = True
+        while self.enabled:
+            # Retrieve message:
+            msg = self.kafka_consumer.poll(1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                print(f"Consumer error: {msg.error()}")
+                continue
+
+            # Decode:
+            data = msg.value().decode('utf-8')
+
+            # Check message is valid:
+            if data is None:
+                continue
+
+            # Fetch latest values for subscribvers, sinks and operator and
+            # send the current time since a valid message has been received.
+            self.subscribers, self.sinks, self.operator = \
+                ray.get(self.stream_actor._exchange_state.remote(time.time()))
+
+            # Apply the operator:
+            if self.operator is not None:
+                data = eval(self.operator, data)
+
+            # Send message to subscribers:
+            for name, stream_subscriber in self.subscribers.items():
+                if name in self.sinks:
+                    integration = self.sinks[name]
+                    if not integration.accepts_data_type(data):
+                        continue
+                eval(stream_subscriber, data)
+
+    def disable_consumer(self):
+        self.enabled = False
+
+    def close_consumer(self):
+        self.kafka_consumer.close()
+
+
 def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
-    # use kafka consumer thread to push from camel source to rayvens stream
+    if kafka_transport_partitions > 1:
+        consumers = [
+            KafkaConsumer.remote(kafka_transport_topic, handle)
+            for _ in range(kafka_transport_partitions)
+        ]
+
+        def append():
+            try:
+                consumer_references = [
+                    consumer.enable_consumer.remote() for consumer in consumers
+                ]
+                ray.get(consumer_references)
+            except KeyboardInterrupt:
+                for consumer in consumers:
+                    consumer.disable_consumer.remote()
+            finally:
+                for consumer in consumers:
+                    consumer.close_consumer.remote()
+
+        threading.Thread(target=append).start()
+
+    # Use kafka consumer thread to push from camel source to rayvens stream
     consumer = Consumer({
         'bootstrap.servers': brokers(),
         'group.id': 'ray',
@@ -178,3 +263,12 @@ def brokers():
     host = os.getenv('KAFKA_SERVICE_HOST', 'localhost')
     port = os.getenv('KAFKA_SERVICE_PORT', '31093')
     return f'{host}:{port}'
+
+
+def eval(f, data):
+    if isinstance(f, ActorHandle):
+        return f.append.remote(data)
+    elif isinstance(f, ActorMethod) or isinstance(f, RemoteFunction):
+        return f.remote(data)
+    else:
+        return f(data)

@@ -114,6 +114,7 @@ class StreamActor:
         self._sources = {}
         self._sinks = {}
         self._latest_sent_event_timestamp = None
+        self._source_consumers = None
 
     def send_to(self, subscriber, name=None):
         if name in self._subscribers:
@@ -158,6 +159,9 @@ class StreamActor:
                 f'Stream {self.name} already has a sink named {sink_name}.')
         self._sinks[sink_name] = _global_camel.add_sink(
             stream, sink_config, sink_name)
+        if self._source_consumers is not None:
+            for consumer in self._source_consumers:
+                consumer.update_sinks.remote(self._sinks)
         return sink_name
 
     def unsubscribe(self, subscriber_name):
@@ -192,6 +196,10 @@ class StreamActor:
 
     def _get_latest_timestamp(self):
         return self._latest_sent_event_timestamp
+
+    def _exchange_state(self, timestamp):
+        self._latest_sent_event_timestamp = timestamp
+        return self._subscribers, self._sinks, self._operator
 
 
 def _eval(f, data):
