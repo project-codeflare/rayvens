@@ -14,7 +14,8 @@
 # limitations under the License.
 #
 
-from rayvens.core.utils import random_port
+from rayvens.core.common import brokers
+from rayvens.core.utils import random_port, create_partitioned_topic
 from rayvens.core.name import name_integration
 from rayvens.core import catalog
 from rayvens.core import kamel
@@ -39,10 +40,17 @@ class Integration:
 
         self.integration_name = name_integration(self.stream_name,
                                                  self.source_sink_name)
+
+        # Establish kafka transport topic name:
+        self.kafka_transport_topic = self.integration_name
+        if "kafka_transport_topic" in config:
+            self.kafka_transport_topic = config["kafka_transport_topic"]
+
         self.port = random_port()
         self.invocation = None
         self.service_name = None
         self.server_address = None
+        self.environment_preparators = []
 
     def invoke_local_run(self, mode, integration_content):
         self.invocation = kamel.local_run(
@@ -106,6 +114,31 @@ class Integration:
             if isinstance(data, restricted_type):
                 return True
         return False
+
+    # Method that checks if, based on the configuration, the integration
+    # requires something to be run or created before the integration is run.
+    def prepare_environment(self, mode):
+        # Create a multi-partition topic for a kafka source/sink.
+        if (self.config['kind'] == 'kafka-source' or
+            self.config['kind'] == 'kafka-sink') and \
+           'partitions' in self.config and self.config['partitions'] > 1:
+            topic = self.config['topic']
+            partitions = self.config['partitions']
+            kafka_brokers = self.config['brokers']
+
+            # Create topic
+            create_partitioned_topic(topic, partitions, kafka_brokers)
+
+        # Create a multi-partition topic for the Kafka transport of a
+        # source/sink.
+        if mode.transport == "kafka" and \
+           'kafka_transport_partitions' in self.config and \
+           self.config['kafka_transport_partitions'] > 1:
+            partitions = self.config['kafka_transport_partitions']
+
+            # Create topic
+            create_partitioned_topic(self.kafka_transport_topic, partitions,
+                                     brokers())
 
     def route(self, default=None):
         if 'route' in self.config and self.config['route'] is not None:

@@ -33,16 +33,22 @@ class Camel:
         integration = Integration(stream.name, source_name, config)
         spec = catalog.construct_source(
             config,
-            f'kafka:{integration.integration_name}?brokers={brokers()}')
+            f'kafka:{integration.kafka_transport_topic}?brokers={brokers()}')
+        integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
-        kafka_send_to(integration.integration_name, stream.actor)
+        kafka_send_to(integration.kafka_transport_topic, stream.actor)
         return integration
 
     def add_sink(self, stream, config, sink_name):
         integration = Integration(stream.name, sink_name, config)
         spec = catalog.construct_sink(
             config,
-            f'kafka:{integration.integration_name}?brokers={brokers()}')
+            f'kafka:{integration.kafka_transport_topic}?brokers={brokers()}')
+        integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
-        kafka_recv_from(sink_name, stream.actor)
+        kafka_recv_from(sink_name, integration.kafka_transport_topic,
+                        stream.actor)
         return integration
+
+    def disconnect(self, integration):
+        integration.disconnect(self.mode)

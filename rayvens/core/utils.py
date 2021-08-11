@@ -67,3 +67,23 @@ def get_server_pod_name():
                 return f'{v[1:-2]}'
 
     raise RuntimeError("Cannot find server pod name")
+
+
+def create_partitioned_topic(topic, partitions, brokers):
+    # Create new topic
+    from confluent_kafka.admin import AdminClient, NewTopic
+    admin_client = AdminClient({"bootstrap.servers": brokers})
+
+    # TODO: Smart choice for replication factor, for now use a
+    # replication factor of 1.
+    topics = [NewTopic(topic, num_partitions=partitions, replication_factor=1)]
+    admin_client.create_topics(topics)
+
+    # Wait for topic to be ready:
+    topic_ready = False
+    while not topic_ready:
+        for enabled_topic in admin_client.list_topics().topics:
+            if topic == enabled_topic:
+                topic_ready = True
+                break
+    print(f"Topic {topic} is ready.")
