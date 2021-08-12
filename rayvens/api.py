@@ -159,9 +159,6 @@ class StreamActor:
                 f'Stream {self.name} already has a sink named {sink_name}.')
         self._sinks[sink_name] = _global_camel.add_sink(
             stream, sink_config, sink_name)
-        if self._source_consumers is not None:
-            for consumer in self._source_consumers:
-                consumer.update_sinks.remote(self._sinks)
         return sink_name
 
     def unsubscribe(self, subscriber_name):
