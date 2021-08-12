@@ -148,7 +148,7 @@ class ProducerHelper:
             self.producer.produce(self.name, data.encode('utf-8'))
 
 
-def kafka_send_to(integration_name, handle):
+def kafka_send_to(kafka_transport_topic, handle):
     # use kafka consumer thread to push from camel source to rayvens stream
     consumer = Consumer({
         'bootstrap.servers': brokers(),
@@ -156,7 +156,7 @@ def kafka_send_to(integration_name, handle):
         'auto.offset.reset': 'latest'
     })
 
-    consumer.subscribe([integration_name])
+    consumer.subscribe([kafka_transport_topic])
 
     def append():
         while True:
@@ -169,9 +169,9 @@ def kafka_send_to(integration_name, handle):
     threading.Thread(target=append).start()
 
 
-def kafka_recv_from(integration_name, handle):
+def kafka_recv_from(integration_name, kafka_transport_topic, handle):
     # use kafka producer actor to push from rayvens stream to camel sink
-    helper = KafkaProducerActor.remote(integration_name)
+    helper = KafkaProducerActor.remote(kafka_transport_topic)
     handle.send_to.remote(helper, integration_name)
 
 

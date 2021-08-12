@@ -275,3 +275,49 @@ class KubectlInvocation:
             if self.process.poll() is not None:
                 break
         return success
+
+
+#
+# Kafka topic creator invocation.
+#
+
+
+class KafkaInvocation:
+    subprocess_name = "Kafka"
+
+    def __init__(self, command_options):
+        final_command = ['kafka-topics']
+        final_command.extend(command_options)
+
+        # Log kamel command.
+        print("Exec command => ", " ".join(final_command))
+
+        # Launch kafka command in a new process.
+        self.process = subprocess.Popen(final_command,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        start_new_session=True)
+
+    def invoke(self, checked_topic):
+        return self._check_kafka_output(checked_topic)
+
+    def _check_kafka_output(self, checked_topic):
+        while True:
+            # Log progress of kafka topic creation subprocess:
+            output = utils.print_log_from_subprocess(self.subprocess_name,
+                                                     self.process.stdout,
+                                                     with_output=True)
+            if checked_topic is not None and checked_topic in output:
+                return True
+
+            if checked_topic is None and "Created topic" in output:
+                return True
+
+            if checked_topic is None and "already exists" in output:
+                return True
+
+            # Check process has not exited prematurely.
+            if self.process.poll() is not None:
+                break
+
+        return False
