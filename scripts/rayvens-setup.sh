@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-rayvens_version=0.2.0
+rayvens_version=0.3.0
 
 config="rayvens.yaml"
 namespace="ray"
