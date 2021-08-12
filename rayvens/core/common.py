@@ -232,6 +232,7 @@ def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
                     consumer.close_consumer.remote()
 
         threading.Thread(target=append).start()
+        return
 
     # Use kafka consumer thread to push from camel source to rayvens stream
     consumer = Consumer({
