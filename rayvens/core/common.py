@@ -151,19 +151,19 @@ class ProducerHelper:
 
 @ray.remote(num_cpus=0.05)
 class KafkaConsumer(object):
-    def __init__(self, kafka_transport_topic, stream_actor):
-        # The subscribers to the stream:
+    def __init__(self, kafka_transport_topic, stream_actor, subscribers,
+                 operator):
         self.stream_actor = stream_actor
-        self.subscribers = {}
-        self.sinks = {}
-        self.operator = None
+        self.subscribers = subscribers
+        self.operator = operator
 
         # Set up a Kafka Consumer:
         from confluent_kafka import Consumer
         self.kafka_consumer = Consumer({
             'bootstrap.servers': brokers(),
             'group.id': 'ray',
-            'auto.offset.reset': 'latest'
+            'enable.auto.commit': True,
+            'auto.offset.reset': 'earliest'
         })
 
         # Subscribe the Kafka Consumer to the transport topic:
@@ -187,21 +187,12 @@ class KafkaConsumer(object):
             if data is None:
                 continue
 
-            # Fetch latest values for subscribvers, sinks and operator and
-            # send the current time since a valid message has been received.
-            self.subscribers, self.sinks, self.operator = \
-                ray.get(self.stream_actor._exchange_state.remote(time.time()))
-
             # Apply the operator:
             if self.operator is not None:
-                data = eval(self.operator, data)
+                data = ray.get(eval(self.operator, data))
 
             # Send message to subscribers:
             for name, stream_subscriber in self.subscribers.items():
-                if name in self.sinks:
-                    integration = self.sinks[name]
-                    if not integration.accepts_data_type(data):
-                        continue
                 eval(stream_subscriber, data)
 
     def disable_consumer(self):
@@ -211,10 +202,12 @@ class KafkaConsumer(object):
         self.kafka_consumer.close()
 
 
-def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
+def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle,
+                  subscribers, operator):
     if kafka_transport_partitions > 1:
         consumers = [
-            KafkaConsumer.remote(kafka_transport_topic, handle)
+            KafkaConsumer.remote(kafka_transport_topic, handle, subscribers,
+                                 operator)
             for _ in range(kafka_transport_partitions)
         ]
 

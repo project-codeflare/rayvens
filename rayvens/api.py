@@ -148,7 +148,8 @@ class StreamActor:
                 f'Stream {self.name} already has a source named {source_name}.'
             )
         self._sources[source_name] = _global_camel.add_source(
-            stream, source_config, source_name)
+            stream, source_config, source_name, self._subscribers,
+            self._operator)
         return source_name
 
     def add_sink(self, stream, sink_config):

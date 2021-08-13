@@ -28,7 +28,7 @@ class Camel:
         self.mode = mode
         self.mode.transport = 'http'
 
-    def add_source(self, stream, config, source_name):
+    def add_source(self, stream, config, source_name, subscribers, operator):
         integration = Integration(stream.name, source_name, config)
         route = integration.route(default='/source')
         spec = catalog.construct_source(config,
