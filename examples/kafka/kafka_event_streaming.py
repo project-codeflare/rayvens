@@ -75,6 +75,8 @@ def process_currency_price(event):
 
     time.sleep(1)
 
+    return f"{currency} : {price}"
+
 
 # Create stream.
 stream = rayvens.Stream('kafka-eventing', operator=process_currency_price)
