@@ -179,51 +179,46 @@ def local_run(integration_content,
         command.append(process_file)
 
     # Use appropriate Queue type(s).
-    if mode.transport == 'http':
-        if integration_type == 'source':
-            if _integration_requires_file_queue(integration_content):
-                queue = os.path.join(os.path.dirname(__file__),
-                                     'FileQueue.java')
-                command.append(queue)
+    if mode.transport == 'http' and integration_type == 'source':
+        if _integration_requires_file_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
+            command.append(queue)
 
-            if _integration_requires_file_queue_json(integration_content):
-                queue = os.path.join(os.path.dirname(__file__),
-                                     'FileQueueJson.java')
-                command.append(queue)
+        if _integration_requires_file_queue_json(integration_content):
+            queue = os.path.join(os.path.dirname(__file__),
+                                 'FileQueueJson.java')
+            command.append(queue)
 
-                command.append("-d")
-                command.append(
-                    "mvn:com.googlecode.json-simple:json-simple:1.1.1")
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-            if _integration_requires_file_watch_queue(integration_content):
-                queue = os.path.join(os.path.dirname(__file__),
-                                     'FileWatchQueue.java')
-                command.append(queue)
+        if _integration_requires_file_watch_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__),
+                                 'FileWatchQueue.java')
+            command.append(queue)
 
-                command.append("-d")
-                command.append(
-                    "mvn:com.googlecode.json-simple:json-simple:1.1.1")
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-            if _integration_requires_meta_event_queue(integration_content):
-                queue = os.path.join(os.path.dirname(__file__),
-                                     'MetaEventQueue.java')
-                command.append(queue)
+        if _integration_requires_meta_event_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__),
+                                 'MetaEventQueue.java')
+            command.append(queue)
 
-                command.append("-d")
-                command.append(
-                    "mvn:com.googlecode.json-simple:json-simple:1.1.1")
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-            if _integration_requires_queue(integration_content):
-                queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
-                command.append(queue)
+        if _integration_requires_queue(integration_content):
+            queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
+            command.append(queue)
 
-        # Port is mandatory.
-        if port is None:
-            return RuntimeError('port is missing')
+    # Port is mandatory.
+    if port is None:
+        return RuntimeError('port is missing')
 
-        # In the case of HTTP, add the port:
-        command.append('--property')
-        command.append(f'quarkus.http.port={port}')
+    # In the case of HTTP, add the port:
+    command.append('--property')
+    command.append(f'quarkus.http.port={port}')
 
     # Include health check:
     command.append("-d")
