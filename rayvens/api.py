@@ -194,10 +194,6 @@ class StreamActor:
     def _get_latest_timestamp(self):
         return self._latest_sent_event_timestamp
 
-    def _exchange_state(self, timestamp):
-        self._latest_sent_event_timestamp = timestamp
-        return self._subscribers, self._operator
-
     def _fetch_processors(self):
         return self._subscribers, self._operator
 
