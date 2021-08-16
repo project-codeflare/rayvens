@@ -151,11 +151,8 @@ class ProducerHelper:
 
 @ray.remote(num_cpus=0.05)
 class KafkaConsumer(object):
-    def __init__(self, kafka_transport_topic, stream_actor, subscribers,
-                 operator):
+    def __init__(self, kafka_transport_topic, stream_actor):
         self.stream_actor = stream_actor
-        self.subscribers = subscribers
-        self.operator = operator
 
         # Set up a Kafka Consumer:
         from confluent_kafka import Consumer
@@ -169,7 +166,7 @@ class KafkaConsumer(object):
         # Subscribe the Kafka Consumer to the transport topic:
         self.kafka_consumer.subscribe([kafka_transport_topic])
 
-    def enable_consumer(self):
+    def enable_consumer(self, subscribers, operator):
         self.enabled = True
         while self.enabled:
             # Retrieve message:
@@ -188,12 +185,13 @@ class KafkaConsumer(object):
                 continue
 
             # Apply the operator:
-            if self.operator is not None:
-                data = ray.get(eval(self.operator, data))
+            if operator is not None:
+                data = ray.get(eval(operator, data))
 
             # Send message to subscribers:
-            for name, stream_subscriber in self.subscribers.items():
+            for name, stream_subscriber in subscribers.items():
                 eval(stream_subscriber, data)
+            self.stream_actor._update_timestamp.remote(time.time())
 
     def disable_consumer(self):
         self.enabled = False
@@ -202,19 +200,19 @@ class KafkaConsumer(object):
         self.kafka_consumer.close()
 
 
-def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle,
-                  subscribers, operator):
+def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
     if kafka_transport_partitions > 1:
         consumers = [
-            KafkaConsumer.remote(kafka_transport_topic, handle, subscribers,
-                                 operator)
+            KafkaConsumer.remote(kafka_transport_topic, handle)
             for _ in range(kafka_transport_partitions)
         ]
 
         def append():
+            subscribers, operator = ray.get(handle._fetch_processors.remote())
             try:
                 consumer_references = [
-                    consumer.enable_consumer.remote() for consumer in consumers
+                    consumer.enable_consumer.remote(subscribers, operator)
+                    for consumer in consumers
                 ]
                 ray.get(consumer_references)
             except KeyboardInterrupt:

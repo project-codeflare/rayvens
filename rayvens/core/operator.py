@@ -29,7 +29,7 @@ class Camel:
         self.mode = mode
         self.mode.transport = 'http'
 
-    def add_source(self, stream, source, source_name, subscribers, operator):
+    def add_source(self, stream, source, source_name):
         # Construct integration
         integration = Integration(stream.name, source_name, source)
 

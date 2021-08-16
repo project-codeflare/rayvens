@@ -148,8 +148,7 @@ class StreamActor:
                 f'Stream {self.name} already has a source named {source_name}.'
             )
         self._sources[source_name] = _global_camel.add_source(
-            stream, source_config, source_name, self._subscribers,
-            self._operator)
+            stream, source_config, source_name)
         return source_name
 
     def add_sink(self, stream, sink_config):
@@ -197,7 +196,13 @@ class StreamActor:
 
     def _exchange_state(self, timestamp):
         self._latest_sent_event_timestamp = timestamp
-        return self._subscribers, self._sinks, self._operator
+        return self._subscribers, self._operator
+
+    def _fetch_processors(self):
+        return self._subscribers, self._operator
+
+    def _update_timestamp(self, timestamp):
+        self._latest_sent_event_timestamp = timestamp
 
 
 def _eval(f, data):

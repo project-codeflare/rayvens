@@ -40,7 +40,7 @@ class Camel:
         # Start server is using a backend.
         serve.start()
 
-    def add_source(self, stream, source, source_name, subscribers, operator):
+    def add_source(self, stream, source, source_name):
         # Construct integration
         integration = Integration(stream.name, source_name, source)
 

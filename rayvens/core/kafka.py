@@ -29,7 +29,7 @@ class Camel:
         self.mode = mode
         self.mode.transport = 'kafka'
 
-    def add_source(self, stream, config, source_name, subscribers, operator):
+    def add_source(self, stream, config, source_name):
         integration = Integration(stream.name, source_name, config)
         spec = catalog.construct_source(
             config,
@@ -37,8 +37,7 @@ class Camel:
         integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
         kafka_send_to(integration.kafka_transport_topic,
-                      integration.kafka_transport_partitions, stream.actor,
-                      subscribers, operator)
+                      integration.kafka_transport_partitions, stream.actor)
         return integration
 
     def add_sink(self, stream, config, sink_name):
