@@ -114,6 +114,7 @@ class StreamActor:
         self._sources = {}
         self._sinks = {}
         self._latest_sent_event_timestamp = None
+        self._source_consumers = None
 
     def send_to(self, subscriber, name=None):
         if name in self._subscribers:
@@ -192,6 +193,12 @@ class StreamActor:
 
     def _get_latest_timestamp(self):
         return self._latest_sent_event_timestamp
+
+    def _fetch_processors(self):
+        return self._subscribers, self._operator
+
+    def _update_timestamp(self, timestamp):
+        self._latest_sent_event_timestamp = timestamp
 
 
 def _eval(f, data):
