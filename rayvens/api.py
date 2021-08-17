@@ -114,7 +114,6 @@ class StreamActor:
         self._sources = {}
         self._sinks = {}
         self._latest_sent_event_timestamp = None
-        self._source_consumers = None
 
     def send_to(self, subscriber, name=None):
         if name in self._subscribers:
