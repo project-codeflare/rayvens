@@ -363,14 +363,14 @@ def construct_source(config, endpoint, inverted=False):
 def slack_sink(config):
     if 'channel' not in config:
         raise TypeError('Kind slack-sink requires a channel.')
-    if 'webhookUrl' not in config:
-        raise TypeError('Kind slack-sink requires a webhookUrl.')
+    if 'webhook_url' not in config:
+        raise TypeError('Kind slack-sink requires a webhook url.')
     channel = config['channel']
-    webhookUrl = config['webhookUrl']
+    webhook_url = config['webhook_url']
 
     final_spec = {
         'steps': [{
-            'to': f'slack:{channel}?webhookUrl={webhookUrl}',
+            'to': f'slack:{channel}?webhookUrl={webhook_url}',
         }]
     }
 
