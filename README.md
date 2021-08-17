@@ -41,7 +41,7 @@ We can publish messages to Slack with code:
 ```python
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   webhook_url=slack_webhook)
 sink = rayvens.Stream('slack', sink_config=sink_config)
 ```
 
@@ -429,7 +429,7 @@ In addition to the same source as before, it instantiates a sink:
 sink = rayvens.Stream('slack')
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   webhook_url=slack_webhook)
 sink.add_sink(sink_config)
 ```
 
@@ -535,7 +535,7 @@ source_config = dict(
 
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   webhook_url=slack_webhook)
 
 operator = rayvens.Stream('comparator',
                           source_config=source_config,

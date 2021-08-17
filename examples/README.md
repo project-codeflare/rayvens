@@ -188,7 +188,7 @@ In `slack.py` a Slack sink is configured:
 ```
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   webhook_url=slack_webhook)
 sink = rayvens.Stream('slack', sink_config=sink_config)
 ```
 

@@ -32,7 +32,7 @@ The general usage is to first create the configuration:
 ```
 sink_configuration = dict(kind='slack-sink',
                           channel='channel_name',
-                          webhookUrl='valid_webhook_url')
+                          webhook_url='valid_webhook_url')
 ```
 
 followed by the creation of the sink based on the configuration:
@@ -231,7 +231,7 @@ json_event['event_type']
 
 Outputs a message to a Slack channel provided by the user. It supports the following fields:
 - `channel` the output channel name
-- `webhookUrl` the webhook URL belonging to the channel to which the message is being sent
+- `webhook_url` the webhook URL belonging to the channel to which the message is being sent
 
 ### `kind="kafka-sink"`
 
