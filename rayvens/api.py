@@ -115,8 +115,11 @@ class StreamActor:
         self._sinks = {}
         self._latest_sent_event_timestamp = None
         self._source_consumers = None
+        self._limit_subscribers = False
 
     def send_to(self, subscriber, name=None):
+        if self._limit_subscribers:
+            return
         if name in self._subscribers:
             raise RuntimeError(
                 f'Stream {self.name} already has a subscriber named {name}.')
@@ -195,6 +198,7 @@ class StreamActor:
         return self._latest_sent_event_timestamp
 
     def _fetch_processors(self):
+        self._limit_subscribers = True
         return self._subscribers, self._operator
 
     def _update_timestamp(self, timestamp):
