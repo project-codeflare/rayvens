@@ -72,9 +72,12 @@ class Stream:
         self._wait_for_timeout(after_idle_for)
         return ray.get(self.actor.disconnect_sink.remote(sink_name))
 
-    def disconnect_all(self, after_idle_for=None, after=None):
+    def disconnect_all(self,
+                       after_idle_for=None,
+                       after=None,
+                       stream_drain_timeout=5):
         self._wait_for_timeout(after_idle_for, after)
-        return ray.get(self.actor.disconnect_all.remote())
+        return ray.get(self.actor.disconnect_all.remote(stream_drain_timeout))
 
     def _meta(self, action, *args, **kwargs):
         return ray.get(self.actor._meta.remote(action, *args, **kwargs))
@@ -182,9 +185,10 @@ class StreamActor:
         self._sinks.pop(sink_name)
         self._subscribers.pop(sink_name)
 
-    def disconnect_all(self):
+    def disconnect_all(self, stream_drain_timeout):
         for source_name in dict(self._sources):
             self.disconnect_source(source_name)
+        time.sleep(stream_drain_timeout)
         for sink_name in dict(self._sinks):
             self.disconnect_sink(sink_name)
 
