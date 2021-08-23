@@ -55,7 +55,7 @@ source >> (lambda event: print('LOG:', event))
 # create a sink stream
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   webhook_url=slack_webhook)
 sink = rayvens.Stream('slack', sink_config=sink_config)
 
 

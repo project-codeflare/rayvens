@@ -72,9 +72,12 @@ class Stream:
         self._wait_for_timeout(after_idle_for)
         return ray.get(self.actor.disconnect_sink.remote(sink_name))
 
-    def disconnect_all(self, after_idle_for=None, after=None):
+    def disconnect_all(self,
+                       after_idle_for=None,
+                       after=None,
+                       stream_drain_timeout=5):
         self._wait_for_timeout(after_idle_for, after)
-        return ray.get(self.actor.disconnect_all.remote())
+        return ray.get(self.actor.disconnect_all.remote(stream_drain_timeout))
 
     def _meta(self, action, *args, **kwargs):
         return ray.get(self.actor._meta.remote(action, *args, **kwargs))
@@ -114,8 +117,11 @@ class StreamActor:
         self._sources = {}
         self._sinks = {}
         self._latest_sent_event_timestamp = None
+        self._limit_subscribers = False
 
     def send_to(self, subscriber, name=None):
+        if self._limit_subscribers:
+            return
         if name in self._subscribers:
             raise RuntimeError(
                 f'Stream {self.name} already has a subscriber named {name}.')
@@ -181,9 +187,10 @@ class StreamActor:
         self._sinks.pop(sink_name)
         self._subscribers.pop(sink_name)
 
-    def disconnect_all(self):
+    def disconnect_all(self, stream_drain_timeout):
         for source_name in dict(self._sources):
             self.disconnect_source(source_name)
+        time.sleep(stream_drain_timeout)
         for sink_name in dict(self._sinks):
             self.disconnect_sink(sink_name)
 
@@ -192,6 +199,13 @@ class StreamActor:
 
     def _get_latest_timestamp(self):
         return self._latest_sent_event_timestamp
+
+    def _fetch_processors(self):
+        self._limit_subscribers = True
+        return self._subscribers, self._operator
+
+    def _update_timestamp(self, timestamp):
+        self._latest_sent_event_timestamp = timestamp
 
 
 def _eval(f, data):

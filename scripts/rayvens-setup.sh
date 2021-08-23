@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-rayvens_version=0.2.0
+rayvens_version=0.3.0
 
 config="rayvens.yaml"
 namespace="ray"
@@ -26,8 +26,8 @@ cpu="1"
 mem="2G"
 project_dir=""
 project_requirements_file=""
-project_dependencies=()
-project_pip_dependencies=()
+project_dependencies=""
+project_pip_dependencies=""
 
 while [ -n "$1" ]; do
     case "$1" in
@@ -50,8 +50,8 @@ while [ -n "$1" ]; do
         --version) version="1";;
         --install-project) install_project="1";;
         --project-dir) shift; project_dir=$1;;
-        -d|--project-dep) shift; project_dependencies+=("$1");;
-        -p|--project-pip-dep) shift; project_pip_dependencies+=("$1");;
+        -d|--project-dep) shift; project_dependencies="$project_dependencies $1";;
+        -p|--project-pip-dep) shift; project_pip_dependencies="$project_pip_dependencies $1";;
         --project-requirements) shift; project_requirements_file=$1;;
         --requirements-in-project-dir) requirements_in_project_dir="1";;
 
@@ -409,25 +409,17 @@ EOF
 head_setup_commands:
 EOF
 
-        if [ "${#project_dependencies[@]}" -gt "0"  ]; then
+        if [ -n "$project_dependencies" ]; then
             cat >> "$config" << EOF
     - sudo apt-get update
+    - sudo apt-get -y install$project_dependencies
 EOF
-            for dependency in "${project_dependencies[@]}"
-            do
-                cat >> "$config" << EOF
-    - sudo apt-get -y install $dependency
-EOF
-            done
         fi
 
-        if [ "${#project_pip_dependencies[@]}" -gt "0"  ]; then
-            for pip_dependency in "${project_pip_dependencies[@]}"
-            do
-                cat >> "$config" << EOF
-    - pip install $pip_dependency
+        if [ -n "$project_pip_dependencies" ]; then
+            cat >> "$config" << EOF
+    - pip install$project_pip_dependencies
 EOF
-            done
         fi
 
         if [ -n "$requirements_in_project_dir" ]; then
@@ -450,25 +442,17 @@ EOF
 worker_setup_commands:
 EOF
 
-        if [ "${#project_dependencies[@]}" -gt "0"  ]; then
+        if [ -n "$project_dependencies" ]; then
             cat >> "$config" << EOF
     - sudo apt-get update
+    - sudo apt-get -y install$project_dependencies
 EOF
-            for dependency in "${project_dependencies[@]}"
-            do
-                cat >> "$config" << EOF
-    - sudo apt-get -y install $dependency
-EOF
-            done
         fi
 
-        if [ "${#project_pip_dependencies[@]}" -gt "0"  ]; then
-            for pip_dependency in "${project_pip_dependencies[@]}"
-            do
-                cat >> "$config" << EOF
-    - pip install $pip_dependency
+        if [ -n "$project_pip_dependencies" ]; then
+            cat >> "$config" << EOF
+    - pip install$project_pip_dependencies
 EOF
-            done
         fi
 
         if [ -n "$requirements_in_project_dir" ]; then

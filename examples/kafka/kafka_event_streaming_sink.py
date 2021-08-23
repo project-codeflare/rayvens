@@ -61,7 +61,7 @@ stream = rayvens.Stream('slack')
 # Event sink config.
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook,
+                   webhook_url=slack_webhook,
                    kafka_transport_topic=topic,
                    kafka_transport_partitions=3)
 

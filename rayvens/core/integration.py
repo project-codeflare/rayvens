@@ -46,6 +46,13 @@ class Integration:
         if "kafka_transport_topic" in config:
             self.kafka_transport_topic = config["kafka_transport_topic"]
 
+        # Establish kafka transport topic partitions:
+        self.kafka_transport_partitions = 1
+        if "kafka_transport_partitions" in config and \
+           config["kafka_transport_partitions"] > 1:
+            self.kafka_transport_partitions = config[
+                "kafka_transport_partitions"]
+
         self.port = None
         self.invocation = None
         self.service_name = None
@@ -62,7 +69,6 @@ class Integration:
             integration_type=self.config['integration_type'])
 
     def invoke_run(self, mode, integration_content):
-        self.port = random_port(mode.check_port)
         self.invocation = kamel.run(
             [integration_content],
             mode,
