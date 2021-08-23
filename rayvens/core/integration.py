@@ -53,13 +53,14 @@ class Integration:
             self.kafka_transport_partitions = config[
                 "kafka_transport_partitions"]
 
-        self.port = random_port()
+        self.port = None
         self.invocation = None
         self.service_name = None
         self.server_address = None
         self.environment_preparators = []
 
     def invoke_local_run(self, mode, integration_content):
+        self.port = random_port(mode.check_port)
         self.invocation = kamel.local_run(
             [integration_content],
             mode,

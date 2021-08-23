@@ -20,8 +20,8 @@ from rayvens.core.common import kafka_send_to, kafka_recv_from
 from rayvens.core.integration import Integration
 
 
-def start(camel_mode):
-    return Camel(get_run_mode(camel_mode))
+def start(camel_mode, check_port):
+    return Camel(get_run_mode(camel_mode, check_port))
 
 
 class Camel:

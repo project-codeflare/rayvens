@@ -27,8 +27,32 @@ rayvens_random = random.Random()
 rayvens_random.seed()
 
 
-def random_port():
-    return rayvens_random.randint(49152, 65535)
+def random_port(check_port):
+    port = rayvens_random.randint(49152, 65535)
+    if not check_port:
+        return port
+
+    while not _port_is_free(port):
+        print(f"Port {port} busy, trying new port.")
+        port = rayvens_random.randint(49152, 65535)
+
+    return port
+
+
+def _port_is_free(port):
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Attempt to bind to the port if it fails, port must be busy.
+    port_is_free = True
+    try:
+        sock.bind(('127.0.0.1', port))
+    except socket.error as message:
+        print(f'Port {port} is in use (Error: {str(message)}).')
+        port_is_free = False
+
+    sock.close()
+    return port_is_free
 
 
 def executable_is_available(executable):
