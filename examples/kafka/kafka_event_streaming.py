@@ -25,21 +25,12 @@ import time
 
 # Command line arguments and validation:
 if len(sys.argv) < 3:
-    print(f'usage: {sys.argv[0]} <brokers> <password> <slack_channel>'
-          '<slack_webhook> OR'
-          f'       {sys.argv[0]} <slack_channel> <slack_webhook>')
+    print(f'usage: {sys.argv[0]} <slack_channel>' '<slack_webhook>')
     sys.exit(1)
 
-# Brokers and run mode:
-brokers = None
-password = None
+# Slack credentials:
 slack_channel = sys.argv[1]
 slack_webhook = sys.argv[2]
-if len(sys.argv) == 5:
-    brokers = sys.argv[1]
-    password = sys.argv[2]
-    slack_channel = sys.argv[3]
-    slack_webhook = sys.argv[4]
 
 # Initialize ray either on the cluster or locally otherwise.
 ray.init()
