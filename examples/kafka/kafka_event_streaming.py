@@ -24,10 +24,10 @@ import time
 # dynamic subscribers.
 
 # Command line arguments and validation:
-if len(sys.argv) < 4:
+if len(sys.argv) < 3:
     print(f'usage: {sys.argv[0]} <brokers> <password> <slack_channel>'
-          '<slack_webhook> <run_mode> OR'
-          f'       {sys.argv[0]} <slack_channel> <slack_webhook> <run_mode>')
+          '<slack_webhook> OR'
+          f'       {sys.argv[0]} <slack_channel> <slack_webhook>')
     sys.exit(1)
 
 # Brokers and run mode:
@@ -35,28 +35,17 @@ brokers = None
 password = None
 slack_channel = sys.argv[1]
 slack_webhook = sys.argv[2]
-run_mode = sys.argv[3]
-if len(sys.argv) == 6:
+if len(sys.argv) == 5:
     brokers = sys.argv[1]
     password = sys.argv[2]
     slack_channel = sys.argv[3]
     slack_webhook = sys.argv[4]
-    run_mode = sys.argv[5]
-
-if run_mode not in ['local', 'operator']:
-    raise RuntimeError(f'Invalid run mode provided: {run_mode}')
-
-# The Kafka topic used for communication.
-topic = "partitionedTopic"
 
 # Initialize ray either on the cluster or locally otherwise.
-if run_mode == 'operator':
-    ray.init(address='auto')
-else:
-    ray.init()
+ray.init()
 
 # Start rayvens in operator mode."
-rayvens.init(mode=run_mode, transport="kafka")
+rayvens.init(transport="kafka")
 
 
 @ray.remote
@@ -70,9 +59,10 @@ def process_currency_price(event):
     # Extract price:
     price = parsed_event['last']
 
-    # Output latest currency price:
+    # Log latest currency price:
     print(f"{currency} : {price}")
 
+    # Simulate load intensity:
     time.sleep(1)
 
     return f"{currency} : {price}"
@@ -84,22 +74,20 @@ stream = rayvens.Stream('kafka-eventing', operator=process_currency_price)
 # Event sink config.
 sink_config = dict(kind='slack-sink',
                    channel=slack_channel,
-                   webhookUrl=slack_webhook)
+                   webhook_url=slack_webhook)
 
 # Add sink to stream.
 sink = stream.add_sink(sink_config)
 
 # Event source config.
-coins = ["BTC", "ETH"]
+coins = ["BTC", "ETH", "ADA"]
 source_config = dict(kind='binance-source',
                      coin=coins,
                      period='500',
-                     kafka_transport_topic=topic,
-                     kafka_transport_partitions=3,
-                     kafka_transport_static_subscribers=True)
+                     kafka_transport_partitions=3)
 
 # Attach source to stream.
 source = stream.add_source(source_config)
 
-# Disconnect source after 10 seconds.
-stream.disconnect_all(after=10)
+# Disconnect source after 8 seconds.
+stream.disconnect_all(after=8)
