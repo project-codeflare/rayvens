@@ -19,6 +19,7 @@ import os
 import signal
 import yaml
 import sys
+import time
 from rayvens.core import utils
 from rayvens.core import kamel_utils
 from rayvens.core import kubernetes_utils
@@ -93,7 +94,7 @@ class KamelInvocation:
         if message is None:
             return self._check_command_outcome()
 
-        return self._check_logs(message)
+        return self._check_logs(message, with_timeout=True)
 
     def runs_integration(self):
         return self.subcommand_type == kamel_utils.KamelCommand.RUN or \
@@ -134,18 +135,27 @@ class KamelInvocation:
 
         return success
 
-    def _check_logs(self, message):
+    def _check_logs(self, message, with_timeout=False):
         # Check logs.
-        success = self._check_kamel_output(message, with_output=True)
+        success = self._check_kamel_output(message,
+                                           with_output=True,
+                                           with_timeout=with_timeout)
 
         # Emit success/fail message.
         log = "Logs checked successfully."
         if not success:
-            log = "Log check failed."
+            log = "Log check failed or timed out."
         utils.print_log(self.subprocess_name, log)
         return success
 
-    def _check_kamel_output(self, end_condition, with_output=False):
+    def _check_kamel_output(self,
+                            end_condition,
+                            with_output=False,
+                            with_timeout=False):
+        # Implicit 30s timer.
+        countdown = None
+        if with_timeout:
+            countdown = 30
         while True:
             # Log progress of kamel subprocess:
             output = utils.print_log_from_subprocess(self.subprocess_name,
@@ -160,6 +170,11 @@ class KamelInvocation:
             # Check process has not exited prematurely.
             if self.process.poll() is not None:
                 break
+            if with_timeout:
+                countdown -= 1
+                if countdown == 0:
+                    return False
+                time.sleep(1)
 
         return False
 
