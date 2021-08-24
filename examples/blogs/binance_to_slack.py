@@ -20,8 +20,7 @@ import sys
 import json
 import time
 
-# Scaling event streaming from a third-party external source using Kafka and
-# with output to Slack.
+# Scaling event streaming from a Binance event source to Slack.
 
 # Command line arguments and validation:
 if len(sys.argv) < 3:
