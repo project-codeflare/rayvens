@@ -276,6 +276,12 @@ def brokers():
     return f'{host}:{port}'
 
 
+def operator_brokers():
+    host = os.getenv('KAFKA_SERVICE_HOST', 'kafka')
+    port = os.getenv('KAFKA_SERVICE_PORT', '9092')
+    return f'{host}:{port}'
+
+
 def eval(f, data):
     if isinstance(f, ActorHandle):
         return f.append.remote(data)
