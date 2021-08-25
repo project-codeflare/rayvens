@@ -45,7 +45,11 @@ def _wait_for_ready_integration(mode, integration):
     server_address = mode.server_address(integration)
     health_check_address = f"{server_address}/q/health"
     while True:
-        response = requests.get(health_check_address, timeout=(5, None))
+        try:
+            response = requests.get(health_check_address, timeout=(5, None))
+        except requests.exceptions.ConnectionError:
+            time.sleep(1)
+            continue
         json_response = json.loads(response.content)
         all_routes_are_up = True
         for check in json_response['checks']:
