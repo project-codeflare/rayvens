@@ -72,7 +72,7 @@ def subprocess_tag(subprocess_name):
     return "[%s subprocess]" % subprocess_name
 
 
-def print_log_from_subprocess(subprocess_name, stdout, with_output=False):
+def print_log_from_subprocess(subprocess_name, stdout, with_output):
     output = stdout.readline().decode("utf-8")
     output = output.strip()
 
