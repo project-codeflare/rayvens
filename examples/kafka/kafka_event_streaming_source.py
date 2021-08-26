@@ -53,6 +53,9 @@ rayvens.init(mode=run_mode, transport="kafka")
 # Create stream.
 stream = rayvens.Stream('http')
 
+# Log all events from stream-attached sources.
+stream >> (lambda event: print('LOG:', event))
+
 # Event source config.
 source_config = dict(
     kind='http-source',
@@ -64,9 +67,6 @@ source_config = dict(
 
 # Attach source to stream.
 source = stream.add_source(source_config)
-
-# Log all events from stream-attached sources.
-stream >> (lambda event: print('LOG:', event))
 
 # Disconnect source after 10 seconds.
 stream.disconnect_all(after=10)
