@@ -152,10 +152,11 @@ class KamelInvocation:
                             end_condition,
                             with_output=False,
                             with_timeout=False):
-        # Implicit 5 minute timer.
+        # Implicit 2 minute timout in hundredths of a second:
+        timout_duration = 2 * 60 * 100
         countdown = None
         if with_timeout:
-            countdown = 5 * 60 * 100  # hundredths of a second
+            countdown = timout_duration
         reading_thread = utils.LogThread(self.process.stdout)
 
         # Kill thread when program ends in case it does not end before that.
@@ -173,9 +174,11 @@ class KamelInvocation:
 
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.
-            if output is not None and end_condition in output:
-                success = True
-                break
+            if output is not None:
+                countdown = timout_duration
+                if end_condition in output:
+                    success = True
+                    break
 
             # Check process has not exited prematurely.
             if self.process.poll() is not None:

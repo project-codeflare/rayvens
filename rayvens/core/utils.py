@@ -95,7 +95,7 @@ class LogThread(threading.Thread):
             self.queue.put(line.strip())
             time.sleep(0.1)
 
-        print("Kamel command logging terminated.")
+        print("[Log thread] Kamel command logging terminated.")
 
 
 def print_log_from_queue(subprocess_name, queue, with_output):
