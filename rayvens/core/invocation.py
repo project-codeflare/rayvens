@@ -169,7 +169,7 @@ class KamelInvocation:
             # Log progress of kamel subprocess:
             output = utils.print_log_from_queue(self.subprocess_name,
                                                 reading_thread.queue,
-                                                with_output, not with_timeout)
+                                                with_output)
 
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.

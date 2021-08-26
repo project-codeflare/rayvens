@@ -98,12 +98,9 @@ class LogThread(threading.Thread):
         print("Kamel command logging terminated.")
 
 
-def print_log_from_queue(subprocess_name, queue, with_output, inner_timeout):
+def print_log_from_queue(subprocess_name, queue, with_output):
     try:
-        if inner_timeout:
-            line = queue.get(timeout=0.1)
-        else:
-            line = queue.get_nowait()
+        line = queue.get_nowait()
     except Empty:
         return None
     else:
