@@ -152,31 +152,56 @@ class KamelInvocation:
                             end_condition,
                             with_output=False,
                             with_timeout=False):
-        # Implicit 30s timer.
-        countdown = None
+        # Implicit 2 minute timout in hundredths of a second:
+        timout_duration = 2 * 60 * 100
         if with_timeout:
-            countdown = 30
+            countdown = timout_duration
+            reading_thread = utils.LogThread(self.process.stdout)
+
+            # Kill thread when program ends in case it does not end before
+            # that.
+            reading_thread.daemon = True
+
+            # Start thread analyzing logs:
+            reading_thread.start()
+
+        success = False
         while True:
             # Log progress of kamel subprocess:
-            output = utils.print_log_from_subprocess(self.subprocess_name,
-                                                     self.process.stdout,
-                                                     with_output=with_output)
+            if with_timeout:
+                output = utils.print_log_from_queue(self.subprocess_name,
+                                                    reading_thread.queue,
+                                                    with_output)
+            else:
+                output = utils.print_log_from_subprocess(
+                    self.subprocess_name, self.process.stdout, with_output)
 
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.
-            if end_condition in output:
-                return True
+            if output is not None:
+                if with_timeout:
+                    countdown = timout_duration
+                if end_condition in output:
+                    success = True
+                    break
 
             # Check process has not exited prematurely.
             if self.process.poll() is not None:
                 break
+
+            # If timeout is enabled we decrement countdown.
             if with_timeout:
                 countdown -= 1
                 if countdown == 0:
-                    return False
-                time.sleep(1)
+                    break
+                time.sleep(0.01)
 
-        return False
+        # Terminate log thread:
+        if with_timeout:
+            reading_thread.stop_flag.set()
+            reading_thread.join()
+
+        return success
 
 
 #
@@ -240,8 +265,7 @@ class KubectlInvocation:
             # for.
             # There should only be one new pod.
             output = utils.print_log_from_subprocess(self.subprocess_name,
-                                                     self.process.stdout,
-                                                     with_output=True)
+                                                     self.process.stdout, True)
             if self.pod_name == "":
                 self.pod_name = kubernetes_utils.extract_pod_name(
                     output, integration_name)
@@ -277,7 +301,7 @@ class KubectlInvocation:
         while True:
             output = utils.print_log_from_subprocess(self.subprocess_name,
                                                      self.process.stdout,
-                                                     with_output=with_output)
+                                                     with_output)
             if self.subcommand_type == \
                kubernetes_utils.KubectlCommand.GET_SERVICES:
                 if kubernetes_utils.service_name_matches(output, service_name):
@@ -320,8 +344,7 @@ class KafkaInvocation:
         while True:
             # Log progress of kafka topic creation subprocess:
             output = utils.print_log_from_subprocess(self.subprocess_name,
-                                                     self.process.stdout,
-                                                     with_output=True)
+                                                     self.process.stdout, True)
             if checked_topic is not None and checked_topic in output:
                 return True
 

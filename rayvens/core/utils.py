@@ -16,6 +16,9 @@
 
 import os
 import random
+import time
+import threading
+from queue import Queue, Empty
 
 # Port externalized by the cluster.
 externalized_cluster_port = "31095"
@@ -69,7 +72,7 @@ def subprocess_tag(subprocess_name):
     return "[%s subprocess]" % subprocess_name
 
 
-def print_log_from_subprocess(subprocess_name, stdout, with_output=False):
+def print_log_from_subprocess(subprocess_name, stdout, with_output):
     output = stdout.readline().decode("utf-8")
     output = output.strip()
 
@@ -77,6 +80,33 @@ def print_log_from_subprocess(subprocess_name, stdout, with_output=False):
         print(subprocess_tag(subprocess_name), output)
 
     return output
+
+
+class LogThread(threading.Thread):
+    def __init__(self, stdout):
+        threading.Thread.__init__(self)
+        self.stop_flag = threading.Event()
+        self.stdout = stdout
+        self.queue = Queue()
+
+    def run(self):
+        while not self.stop_flag.is_set():
+            line = self.stdout.readline().decode("utf-8")
+            self.queue.put(line.strip())
+            time.sleep(0.1)
+
+        print("[Log thread] Kamel command logging terminated.")
+
+
+def print_log_from_queue(subprocess_name, queue, with_output):
+    try:
+        line = queue.get_nowait()
+    except Empty:
+        return None
+    else:
+        if line != "" and with_output:
+            print(subprocess_tag(subprocess_name), line)
+        return line
 
 
 def print_log(subprocess_name, message):
