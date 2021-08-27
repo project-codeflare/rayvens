@@ -44,8 +44,18 @@ def get_run_mode(camel_mode, check_port):
 def _wait_for_ready_integration(mode, integration):
     server_address = mode.server_address(integration)
     health_check_address = f"{server_address}/q/health"
+
+    healthy_integration = False
+    max_retries = 100
     while True:
-        response = requests.get(health_check_address, timeout=(5, None))
+        try:
+            response = requests.get(health_check_address, timeout=(5, 5))
+        except requests.exceptions.ConnectionError:
+            time.sleep(1)
+            max_retries -= 1
+            if max_retries == 0:
+                break
+            continue
         json_response = json.loads(response.content)
         all_routes_are_up = True
         for check in json_response['checks']:
@@ -63,8 +73,11 @@ def _wait_for_ready_integration(mode, integration):
                         route_index += 1
                         route = f'route:route{route_index}'
         if all_routes_are_up:
+            healthy_integration = True
             break
         time.sleep(1)
+
+    return healthy_integration
 
 
 # Wait for an integration to reach its running state and not only that but
@@ -84,9 +97,14 @@ def await_start(mode, integration):
         print('Integration did not start correctly.')
 
     # Perform health check and wait for integration to be ready.
-    _wait_for_ready_integration(mode, integration)
+    healthy_integration = _wait_for_ready_integration(mode, integration)
 
-    return integration_is_running
+    if healthy_integration:
+        print(f'Integration {integration.integration_name} is healthy.')
+        return integration_is_running
+
+    print(f'Integration {integration.integration_name} is not healthy.')
+    return False
 
 
 @ray.remote(num_cpus=0)
