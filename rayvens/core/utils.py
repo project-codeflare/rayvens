@@ -16,7 +16,6 @@
 
 import os
 import random
-import time
 import threading
 from queue import Queue, Empty
 
@@ -86,14 +85,16 @@ class LogThread(threading.Thread):
     def __init__(self, stdout):
         threading.Thread.__init__(self)
         self.stop_flag = threading.Event()
+        self.read_flag = threading.Event()
         self.stdout = stdout
         self.queue = Queue()
 
     def run(self):
         while not self.stop_flag.is_set():
-            line = self.stdout.readline().decode("utf-8")
-            self.queue.put(line.strip())
-            time.sleep(0.1)
+            if self.read_flag.is_set():
+                line = self.stdout.readline().decode("utf-8")
+                self.queue.put(line.strip())
+                self.read_flag.clear()
 
         print("[Logging thread] Kamel command logging terminated.")
 
