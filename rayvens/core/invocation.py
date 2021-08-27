@@ -165,6 +165,9 @@ class KamelInvocation:
             # Start thread analyzing logs:
             reading_thread.start()
 
+            # Initiate the first read:
+            reading_thread.read_flag.set()
+
         success = False
         while True:
             # Log progress of kamel subprocess:
@@ -194,12 +197,14 @@ class KamelInvocation:
                 countdown -= 1
                 if countdown == 0:
                     break
+                reading_thread.read_flag.set()
                 time.sleep(0.01)
 
         # Terminate log thread:
         if with_timeout:
             reading_thread.stop_flag.set()
-            reading_thread.join()
+            if success:
+                reading_thread.join()
 
         return success
 
