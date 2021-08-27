@@ -49,7 +49,7 @@ def _wait_for_ready_integration(mode, integration):
     max_retries = 100
     while True:
         try:
-            response = requests.get(health_check_address, timeout=(5, None))
+            response = requests.get(health_check_address, timeout=(5, 5))
         except requests.exceptions.ConnectionError:
             time.sleep(1)
             max_retries -= 1
