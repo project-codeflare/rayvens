@@ -42,10 +42,6 @@ def get_run_mode(camel_mode, check_port):
 
 
 def _wait_for_ready_integration(mode, integration):
-    # For kafka transport the health check cannot be performed.
-    if mode.transport == 'kafka':
-        return
-
     server_address = mode.server_address(integration)
     health_check_address = f"{server_address}/q/health"
 
@@ -99,6 +95,10 @@ def await_start(mode, integration):
         print(f'Integration {integration.integration_name} is running.')
     else:
         print('Integration did not start correctly.')
+
+    # For kafka transport the health check cannot be performed.
+    if mode.transport == 'kafka':
+        return True
 
     # Perform health check and wait for integration to be ready.
     healthy_integration = _wait_for_ready_integration(mode, integration)
