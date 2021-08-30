@@ -61,7 +61,7 @@ source_config = dict(
     kind='http-source',
     url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
     route='/from-http',
-    period=3000,
+    period=1000,
     kafka_transport_topic=topic,
     kafka_transport_partitions=3)
 

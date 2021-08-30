@@ -96,6 +96,10 @@ def await_start(mode, integration):
     else:
         print('Integration did not start correctly.')
 
+    # For kafka transport the health check cannot be performed.
+    if mode.transport == 'kafka':
+        return True
+
     # Perform health check and wait for integration to be ready.
     healthy_integration = _wait_for_ready_integration(mode, integration)
 
@@ -273,6 +277,12 @@ def kafka_recv_from(integration_name, kafka_transport_topic, handle):
 def brokers():
     host = os.getenv('KAFKA_SERVICE_HOST', 'localhost')
     port = os.getenv('KAFKA_SERVICE_PORT', '31093')
+    return f'{host}:{port}'
+
+
+def operator_brokers():
+    host = os.getenv('KAFKA_SERVICE_HOST', 'kafka')
+    port = os.getenv('KAFKA_SERVICE_PORT', '9092')
     return f'{host}:{port}'
 
 
