@@ -152,8 +152,8 @@ class KamelInvocation:
                             end_condition,
                             with_output=False,
                             with_timeout=False):
-        # Implicit 2 minute timout in hundredths of a second:
-        timout_duration = 2 * 60 * 100
+        # Implicit 5 minute timout in hundredths of a second:
+        timout_duration = 5 * 60 * 100
         if with_timeout:
             countdown = timout_duration
             reading_thread = utils.LogThread(self.process.stdout)
