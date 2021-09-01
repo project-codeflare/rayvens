@@ -16,7 +16,7 @@
 
 import rayvens.core.catalog as catalog
 from rayvens.core.integration import Integration
-from rayvens.core.common import get_run_mode, send_to, recv_from
+from rayvens.core.common import get_run_mode, send_to, recv_from, await_start
 
 
 def start(camel_mode, check_port):
@@ -37,6 +37,8 @@ class Camel:
         integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
         send_to(stream.actor, self.mode.server_address(integration), route)
+        if not await_start(self.mode, integration):
+            raise RuntimeError('Could not start source')
         return integration
 
     def add_sink(self, stream, config, sink_name):
@@ -47,6 +49,8 @@ class Camel:
         integration.invoke_local_run(self.mode, spec)
         recv_from(stream.actor, sink_name,
                   self.mode.server_address(integration), route)
+        if not await_start(self.mode, integration):
+            raise RuntimeError('Could not start source')
         return integration
 
     def disconnect(self, integration):
