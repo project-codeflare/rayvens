@@ -46,7 +46,7 @@ def _wait_for_ready_integration(mode, integration):
     health_check_address = f"{server_address}/q/health"
 
     healthy_integration = False
-    max_retries = 100
+    max_retries = 5 * 60
     while True:
         try:
             response = requests.get(health_check_address, timeout=(5, 5))
