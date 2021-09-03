@@ -37,7 +37,6 @@ def _verify_log(stream, _global_camel, sink_source_name, message):
     if _global_camel.mode.is_local():
         # In the local case the integration run is ongoing and we can
         # access the logs directly.
-        # TODO: make this work for local implementation.
         outcome = integration.invocation.invoke(message)
     else:
         # When running using the operator then the integration run command
