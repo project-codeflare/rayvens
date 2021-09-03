@@ -47,8 +47,9 @@ class Camel:
         integration.invoke_run(self.mode, integration_content)
 
         # Set up source for the HTTP connector case.
-        kafka_send_to(integration.kafka_transport_topic,
-                      integration.kafka_transport_partitions, stream.actor)
+        integration.thread = kafka_send_to(
+            integration.kafka_transport_topic,
+            integration.kafka_transport_partitions, stream.actor)
 
         if not await_start(self.mode, integration):
             raise RuntimeError('Could not start source')

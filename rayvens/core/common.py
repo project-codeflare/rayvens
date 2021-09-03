@@ -125,22 +125,37 @@ class ProducerActor:
             pass
 
 
-# Method for sending events to the queue.
-def send_to(handle, server_address, route):
-    def append():
-        while True:
+class QueueReadThread(threading.Thread):
+    def __init__(self, handle, server_address, route):
+        threading.Thread.__init__(self)
+        self.stop_flag = threading.Event()
+        self.run_flag = threading.Event()
+        self.handle = handle
+        self.server_address = server_address
+        self.route = route
+
+    def run(self):
+        while not self.stop_flag.is_set():
             try:
-                response = requests.get(f'{server_address}{route}',
+                response = requests.get(f'{self.server_address}{self.route}',
                                         timeout=(5, None))
                 if response.status_code != 200:
                     time.sleep(1)
                     continue
                 response.encoding = 'latin-1'
-                handle.append.remote(response.text)
+                self.handle.append.remote(response.text)
             except requests.exceptions.ConnectionError:
                 time.sleep(1)
 
-    threading.Thread(target=append).start()
+        self.run_flag.set()
+
+
+# Method for sending events to the queue.
+def send_to(handle, server_address, route):
+    queue_reading_thread = QueueReadThread(handle, server_address, route)
+    queue_reading_thread.daemon = True
+    queue_reading_thread.start()
+    return queue_reading_thread
 
 
 # Method for sending events to the sink.
@@ -222,30 +237,63 @@ class KafkaConsumer(object):
         self.kafka_consumer.close()
 
 
+class ConsumerEnablingThread(threading.Thread):
+    def __init__(self, handle, consumers):
+        threading.Thread.__init__(self)
+        self.stop_flag = threading.Event()
+        self.run_flag = threading.Event()
+        self.handle = handle
+        self.consumers = consumers
+
+    def run(self):
+        subscribers, operator = ray.get(self.handle._fetch_processors.remote())
+        try:
+            consumer_references = [
+                consumer.enable_consumer.remote(subscribers, operator)
+                for consumer in self.consumers
+            ]
+            ray.get(consumer_references)
+        except KeyboardInterrupt:
+            for consumer in self.consumers:
+                consumer.disable_consumer.remote()
+        finally:
+            for consumer in self.consumers:
+                consumer.close_consumer.remote()
+
+        self.run_flag.set()
+
+
+class ConsumerThread(threading.Thread):
+    def __init__(self, handle, consumer):
+        threading.Thread.__init__(self)
+        self.stop_flag = threading.Event()
+        self.run_flag = threading.Event()
+        self.handle = handle
+        self.consumer = consumer
+
+    def run(self):
+        while not self.stop_flag.is_set():
+            msg = self.consumer.poll()
+            if msg.error():
+                print(f'consumer error: {msg.error()}')
+            else:
+                self.handle.append.remote(msg.value().decode('utf-8'))
+
+        self.run_flag.set()
+
+
 def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
+    # If source uses a scaling transport start multiple Kafka Consumers.
     if kafka_transport_partitions > 1:
         consumers = [
             KafkaConsumer.remote(kafka_transport_topic, handle)
             for _ in range(kafka_transport_partitions)
         ]
 
-        def append():
-            subscribers, operator = ray.get(handle._fetch_processors.remote())
-            try:
-                consumer_references = [
-                    consumer.enable_consumer.remote(subscribers, operator)
-                    for consumer in consumers
-                ]
-                ray.get(consumer_references)
-            except KeyboardInterrupt:
-                for consumer in consumers:
-                    consumer.disable_consumer.remote()
-            finally:
-                for consumer in consumers:
-                    consumer.close_consumer.remote()
-
-        threading.Thread(target=append).start()
-        return
+        consumer_enabling_thread = ConsumerEnablingThread(handle, consumers)
+        consumer_enabling_thread.daemon = True
+        consumer_enabling_thread.start()
+        return consumer_enabling_thread
 
     # Use kafka consumer thread to push from camel source to rayvens stream
     consumer = Consumer({
@@ -256,15 +304,10 @@ def kafka_send_to(kafka_transport_topic, kafka_transport_partitions, handle):
 
     consumer.subscribe([kafka_transport_topic])
 
-    def append():
-        while True:
-            msg = consumer.poll()
-            if msg.error():
-                print(f'consumer error: {msg.error()}')
-            else:
-                handle.append.remote(msg.value().decode('utf-8'))
-
-    threading.Thread(target=append).start()
+    consumer_thread = ConsumerThread(handle, consumer)
+    consumer_thread.daemon = True
+    consumer_thread.start()
+    return consumer_thread
 
 
 def kafka_recv_from(integration_name, kafka_transport_topic, handle):
