@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import time
 from rayvens.core.common import brokers
 from rayvens.core.utils import random_port, create_partitioned_topic
 from rayvens.core.name import name_integration
@@ -58,6 +59,7 @@ class Integration:
         self.service_name = None
         self.server_address = None
         self.environment_preparators = []
+        self.thread = None
 
     def invoke_local_run(self, mode, integration_content):
         self.port = random_port(mode.check_port)
@@ -87,6 +89,27 @@ class Integration:
     # created using the kamel operator and `kamel run` or an integration
     # created using `kamel local run`.
     def disconnect(self, mode):
+        # Set stop_flag to true.
+        if self.thread is not None:
+            # Signal the end of ongoing loops.
+            self.thread.stop_flag.set()
+
+            # Wait for threads to perform perform/finish the current requests.
+            # Small 10 s timer to wait for request completion.
+            countdown = 10
+            while not self.thread.run_flag.is_set():
+                time.sleep(1)
+                if countdown == 0:
+                    break
+                countdown -= 1
+
+            # Join back successful threads otherwise threads will be killed
+            # when the application ends.
+            if self.thread.run_flag.is_set():
+                self.thread.join()
+                print("Successfully terminated additional"
+                      f" {self.integration_name} integration thread.")
+
         if self.invocation.uses_operator():
             # If kamel is running the cluster then use kamel delete to
             # terminate the integration. First we terminate any services

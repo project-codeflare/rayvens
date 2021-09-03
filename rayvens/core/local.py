@@ -36,7 +36,9 @@ class Camel:
                                         inverted=True)
         integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
-        send_to(stream.actor, self.mode.server_address(integration), route)
+        integration.thread = send_to(stream.actor,
+                                     self.mode.server_address(integration),
+                                     route)
         if not await_start(self.mode, integration):
             raise RuntimeError('Could not start source')
         return integration

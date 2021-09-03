@@ -50,7 +50,9 @@ class Camel:
         integration.invoke_run(self.mode, integration_content)
 
         # Set up source for the HTTP connector case.
-        send_to(stream.actor, self.mode.server_address(integration), route)
+        integration.thread = send_to(stream.actor,
+                                     self.mode.server_address(integration),
+                                     route)
 
         if not await_start(self.mode, integration):
             raise RuntimeError('Could not start source')

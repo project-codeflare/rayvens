@@ -36,8 +36,9 @@ class Camel:
             f'kafka:{integration.kafka_transport_topic}?brokers={brokers()}')
         integration.prepare_environment(self.mode)
         integration.invoke_local_run(self.mode, spec)
-        kafka_send_to(integration.kafka_transport_topic,
-                      integration.kafka_transport_partitions, stream.actor)
+        integration.thread = kafka_send_to(
+            integration.kafka_transport_topic,
+            integration.kafka_transport_partitions, stream.actor)
         return integration
 
     def add_sink(self, stream, config, sink_name):
