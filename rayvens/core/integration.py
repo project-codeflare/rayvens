@@ -94,9 +94,14 @@ class Integration:
             # Signal the end of ongoing loops.
             self.thread.stop_flag.set()
 
-            # Wait for threads to perform perform/finish the requests in
-            # progress, one second should be more than enough.
-            time.sleep(1)
+            # Wait for threads to perform perform/finish the current requests.
+            # Small 10 s timer to wait for request completion.
+            countdown = 10
+            while not self.thread.run_flag.is_set():
+                time.sleep(1)
+                if countdown == 0:
+                    break
+                countdown -= 1
 
             # Join back successful threads otherwise threads will be killed
             # when the application ends.
@@ -104,7 +109,6 @@ class Integration:
                 self.thread.join()
                 print("Successfully terminated additional"
                       f" {self.integration_name} integration thread.")
-                time.sleep(1)
 
         if self.invocation.uses_operator():
             # If kamel is running the cluster then use kamel delete to
