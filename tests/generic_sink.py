@@ -16,7 +16,6 @@
 
 import ray
 import rayvens
-import time
 import os
 
 # Initialize ray based on where ray will run inside the cluster using the
@@ -59,10 +58,8 @@ sink = stream.add_sink(test_sink_config)
 output_message = f'Sending message to Slack sink in run mode {run_mode}.'
 stream << output_message
 
-time.sleep(10)
-
 # Verify outcome.
-stream._meta('verify_log', sink, output_message)
+stream._meta('verify_log', sink, output_message, wait_for_events=True)
 
 # Delete all integrations from stream.
-stream.disconnect_all()
+stream.disconnect_all(after_idle_for=5)

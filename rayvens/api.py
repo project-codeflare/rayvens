@@ -80,6 +80,9 @@ class Stream:
         self._wait_for_timeout(after_idle_for, after)
         return ray.get(self.actor.disconnect_all.remote(stream_drain_timeout))
 
+    def event_count(self):
+        return ray.get(self.actor.event_count.remote())
+
     def _meta(self, action, *args, **kwargs):
         return ray.get(self.actor._meta.remote(action, *args, **kwargs))
 
@@ -119,6 +122,7 @@ class StreamActor:
         self._sinks = {}
         self._latest_sent_event_timestamp = None
         self._limit_subscribers = False
+        self._event_counter = 0
 
     def send_to(self, subscriber, name=None):
         if self._limit_subscribers:
@@ -142,6 +146,7 @@ class StreamActor:
                     continue
             _eval(subscriber, data)
         self._latest_sent_event_timestamp = time.time()
+        self._event_counter += 1
 
     def add_operator(self, operator):
         self._operator = operator
@@ -194,6 +199,9 @@ class StreamActor:
         time.sleep(stream_drain_timeout)
         for sink_name in dict(self._sinks):
             self.disconnect_sink(sink_name)
+
+    def event_count(self):
+        return self.event_count
 
     def _meta(self, action, *args, **kwargs):
         return verify_do(self, _global_camel, action, *args, **kwargs)

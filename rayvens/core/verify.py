@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+import time
 from rayvens.core import kamel
 
 
@@ -23,7 +24,11 @@ def verify_do(stream, _global_camel, action, *args, **kwargs):
     raise RuntimeError('invalid meta action')
 
 
-def _verify_log(stream, _global_camel, sink_source_name, message):
+def _verify_log(stream,
+                _global_camel,
+                sink_source_name,
+                message,
+                wait_for_events=False):
     # Get integration:
     integration = None
     if sink_source_name in stream._sinks:
@@ -34,10 +39,25 @@ def _verify_log(stream, _global_camel, sink_source_name, message):
         raise RuntimeError(
             f'{sink_source_name} not found on stream {stream.name}')
 
+    log = "FAIL"
+
+    # Wait for at least one event to happen.
+    if wait_for_events:
+        event_count = 0
+        countdown = 20
+        while event_count == 0:
+            event_count = stream.event_count()
+            time.sleep(1)
+            countdown -= 1
+            if countdown == 0:
+                break
+        if event_count == 0:
+            print("[LOG CHECK]:", log)
+            return False
+
     if _global_camel.mode.is_local():
         # In the local case the integration run is ongoing and we can
         # access the logs directly.
-        # TODO: make this work for local implementation.
         outcome = integration.invocation.invoke(message)
     else:
         # When running using the operator then the integration run command
@@ -48,7 +68,6 @@ def _verify_log(stream, _global_camel, sink_source_name, message):
         outcome = invocation is not None
         invocation.kill()
 
-    log = "FAIL"
     if outcome:
         log = "SUCCESS"
     print("[LOG CHECK]:", log)
