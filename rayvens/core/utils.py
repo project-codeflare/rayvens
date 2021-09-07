@@ -92,9 +92,10 @@ class LogThread(threading.Thread):
     def run(self):
         while not self.stop_flag.is_set():
             if self.read_flag.is_set():
-                line = self.stdout.readline().decode("utf-8")
-                self.queue.put(line.strip())
-                self.read_flag.clear()
+                line = self.stdout.readline().decode("utf-8").strip()
+                if line != "":
+                    self.queue.put(line)
+                    self.read_flag.clear()
 
         print("[Logging thread] Kamel command logging terminated.")
 
@@ -105,7 +106,7 @@ def print_log_from_queue(subprocess_name, queue, with_output):
     except Empty:
         return None
     else:
-        if line != "" and with_output:
+        if with_output:
             print(subprocess_tag(subprocess_name), line)
         return line
 
