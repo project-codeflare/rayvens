@@ -17,7 +17,6 @@
 import ray
 import rayvens
 import sys
-import time
 
 # This example demonstrates how to send objects to the AWS S3 or
 # IBM Cloud Object Storage using multi-part uploads.
@@ -69,7 +68,5 @@ if region is not None:
 # the monitored file system directory.
 dir_to_sink = stream.add_sink(dir_to_sink_config)
 
-# stream._meta('verify_log', dir_to_sink, "BLA")
-
 # Run for a while to give a chance for files to be dropped inside the directory
-time.sleep(100)
+stream.disconnect_all(after_idle_for=20)

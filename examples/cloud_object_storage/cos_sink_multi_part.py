@@ -17,7 +17,6 @@
 import ray
 import rayvens
 import sys
-import time
 from pathlib import Path
 
 # This example demonstrates how to send objects to the AWS S3 or
@@ -73,4 +72,4 @@ if run_mode == "local":
     stream << Path("test_files/test.txt")
 
 # Run for a while
-time.sleep(20)
+stream.disconnect_all(after_idle_for=5)
