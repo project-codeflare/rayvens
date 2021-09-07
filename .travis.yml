@@ -36,6 +36,10 @@ script:
   - RAYVENS_TEST_MODE=local RAYVENS_TRANSPORT=kafka python ./tests/source.py
   # - ray submit ./scripts/cluster.yaml ./tests/stream.py
   - ray submit ./scripts/cluster.yaml ./tests/source.py
+  - RAYVENS_TEST_MODE=local python ./tests/kafka_transport.py
+  - ray submit ./scripts/cluster.yaml ./tests/kafka_transport.py local
+  - RAYVENS_TEST_MODE=local python ./tests/kafka_scaling_transport.py
+  - ray submit ./scripts/cluster.yaml ./tests/kafka_scaling_transport.py local
 
   # Test operator mode
   # - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
@@ -47,6 +51,8 @@ script:
   # - ray submit ./scripts/cluster.yaml ./tests/generic_sink.py
   # - RAYVENS_TEST_MODE=local python ./tests/generic_source.py
   # - ray submit ./scripts/cluster.yaml ./tests/generic_source.py
+  - ray submit ./scripts/cluster.yaml ./tests/kafka_transport.py operator
+  - ray submit ./scripts/cluster.yaml ./tests/kafka_scaling_transport.py operator
 
   # Test mixed mode
   - RAYVENS_TEST_MODE=mixed python ./tests/sink.py

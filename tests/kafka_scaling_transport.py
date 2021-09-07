@@ -15,19 +15,19 @@
 #
 
 import os
+import sys
 import ray
 import rayvens
 
 # Initialize run mode.
-run_mode = 'operator'
-env_run_mode = os.getenv('RAYVENS_TEST_MODE')
-if env_run_mode is not None:
-    run_mode = env_run_mode
+if len(sys.argv) < 2:
+    run_mode = 'local'
+run_mode = sys.argv[1]
 
-if run_mode == 'operator':
-    ray.init(address='auto')
-else:
+if os.getenv('RAYVENS_TEST_MODE') == 'local':
     ray.init(object_store_memory=78643200)
+else:
+    ray.init(address='auto')
 
 # The Kafka topic used for communication.
 topic = "testTopic"
