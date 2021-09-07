@@ -22,7 +22,8 @@ import rayvens
 # Initialize run mode.
 if len(sys.argv) < 2:
     run_mode = 'local'
-run_mode = sys.argv[1]
+else:
+    run_mode = sys.argv[1]
 
 if os.getenv('RAYVENS_TEST_MODE') == 'local':
     ray.init(object_store_memory=78643200)
