@@ -197,7 +197,8 @@ class KamelInvocation:
                 countdown -= 1
                 if countdown == 0:
                     break
-                reading_thread.read_flag.set()
+                if output is not None:
+                    reading_thread.read_flag.set()
                 time.sleep(0.01)
 
         # Terminate log thread:
