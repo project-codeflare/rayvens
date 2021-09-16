@@ -39,7 +39,9 @@ setup(
     install_requires=[
         'confluent-kafka>=1.6.1', 'ray[default,serve,k8s]>=1.3.0'
     ],
-    scripts=['scripts/rayvens-setup.sh'],
+    scripts=[
+        'scripts/rayvens-setup.sh', 'rayvens/rayvens', 'rayvens/rayvens_cli.py'
+    ],
     version=version,
     python_requires='>=3.6',
     description='Rayvens augments Ray with events.',
