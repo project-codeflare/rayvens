@@ -14,19 +14,26 @@
 # limitations under the License.
 #
 
+import os
 import subprocess
 
 
-def docker_run(image_name):
+def docker_run(image_name, envvars=[]):
     command = ["docker"]
 
     # Build command:
     command.append("run")
 
+    # Add env vars:
+    for envvar in envvars:
+        command.append("--env")
+        command.append(f"{envvar}=" + os.getenv(envvar))
+
     # Add image:
     command.append(image_name)
 
     # Wait for docker command to finish before returning:
+    print("Executing =>", " ".join(command))
     outcome = subprocess.run(command)
 
     if outcome.returncode == 0:

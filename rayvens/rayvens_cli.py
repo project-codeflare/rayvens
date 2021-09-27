@@ -54,8 +54,17 @@ parser_build.add_argument(
     '--properties',
     nargs='*',
     help='Specify the name of a property or list of properties the '
-    'integration should have. The properties can be specified as '
-    '`-p name1=value1 name2=value2`')
+    'integration should have. The properties are specified as '
+    '`-p prop1=value1 prop2=value2`')
+
+parser_build.add_argument(
+    '-e',
+    '--envvars',
+    nargs='*',
+    help='Specify the environment variable behind an integration property '
+    'specified as '
+    '`-e prop1=ENV_VARIABLE_1 prop2=ENV_VARIABLE_2`')
+
 parser_build.add_argument('--dev',
                           action='store_true',
                           help='Use local registry localhost:5000.')
@@ -73,8 +82,16 @@ parser_run.add_argument(
     '--properties',
     nargs='*',
     help='Specify the name of a property or list of properties the '
-    'integration should have. The properties can be specified as '
-    '`-p name1=value1 name2=value2`')
+    'integration should have. The properties are specified as '
+    '`-p prop1=value1 prop2=value2`')
+parser_run.add_argument(
+    '-e',
+    '--envvars',
+    nargs='*',
+    help='Specify the environment variable behind an integration property '
+    'specified as '
+    '`-e prop1=ENV_VARIABLE_1 prop2=ENV_VARIABLE_2`')
+
 parser_run.add_argument('--dev',
                         action='store_true',
                         help='Use local registry localhost:5000.')

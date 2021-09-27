@@ -73,13 +73,24 @@ def run_integration(args):
         integration_file_path = workspace_directory.joinpath(
             integration_file_name)
         with open(integration_file_path, 'w') as f:
-            yaml.dump(spec, f)
+            # Dump modeline options:
+            modeline_options = utils.get_modeline_config(
+                workspace_directory, args)
+            f.write("\n".join(modeline_options) + "\n\n")
+            f.write(yaml.dump(spec))
+
+        with open(integration_file_path, 'r') as f:
+            print(f.read())
+
     else:
         utils.clean_error_exit(workspace_directory, "Not implemented yet")
 
-    # Write docker file contents:
+    # Write docker file contents.
+    envvars = utils.get_modeline_envvars(workspace_directory, args)
     docker_file_contents = get_integration_dockerfile(image,
-                                                      integration_file_name)
+                                                      integration_file_name,
+                                                      envvars=envvars)
+    print(docker_file_contents)
     docker_file_path = workspace_directory.joinpath("Dockerfile")
     with open(docker_file_path, mode='w') as docker_file:
         docker_file.write(docker_file_contents)
@@ -96,4 +107,4 @@ def run_integration(args):
 
     # Run final integration image:
     #   docker run <image>
-    docker_run(final_image)
+    docker_run(final_image, envvars=envvars)

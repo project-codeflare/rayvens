@@ -20,7 +20,8 @@ def http_source():
 
 
 def kafka_source():
-    return dict(required=['topic', 'brokers'], optional=['SASL_password'])
+    return dict(required=['topic', 'brokers'],
+                optional=['SASL_password', 'JAAS_config'])
 
 
 def telegram_source():
@@ -151,23 +152,95 @@ def get_all_properties(kind):
     return all_properties
 
 
-def get_current_config(args):
-    requirements = integration_requirements(args.kind)
+source_modeline_name = {
+    'http-source': "http",
+    'kafka-source': "kafka",
+    'telegram-source': "telegram",
+    'binance-source': "xchange.binance",
+    'cloud-object-storage-source': "aws2-s3",
+    'file-source': "file",
+    'file-watch-source': "file-watch"
+}
 
-    config = dict(kind=args.kind)
+sink_modeline_name = {
+    'slack-sink': "slack",
+    'kafka-sink': "kafka",
+    'telegram-sink': "telegram",
+    'cloud-object-storage-sink': "aws2-s3"
+}
 
-    # Fill in properties if any have been provided.
-    missing_requirements = []
-    if args.properties is not None and len(args.properties) > 0:
-        config, _ = fill_config(args.kind, args.properties, show_missing=False)
 
-    if len(requirements['required']) > 0:
-        for req_property in requirements['required']:
-            if req_property not in config:
-                missing_requirements.append(req_property)
-                config[req_property] = "missing_property_value"
+def get_modeline_component_name(kind):
+    component_name = None
+    if kind in source_modeline_name:
+        component_name = source_modeline_name.get(kind)
+    if kind in sink_modeline_name:
+        component_name = sink_modeline_name.get(kind)
+    if component_name is None:
+        raise TypeError(f'Modeline unsupported for source or sink: {kind}.')
+    return "camel.component." + component_name
 
-    return config, missing_requirements
+
+modeline_property_name_exceptions = {
+    'SASL_password': 'sslKeyPassword',
+    'JAAS_config': 'saslJaasConfig',
+    'authorization_token': 'authorizationToken',
+    'access_key_id': 'accessKey',
+    'secret_access_key': 'secretKey',
+    'endpoint': 'uriEndpointOverride',
+    'move_after_read': 'destinationBucket',
+    'webhook_url': 'webhookUrl',
+    'batch_size': 'batchSize',
+    'messages_per_batch': 'batchMessageNumber',
+    'part_size': 'partSize',
+}
+
+
+def get_modeline_property_name(property_name):
+    if property_name in modeline_property_name_exceptions:
+        return modeline_property_name_exceptions.get(property_name)
+
+    if property_name in cannot_be_modeline_property:
+        raise TypeError(
+            f'Cannot pass property {property_name} via environment variable.')
+    return property_name
+
+
+cannot_be_modeline_property = [
+    'url', 'topic', 'channel', 'coin', 'period', 'meta_event_only', 'path',
+    'keep_files', 'events', 'chat_id', 'bucket_name', 'file_name', 'from_file',
+    'from_directory', 'upload_type'
+]
+
+
+def can_be_modeline_property(property_name):
+    return property_name not in cannot_be_modeline_property
+
+
+def get_modeline_properties(kind, envvars):
+    # We assume at this point that:
+    # 1. All property env var pairs are syntactically correct
+    # 2. The property env var pairs do not contain properties that
+    #    cannot be modelined.
+    component_name = get_modeline_component_name(kind)
+
+    modeline_properties = {}
+    for property_env_pair in envvars:
+        components = property_env_pair.split("=")
+        property_name = components[0]
+        env_var_name = "{{env:" + components[1] + "}}"
+
+        print("property_name=", property_name)
+
+        # Modeline property format:
+        # # camel-k: property=<property_name>={{env:<env_var>}}
+        modeline_property = get_modeline_property_name(property_name)
+        print("modeline_property=", modeline_property)
+        modeline_property = ".".join([component_name, modeline_property])
+        modeline_property = "=".join(
+            ["property", modeline_property, env_var_name])
+        modeline_properties[property_name] = "# camel-k: " + modeline_property
+    return modeline_properties
 
 
 def fill_config(kind, property_value_list, show_missing=True):

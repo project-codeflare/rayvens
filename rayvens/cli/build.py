@@ -20,7 +20,6 @@ import yaml
 import rayvens.cli.utils as utils
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
-from rayvens.core.catalog_utils import get_current_config
 from rayvens.cli.docker import docker_push, docker_build
 
 
@@ -60,13 +59,20 @@ public class Preloader extends RouteBuilder {
     with open(preloader_file_path, mode='w') as preloader_file:
         preloader_file.write(preloader_file_contents)
 
+    # Copy the current kamel executable in the workspace directory:
+    path_to_kamel = utils.find_executable("kamel")
+    print("path_to_kamel=", path_to_kamel)
+    print("dest=", str(workspace_directory.joinpath("kamel")))
+    utils.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
+
     # Write docker file contents
     docker_file_contents = """
 FROM adoptopenjdk/openjdk11:alpine
 
-COPY --from=docker.io/apache/camel-k:1.5.0 /usr/local/bin/kamel /usr/local/bin/
-
 RUN apk add --update maven && apk update && apk upgrade
+
+COPY --from=docker.io/apache/camel-k:1.5.0 /usr/local/bin/kamel /usr/local/bin/
+COPY kamel /usr/local/bin/
 
 COPY Preloader.java .
 RUN kamel local run Preloader.java \
@@ -114,7 +120,7 @@ def build_integration(args):
     integration_file_name = None
     if predefined_integration:
         # Get a skeleton configuration for this integration kind.
-        base_config, _ = get_current_config(args)
+        base_config, _ = utils.get_current_config(args)
 
         # Create the integration yaml specification.
         route = "/" + args.kind + "-route"
@@ -130,10 +136,16 @@ def build_integration(args):
         integration_file_path = workspace_directory.joinpath(
             integration_file_name)
         with open(integration_file_path, 'w') as f:
-            yaml.dump(spec, f)
+            modeline_options = utils.get_modeline_config(workspace_directory,
+                                                         args,
+                                                         run=False)
+            f.write("\n".join(modeline_options) + "\n\n")
+            f.write(yaml.dump(spec))
 
         # Put together the summary file.
         summary_file_contents = utils.get_summary_file_contents(args)
+        print("Summary file contents:")
+        print(summary_file_contents)
         summary_file_name = 'summary.txt'
         summary_file_path = workspace_directory.joinpath(summary_file_name)
         with open(summary_file_path, 'w') as summary_file:
@@ -146,11 +158,14 @@ def build_integration(args):
     base_image = get_base_image_name(args)
 
     # Write docker file contents:
+    envvars = utils.get_modeline_envvars(workspace_directory, args)
     docker_file_contents = utils.get_integration_dockerfile(
         base_image,
         integration_file_name,
+        envvars=envvars,
         with_summary=True,
         preload_dependencies=True)
+    print(docker_file_contents)
     docker_file_path = workspace_directory.joinpath("Dockerfile")
     with open(docker_file_path, mode='w') as docker_file:
         docker_file.write(docker_file_contents)
