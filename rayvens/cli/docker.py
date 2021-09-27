@@ -14,20 +14,35 @@
 # limitations under the License.
 #
 
-import os
 import subprocess
 
 
-def docker_run(image_name, envvars=[]):
+def docker_run_integration(image_name,
+                           local_integration_path,
+                           integration_file_name,
+                           envvars=[]):
     command = ["docker"]
 
     # Build command:
     command.append("run")
 
+    # Mount integration file:
+    # -v local_integration_path:inside_image_integration_path
+    inside_image_integration_path = "/".join(
+        ["/workspace", integration_file_name])
+
+    # Mount argument:
+    local_to_image_integration_mount = ":".join(
+        [str(local_integration_path), inside_image_integration_path])
+
+    if local_to_image_integration_mount is not None:
+        command.append("-v")
+        command.append(local_to_image_integration_mount)
+
     # Add env vars:
     for envvar in envvars:
         command.append("--env")
-        command.append(f"{envvar}=" + os.getenv(envvar))
+        command.append(f"{envvar}=${envvar}")
 
     # Add image:
     command.append(image_name)

@@ -165,7 +165,7 @@ def build_integration(args):
         envvars=envvars,
         with_summary=True,
         preload_dependencies=True)
-    print(docker_file_contents)
+    # print(docker_file_contents)
     docker_file_path = workspace_directory.joinpath("Dockerfile")
     with open(docker_file_path, mode='w') as docker_file:
         docker_file.write(docker_file_contents)

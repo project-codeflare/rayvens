@@ -18,9 +18,8 @@ import yaml
 import rayvens.cli.utils as utils
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
-from rayvens.cli.utils import get_integration_dockerfile
 from rayvens.cli.docker import docker_create, docker_rm, docker_cp_to_host
-from rayvens.cli.docker import docker_build, docker_run
+from rayvens.cli.docker import docker_run_integration
 
 
 def run_integration(args):
@@ -81,30 +80,21 @@ def run_integration(args):
 
         with open(integration_file_path, 'r') as f:
             print(f.read())
-
     else:
         utils.clean_error_exit(workspace_directory, "Not implemented yet")
 
-    # Write docker file contents.
+    # Fetch the variables specified as environment variables.
     envvars = utils.get_modeline_envvars(workspace_directory, args)
-    docker_file_contents = get_integration_dockerfile(image,
-                                                      integration_file_name,
-                                                      envvars=envvars)
-    print(docker_file_contents)
-    docker_file_path = workspace_directory.joinpath("Dockerfile")
-    with open(docker_file_path, mode='w') as docker_file:
-        docker_file.write(docker_file_contents)
 
-    # Final integration image:
-    final_image = image + "-final"
-
-    # Build integration image:
-    #   docker build workspace -t <image>
-    docker_build(str(workspace_directory), final_image)
+    # Run final integration image:
+    #   docker run \
+    #      -v integration_file_path:/workspace/<integration_file_name> \
+    #      --env ENV_VAR=$ENV_VAR \
+    #      <image>
+    docker_run_integration(image,
+                           integration_file_path,
+                           integration_file_name,
+                           envvars=envvars)
 
     # Clean-up
     utils.delete_workspace_dir(workspace_directory)
-
-    # Run final integration image:
-    #   docker run <image>
-    docker_run(final_image, envvars=envvars)

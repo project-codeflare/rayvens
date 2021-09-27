@@ -230,12 +230,9 @@ def get_modeline_properties(kind, envvars):
         property_name = components[0]
         env_var_name = "{{env:" + components[1] + "}}"
 
-        print("property_name=", property_name)
-
         # Modeline property format:
         # # camel-k: property=<property_name>={{env:<env_var>}}
         modeline_property = get_modeline_property_name(property_name)
-        print("modeline_property=", modeline_property)
         modeline_property = ".".join([component_name, modeline_property])
         modeline_property = "=".join(
             ["property", modeline_property, env_var_name])

@@ -105,6 +105,7 @@ def get_registry(args):
 
 def create_workspace_dir():
     workspace_directory = pathlib.Path.cwd().joinpath("workspace")
+    delete_workspace_dir(workspace_directory)
     os.mkdir(workspace_directory)
     return workspace_directory
 
@@ -285,7 +286,7 @@ def get_full_config(workspace_directory, args):
         summary_get_properties(kind, workspace_directory, given_properties))
 
     # Fill configuration with values:
-    config, _ = fill_config(kind, properties)
+    config, _ = fill_config(kind, properties, show_missing=False)
     return config
 
 
@@ -314,9 +315,6 @@ def get_modeline_config(workspace_directory, args, run=True):
         envvars.extend(
             summary_get_envvar_properties(kind, workspace_directory,
                                           given_envvars))
-
-    print("Modeline config:")
-    print(envvars)
 
     # Transform configuarion in list of modeline properties:
     modeline_properties = get_modeline_properties(kind, envvars)
