@@ -20,6 +20,7 @@ from rayvens.cli.build import build_integration, build_base_image
 from rayvens.cli.run import run_integration
 from rayvens.cli.rayvens_setup import rayvens_setup
 from rayvens.cli.rayvens_print import rayvens_print
+from rayvens.cli.delete import delete_deployment
 
 parser = argparse.ArgumentParser(description='Rayvens command line tool.',
                                  prog="rayvens")
@@ -97,6 +98,14 @@ parser_run.add_argument('--dev',
                         help='Use local registry localhost:5000.')
 parser_run.add_argument('-r', '--registry', help='Image registry.')
 parser_run.add_argument('-i', '--image', help='Image registry.')
+parser_run.add_argument('-d',
+                        '--deploy',
+                        action='store_true',
+                        help='Deploy integration on Kubernetes.')
+parser_run.add_argument(
+    '-n',
+    '--namespace',
+    help='Kubernetes namespace used for deploying the integration.')
 parser_run.set_defaults(func=run_integration)
 
 # =============================
@@ -118,6 +127,14 @@ parser_print.add_argument('-k',
                           '--kind',
                           help='List requirements for this integration.')
 parser_print.set_defaults(func=rayvens_print)
+
+# =============================
+# Setup sub-command:
+# =============================
+parser_delete = subparsers.add_parser('delete', help='Delete deployments.')
+parser_delete.add_argument('-d', '--deployment', help='Deployment name.')
+parser_delete.add_argument('-n', '--namespace', help='Deployment namespace.')
+parser_delete.set_defaults(func=delete_deployment)
 
 args = parser.parse_args()
 args.func(args)

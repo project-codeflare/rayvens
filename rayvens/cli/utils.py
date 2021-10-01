@@ -18,6 +18,7 @@ import os
 import pathlib
 import subprocess
 import platform
+import yaml
 from rayvens.core.catalog_utils import get_all_properties
 from rayvens.core.catalog_utils import integration_requirements
 from rayvens.core.catalog_utils import get_modeline_properties
@@ -68,6 +69,59 @@ def get_integration_dockerfile(base_image,
         "CMD kamel local run --integration-directory my-integration "
         f"{list_of_envars}")
     return "\n".join(docker_file_contents)
+
+
+def get_deployment_yaml(kind, namespace, image_name, registry, args):
+    # Kubernetes deployment options:
+    replicas = 1
+    full_image_name = image_name
+    if registry is not None:
+        full_image_name = "/".join([registry, image_name])
+    image_pull_policy = "Always"
+
+    # TODO: these deployment options work with a local Kubernetes cluster
+    # with a local registry i.e. localhost:5000. Test with actual cluster.
+
+    deployment = yaml.safe_load_all(f"""
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {kind}-integration
+  namespace: {namespace}
+spec:
+  replicas: {replicas}
+  selector:
+    matchLabels:
+      integration: {kind}-label
+  template:
+    metadata:
+      labels:
+        integration: {kind}-label
+    spec:
+      containers:
+      - name: {image_name}
+        image: {full_image_name}
+        imagePullPolicy: {image_pull_policy}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {kind}-entrypoint
+  namespace: {namespace}
+spec:
+  type: NodePort
+  selector:
+    integration: {kind}-label
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30001
+    """)
+
+    # TODO: customize port.
+
+    print(yaml.dump_all(deployment))
+    return deployment
 
 
 def get_summary_file_contents(args):

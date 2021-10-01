@@ -86,15 +86,46 @@ def run_integration(args):
     # Fetch the variables specified as environment variables.
     envvars = utils.get_modeline_envvars(workspace_directory, args)
 
-    # Run final integration image:
-    #   docker run \
-    #      -v integration_file_path:/workspace/<integration_file_name> \
-    #      --env ENV_VAR=$ENV_VAR \
-    #      <image>
-    docker_run_integration(image,
-                           integration_file_path,
-                           integration_file_name,
-                           envvars=envvars)
+    if args.deploy is not None and args.deploy:
+        # Set the namespace:
+        namespace = "default"
+        if args.namespace is not None:
+            namespace = args.namespace
+
+        # Deploy integration in Kubernetes:
+        deployment = utils.get_deployment_yaml(kind, namespace, args.image,
+                                               registry, args)
+
+        # Prepare Kubernetes API:
+        from kubernetes import client, config
+        import kubernetes.utils as kube_utils
+        config.load_kube_config()
+
+        # k8s_apps_v1 = client.AppsV1Api()
+        # resp = k8s_apps_v1.create_namespaced_deployment(body=deployment,
+        #                                                 namespace=namespace)
+        # print("Deployment created. status='%s'" % resp.metadata.name)
+
+        # Create deployment file:
+        deployment_file_name = f'{kind + "-deployment"}.yaml'
+        deployment_file_path = workspace_directory.joinpath(
+            deployment_file_name)
+        with open(deployment_file_path, 'w') as f:
+            yaml.dump_all(deployment, f)
+
+        # Call service creation:
+        k8s_client = client.ApiClient()
+        kube_utils.create_from_yaml(k8s_client, str(deployment_file_path))
+    else:
+        # Run final integration image:
+        #   docker run \
+        #      -v integration_file_path:/workspace/<integration_file_name> \
+        #      --env ENV_VAR=$ENV_VAR \
+        #      <image>
+        docker_run_integration(image,
+                               integration_file_path,
+                               integration_file_name,
+                               envvars=envvars)
 
     # Clean-up
     utils.delete_workspace_dir(workspace_directory)
