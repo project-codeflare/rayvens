@@ -95,12 +95,8 @@ RUN kamel local run Preloader.java \
     #   docker push <image>
     docker_push(base_image_name)
 
-    # Make the directory empty:
-    for file in workspace_directory.iterdir():
-        os.remove(file)
-
-    # Delete the empty directory:
-    os.rmdir(workspace_directory)
+    # Clean-up
+    utils.delete_workspace_dir(workspace_directory)
 
 
 def build_integration(args):
@@ -177,12 +173,12 @@ def build_integration(args):
     #   docker build workspace -t <image>
     docker_build(str(workspace_directory), integration_image)
 
-    # Make the directory empty:
-    for file in workspace_directory.iterdir():
-        os.remove(file)
+    # Push base image to registry:
+    #   docker push <image>
+    docker_push(integration_image)
 
-    # Delete the empty directory:
-    os.rmdir(workspace_directory)
+    # Clean-up
+    utils.delete_workspace_dir(workspace_directory)
 
 
 def get_base_image_name(args):

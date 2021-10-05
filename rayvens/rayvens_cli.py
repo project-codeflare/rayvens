@@ -106,6 +106,8 @@ parser_run.add_argument(
     '-n',
     '--namespace',
     help='Kubernetes namespace used for deploying the integration.')
+parser_run.add_argument('--name',
+                        help='Kubernetes name used for the integration.')
 parser_run.set_defaults(func=run_integration)
 
 # =============================
@@ -129,10 +131,10 @@ parser_print.add_argument('-k',
 parser_print.set_defaults(func=rayvens_print)
 
 # =============================
-# Setup sub-command:
+# Delete sub-command:
 # =============================
 parser_delete = subparsers.add_parser('delete', help='Delete deployments.')
-parser_delete.add_argument('-d', '--deployment', help='Deployment name.')
+parser_delete.add_argument('--name', help='Integration name.')
 parser_delete.add_argument('-n', '--namespace', help='Deployment namespace.')
 parser_delete.set_defaults(func=delete_deployment)
 

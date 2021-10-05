@@ -71,7 +71,7 @@ def get_integration_dockerfile(base_image,
     return "\n".join(docker_file_contents)
 
 
-def get_deployment_yaml(kind, namespace, image_name, registry, args):
+def get_deployment_yaml(name, namespace, image_name, registry, args):
     # Kubernetes deployment options:
     replicas = 1
     full_image_name = image_name
@@ -82,21 +82,24 @@ def get_deployment_yaml(kind, namespace, image_name, registry, args):
     # TODO: these deployment options work with a local Kubernetes cluster
     # with a local registry i.e. localhost:5000. Test with actual cluster.
 
+    integration_name = get_kubernetes_integration_name(name)
+    entrypoint_name = get_kubernetes_entrypoint_name(name)
+    label_name = get_kubernetes_label_name(name)
     deployment = yaml.safe_load_all(f"""
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {kind}-integration
+  name: {integration_name}
   namespace: {namespace}
 spec:
   replicas: {replicas}
   selector:
     matchLabels:
-      integration: {kind}-label
+      integration: {label_name}
   template:
     metadata:
       labels:
-        integration: {kind}-label
+        integration: {label_name}
     spec:
       containers:
       - name: {image_name}
@@ -106,12 +109,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {kind}-entrypoint
+  name: {entrypoint_name}
   namespace: {namespace}
 spec:
   type: NodePort
   selector:
-    integration: {kind}-label
+    integration: {label_name}
   ports:
   - port: 3000
     targetPort: 3000
@@ -120,7 +123,6 @@ spec:
 
     # TODO: customize port.
 
-    print(yaml.dump_all(deployment))
     return deployment
 
 
@@ -165,12 +167,14 @@ def create_workspace_dir():
 
 
 def delete_workspace_dir(workspace_directory):
-    # Make the directory empty:
-    for file in workspace_directory.iterdir():
-        os.remove(file)
+    # If workspace directory exists, delete it:
+    if os.path.isdir(workspace_directory):
+        # Make the directory empty:
+        for file in workspace_directory.iterdir():
+            os.remove(file)
 
-    # Delete the empty directory:
-    os.rmdir(workspace_directory)
+        # Delete the empty directory:
+        os.rmdir(workspace_directory)
 
 
 def clean_error_exit(workspace_directory, message):
@@ -409,3 +413,23 @@ def copy_file(source, destination):
     command.append(destination)
 
     subprocess.call(command)
+
+
+def get_kubernetes_deployment_file_name(name):
+    return f"{name}-deployment.yaml"
+
+
+def get_kubernetes_integration_name(name):
+    return f"{name}-integration"
+
+
+def get_kubernetes_integration_file_name(name):
+    return f"{name}-integration.yaml"
+
+
+def get_kubernetes_entrypoint_name(name):
+    return f"{name}-entrypoint"
+
+
+def get_kubernetes_label_name(name):
+    return f"{name}-label"

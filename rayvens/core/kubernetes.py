@@ -24,13 +24,14 @@ quarkus_listener_port = "8080"
 # Wait for pod to reach running state.
 
 
-def pod_running_status(mode, integration_name):
+def pod_running_status(integration_name, namespace):
     # TODO: adapt this to support multiple namespaces.
     command = ["get", "pods", "-w"]
 
     # Namespace
-    command.append("-n")
-    command.append(mode.namespace)
+    if namespace != "default":
+        command.append("-n")
+        command.append(namespace)
 
     return kubernetes_utils.pod_status(command, integration_name)
 
@@ -106,6 +107,31 @@ spec:
     # Remove intermediate file.
     if output_file_name is not None:
         os.remove(output_file_name)
+
+
+# Create service from yaml configuration:
+
+
+def deploy_image_as_service(service_name, namespace, configuration_path):
+    # TODO: adapt this to support multiple namespaces.
+    command = ["apply"]
+
+    # Namespace
+    if namespace != "default":
+        command.append("-n")
+        command.append(namespace)
+
+    # Service configuration
+    command.append("-f")
+    command.append(configuration_path)
+
+    service_started = kubernetes_utils.invoke_kubectl_command(
+        command, service_name=service_name, with_output=True)
+
+    pod_running_status(service_name, namespace)
+
+    if service_started:
+        print("Service %s has been started successfully." % service_name)
 
 
 # Delete service.

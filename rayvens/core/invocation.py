@@ -238,6 +238,9 @@ class KubectlInvocation:
         if not utils.executable_is_available("kubectl"):
             raise RuntimeError('kubectl executable not found in PATH')
 
+        # Log kamel command.
+        print("Exec command => ", command)
+
         # Launch kamel command in a new process.
         self.process = subprocess.Popen(command,
                                         stdout=subprocess.PIPE,

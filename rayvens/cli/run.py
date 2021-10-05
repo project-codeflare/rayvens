@@ -47,6 +47,11 @@ def run_integration(args):
     # Get integration kind from summary file:
     kind = utils.summary_get_kind(workspace_directory)
 
+    # The name of the integration:
+    name = kind
+    if args.name is not None:
+        name = args.name
+
     # Check if the source/sink is predefined.
     predefined_integration = kind in sources or kind in sinks
 
@@ -59,7 +64,7 @@ def run_integration(args):
         full_config = utils.get_full_config(workspace_directory, args)
 
         # Create the integration yaml specification.
-        route = "/" + kind + "-route"
+        route = "/" + name + "-route"
         if kind in sources:
             spec = construct_source(full_config,
                                     f'platform-http:{route}',
@@ -68,7 +73,8 @@ def run_integration(args):
             spec = construct_sink(full_config, f'platform-http:{route}')
 
         # Write the specification to the file.
-        integration_file_name = f'{kind + "-spec"}.yaml'
+        integration_file_name = utils.get_kubernetes_integration_file_name(
+            name)
         integration_file_path = workspace_directory.joinpath(
             integration_file_name)
         with open(integration_file_path, 'w') as f:
@@ -93,7 +99,7 @@ def run_integration(args):
             namespace = args.namespace
 
         # Deploy integration in Kubernetes:
-        deployment = utils.get_deployment_yaml(kind, namespace, args.image,
+        deployment = utils.get_deployment_yaml(name, namespace, args.image,
                                                registry, args)
 
         # Prepare Kubernetes API:
@@ -101,13 +107,9 @@ def run_integration(args):
         import kubernetes.utils as kube_utils
         config.load_kube_config()
 
-        # k8s_apps_v1 = client.AppsV1Api()
-        # resp = k8s_apps_v1.create_namespaced_deployment(body=deployment,
-        #                                                 namespace=namespace)
-        # print("Deployment created. status='%s'" % resp.metadata.name)
-
         # Create deployment file:
-        deployment_file_name = f'{kind + "-deployment"}.yaml'
+        deployment_file_name = utils.get_kubernetes_deployment_file_name(
+            integration_file_name)
         deployment_file_path = workspace_directory.joinpath(
             deployment_file_name)
         with open(deployment_file_path, 'w') as f:
@@ -115,7 +117,12 @@ def run_integration(args):
 
         # Call service creation:
         k8s_client = client.ApiClient()
-        kube_utils.create_from_yaml(k8s_client, str(deployment_file_path))
+        try:
+            kube_utils.create_from_yaml(k8s_client, str(deployment_file_path))
+        except kube_utils.FailToCreateError as creation_error:
+            print("Failed to create deployment", creation_error)
+        else:
+            print(f"{name} successfully deployed in namespace {namespace}")
     else:
         # Run final integration image:
         #   docker run \

@@ -14,10 +14,12 @@
 # limitations under the License.
 #
 
+from rayvens.cli import utils
+
 
 def delete_deployment(args):
-    if args.deployment is None:
-        raise RuntimeError("No deployment name provided.")
+    if args.name is None:
+        raise RuntimeError("No integration name provided.")
 
     namespace = "default"
     if args.namespace is not None:
@@ -27,4 +29,20 @@ def delete_deployment(args):
     from kubernetes import client, config
     config.load_kube_config()
     k8s_client = client.AppsV1Api(client.ApiClient())
-    k8s_client.delete_namespaced_deployment(args.deployment, namespace)
+
+    # Delete the integration deployment.
+    deployment_name = utils.get_kubernetes_integration_name(args.name)
+
+    try:
+        k8s_client.delete_namespaced_deployment(deployment_name, namespace)
+    except client.exceptions.ApiException:
+        pass
+
+    # Delete the entrypoint service.
+    k8s_client = client.CoreV1Api(client.ApiClient())
+    entrypoint_service = utils.get_kubernetes_entrypoint_name(args.name)
+
+    try:
+        k8s_client.delete_namespaced_service(entrypoint_service, namespace)
+    except client.exceptions.ApiException:
+        pass
