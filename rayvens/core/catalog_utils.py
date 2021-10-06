@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+import yaml
+
 
 def http_source():
     return dict(required=['url'], optional=['period'])
@@ -252,7 +254,7 @@ def fill_config(kind, property_value_list, show_missing=True):
                 f"Invalid property-value pair: {property_value}")
 
         components = property_value.split("=")
-        config[components[0]] = components[1]
+        config[components[0]] = "=".join(components[1:])
 
     # Check all requirements have been fulfilled.
     missing_requirements = []
@@ -267,3 +269,52 @@ def fill_config(kind, property_value_list, show_missing=True):
             print(f"    {missing_req}")
 
     return config, missing_requirements
+
+
+def integration_requires_path_processor(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: processPath' in configuration:
+        return True
+    return False
+
+
+def integration_requires_file_processor(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: processFile' in configuration:
+        return True
+    return False
+
+
+def integration_requires_file_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileQueue' in configuration:
+        return True
+    return False
+
+
+def integration_requires_file_queue_json(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileJsonQueue' in configuration:
+        return True
+    return False
+
+
+def integration_requires_file_watch_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileWatchQueue' in configuration:
+        return True
+    return False
+
+
+def integration_requires_meta_event_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToMetaEventQueue' in configuration:
+        return True
+    return False
+
+
+def integration_requires_queue(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToQueue' in configuration:
+        return True
+    return False

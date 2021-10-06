@@ -33,10 +33,11 @@ def delete_deployment(args):
     # Delete the integration deployment.
     deployment_name = utils.get_kubernetes_integration_name(args.name)
 
+    exception_occured = False
     try:
         k8s_client.delete_namespaced_deployment(deployment_name, namespace)
     except client.exceptions.ApiException:
-        pass
+        exception_occured = True
 
     # Delete the entrypoint service.
     k8s_client = client.CoreV1Api(client.ApiClient())
@@ -45,4 +46,11 @@ def delete_deployment(args):
     try:
         k8s_client.delete_namespaced_service(entrypoint_service, namespace)
     except client.exceptions.ApiException:
-        pass
+        exception_occured = True
+
+    if not exception_occured:
+        print(f"Successfully deleted {deployment_name} from {namespace} "
+              "namespace")
+    else:
+        print("Successfully deleted the remaining components of "
+              f"{deployment_name} from {namespace} namespace")

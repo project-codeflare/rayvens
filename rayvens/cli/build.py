@@ -114,6 +114,7 @@ def build_integration(args):
     # Put together the specification file.
     integration_file_path = None
     integration_file_name = None
+    input_files = []
     if predefined_integration:
         # Get a skeleton configuration for this integration kind.
         base_config, _ = utils.get_current_config(args)
@@ -129,6 +130,7 @@ def build_integration(args):
 
         # Write the specification to the file.
         integration_file_name = f'{args.kind + "-spec"}.yaml'
+        input_files.append(integration_file_name)
         integration_file_path = workspace_directory.joinpath(
             integration_file_name)
         with open(integration_file_path, 'w') as f:
@@ -138,10 +140,16 @@ def build_integration(args):
             f.write("\n".join(modeline_options) + "\n\n")
             f.write(yaml.dump(spec))
 
+        # Check if additional files need to be added.
+        input_files.extend(
+            utils.add_additional_files(workspace_directory,
+                                       predefined_integration, spec,
+                                       inverted_transport))
+
         # Put together the summary file.
         summary_file_contents = utils.get_summary_file_contents(args)
-        print("Summary file contents:")
-        print(summary_file_contents)
+        # print("Summary file contents:")
+        # print(summary_file_contents)
         summary_file_name = 'summary.txt'
         summary_file_path = workspace_directory.joinpath(summary_file_name)
         with open(summary_file_path, 'w') as summary_file:
@@ -157,7 +165,7 @@ def build_integration(args):
     envvars = utils.get_modeline_envvars(workspace_directory, args)
     docker_file_contents = utils.get_integration_dockerfile(
         base_image,
-        integration_file_name,
+        input_files,
         envvars=envvars,
         with_summary=True,
         preload_dependencies=True)

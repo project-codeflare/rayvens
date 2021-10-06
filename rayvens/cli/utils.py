@@ -23,6 +23,7 @@ from rayvens.core.catalog_utils import get_all_properties
 from rayvens.core.catalog_utils import integration_requirements
 from rayvens.core.catalog_utils import get_modeline_properties
 from rayvens.core.catalog_utils import fill_config
+from rayvens.core import catalog_utils
 
 base_image_name = "integration-base"
 property_prefix = "property: "
@@ -30,7 +31,7 @@ envvar_prefix = "envvar: "
 
 
 def get_integration_dockerfile(base_image,
-                               integration_file_name,
+                               input_files,
                                envvars=[],
                                with_summary=False,
                                preload_dependencies=False):
@@ -38,24 +39,33 @@ def get_integration_dockerfile(base_image,
     docker_file_contents.append("RUN mkdir -p /workspace")
     docker_file_contents.append("WORKDIR /workspace")
 
-    docker_file_contents.append(f"COPY {integration_file_name} .")
+    for file in input_files:
+        docker_file_contents.append(f"COPY {file} .")
 
     if with_summary:
         docker_file_contents.append("COPY summary.txt .")
 
     if preload_dependencies:
+        # Unify input file names:
+        files = " ".join(input_files)
+
         # Install integration in the image.
-        docker_file_contents.append(
-            f"RUN kamel local build {integration_file_name} \\")
+        docker_file_contents.append(f"RUN kamel local build {files} \\")
         docker_file_contents.append(
             "--integration-directory my-integration \\")
         docker_file_contents.append(
             "--dependency "
             "mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl")
+        if "FileQueueJson.java" in input_files or \
+           "FileWatchQueue.java" in input_files or \
+           "MetaEventQueue.java" in input_files:
+            docker_file_contents.append(
+                "--dependency "
+                "mvn:com.googlecode.json-simple:json-simple:1.1.1")
     else:
         # Overwrite the integration file with a file already filled in.
-        docker_file_contents.append(
-            f"COPY {integration_file_name} my-integration/routes")
+        for file in input_files:
+            docker_file_contents.append(f"COPY {file} my-integration/routes")
 
     # Include any envvars that were provided.
     # The list of envvars is of the format:
@@ -147,6 +157,419 @@ def get_summary_file_contents(args):
     return "\n".join(summary)
 
 
+def get_process_file_contents():
+    return """
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.io.File;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.aws2.s3.AWS2S3Constants;
+
+class FileProcessor implements Processor {
+    public void process(Exchange exchange) throws Exception {
+        // Input is a file. Set the header entry to the file name.
+        File file = exchange.getIn().getBody(File.class);
+        Path path = Paths.get(file.toString());
+        exchange.getIn().setHeader(AWS2S3Constants.KEY, path.getFileName());
+    }
+}
+
+public class ProcessFile extends RouteBuilder {
+    @BindToRegistry
+    public FileProcessor processFile() {
+        return new FileProcessor();
+    }
+
+    @Override
+    public void configure() throws Exception {
+    }
+}
+    """
+
+
+def get_process_path_contents():
+    return """
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.aws2.s3.AWS2S3Constants;
+
+class PathProcessor implements Processor {
+    public void process(Exchange exchange) throws Exception {
+        // Input is a string with the path to the file.
+        Path path = Paths.get(exchange.getIn().getBody(String.class));
+        exchange.getIn().setHeader(AWS2S3Constants.KEY, path.getFileName());
+        exchange.getIn().setBody(path.toFile());
+    }
+}
+
+public class ProcessPath extends RouteBuilder {
+    @BindToRegistry
+    public PathProcessor processPath() {
+        return new PathProcessor();
+    }
+
+    @Override
+    public void configure() throws Exception {
+    }
+}
+    """
+
+
+def get_java_file_queue_contents():
+    return """
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.io.File;
+import java.io.InputStream;
+import java.io.FileInputStream;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+
+class Recv implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Recv(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        File file = exchange.getIn().getBody(File.class);
+        long fileSize = file.length();
+
+        // TODO: find a better way to read the file content.
+        byte[] allBytes = new byte[(int) fileSize];
+        InputStream inputStream = new FileInputStream(file);
+        inputStream.read(allBytes);
+        inputStream.close();
+        queue.add(allBytes);
+    }
+}
+
+class Send implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Send(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        Object body = queue.take();
+        exchange.getIn().setBody(body);
+    }
+}
+    """
+
+
+def get_java_file_queue_json_contents():
+    return """
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.io.File;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+import org.json.simple.JSONObject;
+
+class Recv implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Recv(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        JSONObject returnJsonObject = new JSONObject();
+        String body = exchange.getIn().getBody(String.class);
+        returnJsonObject.put("body", body);
+
+        Object key = exchange.getIn().getHeader("CamelAwsS3Key");
+        returnJsonObject.put("filename", key.toString());
+        queue.add(returnJsonObject.toString());
+    }
+}
+
+class Send implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Send(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        Object body = queue.take();
+        exchange.getIn().setBody(body);
+    }
+}
+
+public class FileQueueJson extends RouteBuilder {
+    BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
+
+    @BindToRegistry
+    public Recv addToFileJsonQueue() {
+        return new Recv(queue);
+    }
+
+    @BindToRegistry
+    public Send takeFromFileJsonQueue() {
+        return new Send(queue);
+    }
+
+    @Override
+    public void configure() throws Exception {
+    }
+}
+    """
+
+
+def get_java_file_watch_queue_contents():
+    return """
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.io.File;
+import java.io.InputStream;
+import java.io.FileInputStream;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+import org.json.simple.JSONObject;
+
+class Recv implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Recv(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        JSONObject returnJsonObject = new JSONObject();
+
+        // Record event type:
+        Object eventType = exchange.getIn().getHeader("CamelFileEventType");
+        returnJsonObject.put("event_type", eventType.toString());
+
+        // Record event type:
+        File file = exchange.getIn().getBody(File.class);
+        returnJsonObject.put("filename", file.toString());
+        queue.add(returnJsonObject.toString());
+    }
+}
+
+class Send implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Send(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        Object body = queue.take();
+        exchange.getIn().setBody(body);
+    }
+}
+
+public class FileWatchQueue extends RouteBuilder {
+    BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
+
+    @BindToRegistry
+    public Recv addToFileWatchQueue() {
+        return new Recv(queue);
+    }
+
+    @BindToRegistry
+    public Send takeFromFileWatchQueue() {
+        return new Send(queue);
+    }
+
+    @Override
+    public void configure() throws Exception {
+    }
+}
+    """
+
+
+def get_java_meta_event_queue_contents():
+    return """
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.io.File;
+import java.io.InputStream;
+import java.io.FileInputStream;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+import org.json.simple.JSONObject;
+
+class Recv implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Recv(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        JSONObject returnJsonObject = new JSONObject();
+        Object key = exchange.getIn().getHeader("CamelAwsS3Key");
+        returnJsonObject.put("filename", key.toString());
+        queue.add(returnJsonObject.toString());
+    }
+}
+
+class Send implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Send(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        Object body = queue.take();
+        exchange.getIn().setBody(body);
+    }
+}
+
+public class MetaEventQueue extends RouteBuilder {
+    BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
+
+    @BindToRegistry
+    public Recv addToMetaEventQueue() {
+        return new Recv(queue);
+    }
+
+    @BindToRegistry
+    public Send takeFromMetaEventQueue() {
+        return new Send(queue);
+    }
+
+    @Override
+    public void configure() throws Exception {
+    }
+}
+    """
+
+
+def get_java_queue_contents():
+    return """
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.RouteBuilder;
+
+class Recv implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Recv(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        Object body = exchange.getIn().getBody();
+        queue.add(body);
+    }
+}
+
+class Send implements Processor {
+    BlockingQueue<Object> queue;
+
+    public Send(BlockingQueue<Object> queue) {
+        this.queue = queue;
+    }
+
+    public void process(Exchange exchange) throws Exception {
+        Object body = queue.take();
+        exchange.getIn().setBody(body);
+    }
+}
+
+public class Queue extends RouteBuilder {
+    BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
+
+    @BindToRegistry
+    public Recv addToQueue() {
+        return new Recv(queue);
+    }
+
+    @BindToRegistry
+    public Send takeFromQueue() {
+        return new Send(queue);
+    }
+
+    @Override
+    public void configure() throws Exception {
+    }
+}
+    """
+
+
+def _create_file(workspace_directory, file_name, file_contents):
+    file_processor_file_path = workspace_directory.joinpath(file_name)
+    with open(file_processor_file_path, 'w') as f:
+        f.write(file_contents)
+    return file_name
+
+
+def add_additional_files(workspace_directory, predefined_integration, spec,
+                         inverted_transport):
+    files = []
+    if catalog_utils.integration_requires_file_processor(spec):
+        files.append(
+            _create_file(workspace_directory, "ProcessFile.java",
+                         get_process_file_contents()))
+
+    if catalog_utils.integration_requires_path_processor(spec):
+        files.append(
+            _create_file(workspace_directory, "ProcessPath.java",
+                         get_process_path_contents()))
+
+    # Write the Java queue code to the file when using HTTP transport.
+    if inverted_transport:
+        if catalog_utils.integration_requires_file_queue(spec):
+            files.append(
+                _create_file(workspace_directory, "FileQueue.java",
+                             get_java_file_queue_contents()))
+
+        if catalog_utils.integration_requires_file_queue(spec):
+            files.append(
+                _create_file(workspace_directory, "FileQueueJson.java",
+                             get_java_file_queue_json_contents()))
+
+        if catalog_utils.integration_requires_file_watch_queue(spec):
+            files.append(
+                _create_file(workspace_directory, "FileWatchQueue.java",
+                             get_java_file_watch_queue_contents()))
+
+        if catalog_utils.integration_requires_meta_event_queue(spec):
+            files.append(
+                _create_file(workspace_directory, "MetaEventQueue.java",
+                             get_java_meta_event_queue_contents()))
+
+        if catalog_utils.integration_requires_queue(spec):
+            files.append(
+                _create_file(workspace_directory, "Queue.java",
+                             get_java_queue_contents()))
+    return files
+
+
 def get_registry(args):
     # Registry name:
     registry = None
@@ -205,7 +628,7 @@ def get_given_envvars(args):
     if args.envvars is not None and len(args.envvars) > 0:
         for property_value in args.envvars:
             components = property_value.split("=")
-            given_envvars.append(components[1])
+            given_envvars.append("=".join(components[1:]))
     return given_envvars
 
 
@@ -233,7 +656,7 @@ def _get_field_from_summary(summary_file_path, field, prefix=None):
 
             components = line.split("=")
             if components[0] == field:
-                result = components[1]
+                result = "=".join(components[1:])
                 break
 
     if result is None:
@@ -293,7 +716,7 @@ def get_current_envvars(args):
     if args.envvars is not None and len(args.envvars) > 0:
         for property_env_pair in args.envvars:
             components = property_env_pair.split("=")
-            envvars[components[0]] = components[1]
+            envvars[components[0]] = "=".join(components[1:])
     return envvars
 
 
@@ -311,7 +734,7 @@ def get_current_config(args):
     if args.envvars is not None and len(args.envvars) > 0:
         for property_env_pair in args.envvars:
             components = property_env_pair.split("=")
-            config[components[0]] = components[1]
+            config[components[0]] = "=".join(components[1:])
 
     if len(requirements['required']) > 0:
         for req_property in requirements['required']:
