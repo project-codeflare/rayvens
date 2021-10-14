@@ -60,7 +60,7 @@ public class Preloader extends RouteBuilder {
         preloader_file.write(preloader_file_contents)
 
     # Copy the current kamel executable in the workspace directory:
-    path_to_kamel = utils.find_executable("kamel")
+    path_to_kamel = utils.find_executable("kamel-linux")
     print("path_to_kamel=", path_to_kamel)
     print("dest=", str(workspace_directory.joinpath("kamel")))
     utils.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
@@ -69,10 +69,15 @@ public class Preloader extends RouteBuilder {
     docker_file_contents = """
 FROM adoptopenjdk/openjdk11:alpine
 
-RUN apk add --update maven && apk update && apk upgrade
+RUN apk add --update maven && apk update && apk upgrade && apk add --update curl && apk add --update bash
 
 COPY --from=docker.io/apache/camel-k:1.5.0 /usr/local/bin/kamel /usr/local/bin/
-COPY kamel /usr/local/bin/
+COPY kamel /usr/local/bin/kamel
+
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+RUN chmod +x ./kubectl
+RUN mv ./kubectl /usr/local/bin/
+RUN kubectl version --client
 
 COPY Preloader.java .
 RUN kamel local run Preloader.java \
@@ -94,6 +99,22 @@ RUN kamel local run Preloader.java \
     # Push base image to registry:
     #   docker push <image>
     docker_push(base_image_name)
+
+    # Create kube proxy image:
+    docker_file_contents = """
+FROM adoptopenjdk/openjdk11:alpine
+RUN apk add --update curl
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+RUN chmod +x ./kubectl
+RUN mv ./kubectl /usr/local/bin/
+RUN kubectl version --client
+CMD kubectl proxy --port=443
+"""
+    with open(docker_file_path, mode='w') as docker_file:
+        docker_file.write(docker_file_contents)
+    kube_proxy_image_name = utils.get_kube_proxy_image_name(args)
+    docker_build(str(workspace_directory), kube_proxy_image_name)
+    docker_push(kube_proxy_image_name)
 
     # Clean-up
     utils.delete_workspace_dir(workspace_directory)
@@ -161,6 +182,13 @@ def build_integration(args):
     # Resolve base image name:
     base_image = get_base_image_name(args)
 
+    # Copy the current kubeconfig to the workspace directory:
+    path_to_kubeconfig = os.path.expanduser('~') + "/.kube/config"
+    print("path_to_kubeconfig=", path_to_kubeconfig)
+    print("dest=", str(workspace_directory.joinpath("config")))
+    utils.copy_file(path_to_kubeconfig,
+                    str(workspace_directory.joinpath("config")))
+
     # Write docker file contents:
     envvars = utils.get_modeline_envvars(workspace_directory, args)
     docker_file_contents = utils.get_integration_dockerfile(
@@ -169,7 +197,7 @@ def build_integration(args):
         envvars=envvars,
         with_summary=True,
         preload_dependencies=True)
-    # print(docker_file_contents)
+    print(docker_file_contents)
     docker_file_path = workspace_directory.joinpath("Dockerfile")
     with open(docker_file_path, mode='w') as docker_file:
         docker_file.write(docker_file_contents)

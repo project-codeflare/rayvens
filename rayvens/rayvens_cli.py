@@ -20,7 +20,7 @@ from rayvens.cli.build import build_integration, build_base_image
 from rayvens.cli.run import run_integration
 from rayvens.cli.rayvens_setup import rayvens_setup
 from rayvens.cli.rayvens_print import rayvens_print
-from rayvens.cli.delete import delete_deployment
+from rayvens.cli.delete import delete
 
 parser = argparse.ArgumentParser(description='Rayvens command line tool.',
                                  prog="rayvens")
@@ -108,6 +108,10 @@ parser_run.add_argument(
     help='Kubernetes namespace used for deploying the integration.')
 parser_run.add_argument('--name',
                         help='Kubernetes name used for the integration.')
+parser_run.add_argument('--handler-image',
+                        help='Name of the job image used for handling events.')
+parser_run.add_argument('--handler-name',
+                        help='Name of the job used for handling events.')
 parser_run.set_defaults(func=run_integration)
 
 # =============================
@@ -136,7 +140,9 @@ parser_print.set_defaults(func=rayvens_print)
 parser_delete = subparsers.add_parser('delete', help='Delete deployments.')
 parser_delete.add_argument('--name', help='Integration name.')
 parser_delete.add_argument('-n', '--namespace', help='Deployment namespace.')
-parser_delete.set_defaults(func=delete_deployment)
+parser_delete.add_argument('--all-jobs',
+                           help="Delete all jobs with the provided base name.")
+parser_delete.set_defaults(func=delete)
 
 args = parser.parse_args()
 args.func(args)
