@@ -69,12 +69,16 @@ public class Preloader extends RouteBuilder {
     docker_file_contents = """
 FROM adoptopenjdk/openjdk11:alpine
 
-RUN apk add --update maven && apk update && apk upgrade && apk add --update curl && apk add --update bash
+RUN apk add --update maven && apk update && apk upgrade
+RUN apk add --update curl && apk add --update bash
 
 COPY --from=docker.io/apache/camel-k:1.5.0 /usr/local/bin/kamel /usr/local/bin/
 COPY kamel /usr/local/bin/kamel
 
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/\
+`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`\
+/bin/linux/amd64/kubectl
+
 RUN chmod +x ./kubectl
 RUN mv ./kubectl /usr/local/bin/
 RUN kubectl version --client
@@ -99,22 +103,6 @@ RUN kamel local run Preloader.java \
     # Push base image to registry:
     #   docker push <image>
     docker_push(base_image_name)
-
-    # Create kube proxy image:
-    docker_file_contents = """
-FROM adoptopenjdk/openjdk11:alpine
-RUN apk add --update curl
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
-RUN chmod +x ./kubectl
-RUN mv ./kubectl /usr/local/bin/
-RUN kubectl version --client
-CMD kubectl proxy --port=443
-"""
-    with open(docker_file_path, mode='w') as docker_file:
-        docker_file.write(docker_file_contents)
-    kube_proxy_image_name = utils.get_kube_proxy_image_name(args)
-    docker_build(str(workspace_directory), kube_proxy_image_name)
-    docker_push(kube_proxy_image_name)
 
     # Clean-up
     utils.delete_workspace_dir(workspace_directory)

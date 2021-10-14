@@ -67,12 +67,6 @@ def get_integration_dockerfile(base_image,
             "mvn:com.googlecode.json-simple:json-simple:1.1.1 \\")
         docker_file_contents.append("--dependency "
                                     "mvn:io.kubernetes:client-java:11.0.0")
-        # if "FileQueueJson.java" in input_files or \
-        #    "FileWatchQueue.java" in input_files or \
-        #    "MetaEventQueue.java" in input_files:
-        #     docker_file_contents.append(
-        #         "--dependency "
-        #         "mvn:com.googlecode.json-simple:json-simple:1.1.1")
     else:
         # Overwrite the integration file with a file already filled in.
         for file in input_files:
@@ -92,17 +86,12 @@ def get_integration_dockerfile(base_image,
         "--env KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT} "
         "--env KUBERNETES_PORT=${KUBERNETES_PORT} "
         "--env HOSTNAME=${HOSTNAME} "
-        "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_ADDR=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_ADDR} "
-        "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PORT=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PORT} "
-        "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PROTO=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PROTO} "
         "--env JAVA_VERSION=${JAVA_VERSION} "
         "--env KUBERNETES_PORT_443_TCP_ADDR=${KUBERNETES_PORT_443_TCP_ADDR} "
-        "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP} "
         "--env PATH=${PATH} "
         "--env KUBERNETES_PORT_443_TCP_PORT=$KUBERNETES_PORT_443_TCP_PORT} "
         "--env KUBERNETES_PORT_443_TCP_PROTO=${KUBERNETES_PORT_443_TCP_PROTO} "
         "--env LANG=${LANG} "
-        "--env HTTP_SOURCE_ENTRYPOINT_SERVICE_PORT=${HTTP_SOURCE_ENTRYPOINT_SERVICE_PORT} "
         "--env HTTP_SOURCE_ENTRYPOINT_PORT=${HTTP_SOURCE_ENTRYPOINT_PORT} "
         "--env KUBERNETES_PORT_443_TCP=${KUBERNETES_PORT_443_TCP} "
         "--env KUBERNETES_SERVICE_PORT_HTTPS=${KUBERNETES_SERVICE_PORT_HTTPS} "
@@ -110,30 +99,6 @@ def get_integration_dockerfile(base_image,
         "--env JAVA_HOME=${JAVA_HOME} "
         "--env KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST} "
         "--env PWD=${PWD} ")
-    # docker_file_contents.append(
-    #     "CMD env ; kamel local run --integration-directory my-integration "
-    #     f"{list_of_envars} "
-    #     "--env KUBERNETES_SERVICE_PORT=443 "
-    #     "--env KUBERNETES_PORT=tcp://127.0.0.1:443 "
-    #     "--env HOSTNAME=${HOSTNAME} "
-    #     "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_ADDR=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_ADDR} "
-    #     "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PORT=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PORT} "
-    #     "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PROTO=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP_PROTO} "
-    #     "--env JAVA_VERSION=${JAVA_VERSION} "
-    #     "--env KUBERNETES_PORT_443_TCP_ADDR=127.0.0.1 "
-    #     "--env HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP=${HTTP_SOURCE_ENTRYPOINT_PORT_3000_TCP} "
-    #     "--env PATH=${PATH} "
-    #     "--env KUBERNETES_PORT_443_TCP_PORT=443 "
-    #     "--env KUBERNETES_PORT_443_TCP_PROTO=tcp "
-    #     "--env LANG=${LANG} "
-    #     "--env HTTP_SOURCE_ENTRYPOINT_SERVICE_PORT=${HTTP_SOURCE_ENTRYPOINT_SERVICE_PORT} "
-    #     "--env HTTP_SOURCE_ENTRYPOINT_PORT=${HTTP_SOURCE_ENTRYPOINT_PORT} "
-    #     "--env KUBERNETES_PORT_443_TCP=tcp://127.0.0.1:443 "
-    #     "--env KUBERNETES_SERVICE_PORT_HTTPS=443 "
-    #     "--env LC_ALL=${LC_ALL} "
-    #     "--env JAVA_HOME=${JAVA_HOME} "
-    #     "--env KUBERNETES_SERVICE_HOST=127.0.0.1 "
-    #     "--env PWD=${PWD} ")
     return "\n".join(docker_file_contents)
 
 
@@ -567,27 +532,31 @@ public class MetaEventQueue extends RouteBuilder {
     """
 
 
-def get_java_queue_contents():
-    temp = """
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: pi
-spec:
-  template:
-    spec:
-      containers:
-      - name: test-job-job
-        image: adoptopenjdk/openjdk11:alpine
-        env:
-        - name: TEST_ENV_VAR
-          value: "Hello from the JOB environment"
-        command: echo $TEST_ENV_VAR
-      restartPolicy: Never
-  backoffLimit: 4
-"""
+def get_java_queue_contents(job_command="[env]"):
+    job_spec = f"""
+        eventContents = eventContents.replace("\\\"", "");
+        String newLine = System.getProperty("line.separator");
+        String finalString = "apiVersion: batch/v1" + newLine
+             + "kind: Job" + newLine
+             + "metadata:" + newLine
+             + "  name: "+ jobName + newLine
+             + "spec:" + newLine
+             + "  template:" + newLine
+             + "    spec:" + newLine
+             + "      containers:" + newLine
+             + "      - name: " + jobName + "-container" + newLine
+             + "        image: adoptopenjdk/openjdk11:alpine" + newLine
+             + "        env:" + newLine
+             + "        - name: TEST_EVENT" + newLine
+             + "          value: \\\"" + eventContents + "\\\"" + newLine
+             + "        command: {job_command}" + newLine
+             + "      restartPolicy: Never" + newLine
+             + "  backoffLimit: 4" + newLine;
+        System.out.println(finalString);
+        return finalString;
+    """
 
-    return """
+    java_queue_file = """
 import java.lang.Runnable;
 import java.lang.Thread;
 import java.util.concurrent.BlockingQueue;
@@ -631,25 +600,7 @@ class HelloRunnable implements Runnable {
     }
 
     public String getJobYaml(String jobName, String eventContents) {
-        String newLine = System.getProperty("line.separator");
-        String finalString = "apiVersion: batch/v1" + newLine
-             + "kind: Job" + newLine
-             + "metadata:" + newLine
-             + "  name: "+ jobName + newLine
-             + "spec:" + newLine
-             + "  template:" + newLine
-             + "    spec:" + newLine
-             + "      containers:" + newLine
-             + "      - name: " + jobName + "-container" + newLine
-             + "        image: adoptopenjdk/openjdk11:alpine" + newLine
-             + "        env:" + newLine
-             + "        - name: TEST_EVENT" + newLine
-             + "          value: hello" + " " + newLine
-             + "        command: [env]" + newLine
-             + "      restartPolicy: Never" + newLine
-             + "  backoffLimit: 4" + newLine;
-        System.out.println(finalString);
-        return finalString;
+        %s
     }
 
     public void createYamlFile(String filename) {
@@ -676,23 +627,24 @@ class HelloRunnable implements Runnable {
     }
 
     public void deleteYamlFile(String filename) {
-        File file = new File(filename); 
-        if (file.delete()) { 
+        File file = new File(filename);
+        if (file.delete()) {
             System.out.println("Deleted the yaml file: " + file.getName());
         } else {
             System.out.println("Failed to delete the yaml file.");
-        } 
+        }
     }
 
-    private static class StreamGobbler implements Runnable {
+    private static class StreamConsumer implements Runnable {
         private InputStream inputStream;
         private Consumer<String> consumer;
-    
-        public StreamGobbler(InputStream inputStream, Consumer<String> consumer) {
+
+        public StreamConsumer(InputStream inputStream,
+                              Consumer<String> consumer) {
             this.inputStream = inputStream;
             this.consumer = consumer;
         }
-    
+
         @Override
         public void run() {
             new BufferedReader(new InputStreamReader(inputStream)).lines()
@@ -709,20 +661,14 @@ class HelloRunnable implements Runnable {
         String jobName = "random-job-name-"+String.valueOf(this.eventCount);
         writeJobYamlFile(filename, getJobYaml(jobName, this.body));
         builder.command("bash", "-c", "kubectl apply -f "+filename);
-        // builder.command("ls ; pwd ; env");
-        // builder.command("bash", "-c", "env ; kubectl get po");
-
-        // Map<String, String> env = System.getenv();
-        // for (Map.Entry<String, String> entry : env.entrySet()) {
-        //     System.out.println(entry.getKey() + " : " + entry.getValue());
-        // }
 
         try {
-            // Process process = Runtime.getRuntime().exec("bash -c pwd; ls ; kubectl apply -f "+filename);
             Process process = builder.start();
-            StreamGobbler outStream = new StreamGobbler(process.getInputStream(), System.out::println);
+            StreamConsumer outStream = new StreamConsumer(
+                process.getInputStream(), System.out::println);
             Executors.newSingleThreadExecutor().submit(outStream);
-            StreamGobbler errStream = new StreamGobbler(process.getErrorStream(), System.out::println);
+            StreamConsumer errStream = new StreamConsumer(
+                process.getErrorStream(), System.out::println);
             Executors.newSingleThreadExecutor().submit(errStream);
             try {
                 int exitCode = process.waitFor();
@@ -753,7 +699,6 @@ class Recv implements Processor {
         String body = exchange.getIn().getBody(String.class);
         queue.add(body);
         this.eventCount += 1;
-
         (new Thread(new HelloRunnable(body, this.eventCount))).start();
     }
 }
@@ -788,7 +733,9 @@ public class Queue extends RouteBuilder {
     public void configure() throws Exception {
     }
 }
-    """
+    """ % (job_spec)
+
+    return java_queue_file
 
 
 def _create_file(workspace_directory, file_name, file_contents):
