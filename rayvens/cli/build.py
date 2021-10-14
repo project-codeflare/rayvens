@@ -15,9 +15,9 @@
 #
 
 import os
-import pathlib
 import yaml
 import rayvens.cli.utils as utils
+import rayvens.cli.files as files
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_push, docker_build
@@ -25,8 +25,7 @@ from rayvens.cli.docker import docker_push, docker_build
 
 def build_base_image(args):
     # Create a work directory in the current directory:
-    workspace_directory = pathlib.Path.cwd().joinpath("workspace")
-    os.mkdir(workspace_directory)
+    workspace_directory = files.create_workspace_directory()
 
     # Write preloader contents:
     preloader_file_contents = """
@@ -60,10 +59,8 @@ public class Preloader extends RouteBuilder {
         preloader_file.write(preloader_file_contents)
 
     # Copy the current kamel executable in the workspace directory:
-    path_to_kamel = utils.find_executable("kamel-linux")
-    print("path_to_kamel=", path_to_kamel)
-    print("dest=", str(workspace_directory.joinpath("kamel")))
-    utils.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
+    path_to_kamel = files.find_executable("kamel-linux")
+    files.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
 
     # Write docker file contents
     docker_file_contents = """
@@ -105,13 +102,12 @@ RUN kamel local run Preloader.java \
     docker_push(base_image_name)
 
     # Clean-up
-    utils.delete_workspace_dir(workspace_directory)
+    files.delete_workspace_directory(workspace_directory)
 
 
 def build_integration(args):
     # Create a work directory in the current directory:
-    workspace_directory = pathlib.Path.cwd().joinpath("workspace")
-    os.mkdir(workspace_directory)
+    workspace_directory = files.create_workspace_directory()
 
     # Check if the source/sink is predefined.
     predefined_integration = args.kind is not None and (args.kind in sources
@@ -172,9 +168,7 @@ def build_integration(args):
 
     # Copy the current kubeconfig to the workspace directory:
     path_to_kubeconfig = os.path.expanduser('~') + "/.kube/config"
-    print("path_to_kubeconfig=", path_to_kubeconfig)
-    print("dest=", str(workspace_directory.joinpath("config")))
-    utils.copy_file(path_to_kubeconfig,
+    files.copy_file(path_to_kubeconfig,
                     str(workspace_directory.joinpath("config")))
 
     # Write docker file contents:
@@ -202,7 +196,7 @@ def build_integration(args):
     docker_push(integration_image)
 
     # Clean-up
-    utils.delete_workspace_dir(workspace_directory)
+    files.delete_workspace_directory(workspace_directory)
 
 
 def get_base_image_name(args):

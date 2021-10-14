@@ -14,11 +14,8 @@
 # limitations under the License.
 #
 
-import os
-import pathlib
-import subprocess
-import platform
 import yaml
+import rayvens.cli.files as files
 from rayvens.core.catalog_utils import get_all_properties
 from rayvens.core.catalog_utils import integration_requirements
 from rayvens.core.catalog_utils import get_modeline_properties
@@ -799,26 +796,8 @@ def get_registry(args):
     return registry
 
 
-def create_workspace_dir():
-    workspace_directory = pathlib.Path.cwd().joinpath("workspace")
-    delete_workspace_dir(workspace_directory)
-    os.mkdir(workspace_directory)
-    return workspace_directory
-
-
-def delete_workspace_dir(workspace_directory):
-    # If workspace directory exists, delete it:
-    if os.path.isdir(workspace_directory):
-        # Make the directory empty:
-        for file in workspace_directory.iterdir():
-            os.remove(file)
-
-        # Delete the empty directory:
-        os.rmdir(workspace_directory)
-
-
 def clean_error_exit(workspace_directory, message):
-    delete_workspace_dir(workspace_directory)
+    files.delete_workspace_directory(workspace_directory)
     raise RuntimeError(message)
 
 
@@ -1032,27 +1011,6 @@ def get_modeline_envvars(workspace_directory, args):
     # Get envvars from summary file:
     given_envvars.extend(summary_get_envvars(kind, workspace_directory))
     return given_envvars
-
-
-def find_executable(executable_name):
-    command = ["which"]
-    if platform.system() == "Windows":
-        command = ["where"]
-
-    command.append(executable_name)
-
-    return subprocess.check_output(command).decode('utf8').strip()
-
-
-def copy_file(source, destination):
-    command = ["cp"]
-    if platform.system() == "Windows":
-        command = ["copy"]
-
-    command.append(source)
-    command.append(destination)
-
-    subprocess.call(command)
 
 
 def get_kubernetes_deployment_file_name(name):
