@@ -16,7 +16,7 @@
 
 import yaml
 import rayvens.cli.utils as utils
-import rayvens.cli.files as files
+import rayvens.cli.file as file
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_create, docker_rm, docker_cp_to_host
@@ -25,7 +25,7 @@ from rayvens.cli.docker import docker_run_integration
 
 def run_integration(args):
     # Create a work directory in the current directory:
-    workspace_directory = files.create_workspace_directory()
+    workspace_directory = file.create_workspace_directory()
 
     # Get registry:
     registry = utils.get_registry(args)
@@ -136,4 +136,4 @@ def run_integration(args):
                                envvars=envvars)
 
     # Clean-up
-    files.delete_workspace_directory(workspace_directory)
+    file.delete_workspace_directory(workspace_directory)

@@ -17,7 +17,8 @@
 import os
 import yaml
 import rayvens.cli.utils as utils
-import rayvens.cli.files as files
+import rayvens.cli.file as file
+import rayvens.cli.java as java
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_push, docker_build
@@ -25,42 +26,15 @@ from rayvens.cli.docker import docker_push, docker_build
 
 def build_base_image(args):
     # Create a work directory in the current directory:
-    workspace_directory = files.create_workspace_directory()
+    workspace_directory = file.create_workspace_directory()
 
-    # Write preloader contents:
-    preloader_file_contents = """
-import org.apache.camel.BindToRegistry;
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
-import org.apache.camel.builder.RouteBuilder;
-
-class Exit implements Processor {
-  public void process(Exchange exchange) throws Exception {
-    System.exit(0);
-  }
-}
-
-public class Preloader extends RouteBuilder {
-  @Override
-  public void configure() throws Exception {
-    from("timer:tick").to("bean:exit");
-    from("platform-http:/null").to("http:null");
-  }
-
-  @BindToRegistry
-  public Exit exit() {
-    return new Exit();
-  }
-}
-"""
-
-    preloader_file_path = workspace_directory.joinpath("Preloader.java")
-    with open(preloader_file_path, mode='w') as preloader_file:
-        preloader_file.write(preloader_file_contents)
+    # Write preloader file Preloader.java to workspace:
+    java.write_preloader_file(workspace_directory)
 
     # Copy the current kamel executable in the workspace directory:
-    path_to_kamel = files.find_executable("kamel-linux")
-    files.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
+    # TODO: remove this once we only use upstream kamel executable
+    path_to_kamel = file.find_executable("kamel-linux")
+    file.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
 
     # Write docker file contents
     docker_file_contents = """
@@ -102,12 +76,12 @@ RUN kamel local run Preloader.java \
     docker_push(base_image_name)
 
     # Clean-up
-    files.delete_workspace_directory(workspace_directory)
+    file.delete_workspace_directory(workspace_directory)
 
 
 def build_integration(args):
     # Create a work directory in the current directory:
-    workspace_directory = files.create_workspace_directory()
+    workspace_directory = file.create_workspace_directory()
 
     # Check if the source/sink is predefined.
     predefined_integration = args.kind is not None and (args.kind in sources
@@ -168,8 +142,8 @@ def build_integration(args):
 
     # Copy the current kubeconfig to the workspace directory:
     path_to_kubeconfig = os.path.expanduser('~') + "/.kube/config"
-    files.copy_file(path_to_kubeconfig,
-                    str(workspace_directory.joinpath("config")))
+    file.copy_file(path_to_kubeconfig,
+                   str(workspace_directory.joinpath("config")))
 
     # Write docker file contents:
     envvars = utils.get_modeline_envvars(workspace_directory, args)
@@ -196,7 +170,7 @@ def build_integration(args):
     docker_push(integration_image)
 
     # Clean-up
-    files.delete_workspace_directory(workspace_directory)
+    file.delete_workspace_directory(workspace_directory)
 
 
 def get_base_image_name(args):

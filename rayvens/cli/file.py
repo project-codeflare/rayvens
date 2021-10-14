@@ -35,6 +35,11 @@ def delete_workspace_directory(workspace_directory):
         os.rmdir(workspace_directory)
 
 
+def write_file(file_path, contents):
+    with open(file_path, mode='w') as file:
+        file.write(contents)
+
+
 def find_executable(executable_name):
     command = ["which"]
     if platform.system() == "Windows":
