@@ -19,64 +19,45 @@ import yaml
 import rayvens.cli.utils as utils
 import rayvens.cli.file as file
 import rayvens.cli.java as java
+import rayvens.cli.docker as docker
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_push, docker_build
 
 
 def build_base_image(args):
-    # Create a work directory in the current directory:
-    workspace_directory = file.create_workspace_directory()
+    # Create docker file for the base image.
+    docker_image = docker.JavaAlpineDockerImage()
 
-    # Write preloader file Preloader.java to workspace:
-    java.write_preloader_file(workspace_directory)
+    # Install packages into the image.
+    docker_image.install("maven")
+    docker_image.install("bash")
+    docker_image.install("curl")
+    docker_image.update_installed_packages()
 
-    # Copy the current kamel executable in the workspace directory:
-    # TODO: remove this once we only use upstream kamel executable
-    path_to_kamel = file.find_executable("kamel-linux")
-    file.copy_file(path_to_kamel, str(workspace_directory.joinpath("kamel")))
+    # Bring in kamel executable:
+    docker_image.add_kamel()
 
-    # Write docker file contents
-    docker_file_contents = """
-FROM adoptopenjdk/openjdk11:alpine
+    # TODO: remove this, overwrite kamel executable with one from host.
+    path_to_local_kamel = file.find_executable("kamel-linux")
+    kamel_executable = file.File(path_to_local_kamel)
+    docker_image.copy(kamel_executable, "/usr/local/bin/kamel")
 
-RUN apk add --update maven && apk update && apk upgrade
-RUN apk add --update curl && apk add --update bash
+    # Add kubernetes capabilities:
+    docker_image.add_kubernetes()
 
-COPY --from=docker.io/apache/camel-k:1.5.0 /usr/local/bin/kamel /usr/local/bin/
-COPY kamel /usr/local/bin/kamel
+    # Create preloader file with string content type:
+    preload_file = file.File(java.preloader_file_name,
+                             contents=java.preloader_file_contents)
+    docker_image.copy(preload_file)
 
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/\
-`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`\
-/bin/linux/amd64/kubectl
+    # Add run command:
+    docker_image.run(f"""kamel local run {preload_file.name} \
+--dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl; \
+rm {preload_file.name}""")
 
-RUN chmod +x ./kubectl
-RUN mv ./kubectl /usr/local/bin/
-RUN kubectl version --client
-
-COPY Preloader.java .
-RUN kamel local run Preloader.java \
-    --dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl; \
-    rm Preloader.java
-"""
-
-    docker_file_path = workspace_directory.joinpath("Dockerfile")
-    with open(docker_file_path, mode='w') as docker_file:
-        docker_file.write(docker_file_contents)
-
-    # Base image name:
-    base_image_name = get_base_image_name(args)
-
-    # Build base image:
-    #   docker build workspace -t <image>
-    docker_build(str(workspace_directory), base_image_name)
-
-    # Push base image to registry:
-    #   docker push <image>
-    docker_push(base_image_name)
-
-    # Clean-up
-    file.delete_workspace_directory(workspace_directory)
+    # Build image:
+    docker_image.build(get_base_image_name(args))
 
 
 def build_integration(args):

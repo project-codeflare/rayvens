@@ -15,7 +15,7 @@
 #
 
 import yaml
-import rayvens.cli.files as files
+import rayvens.cli.file as file
 from rayvens.core.catalog_utils import get_all_properties
 from rayvens.core.catalog_utils import integration_requirements
 from rayvens.core.catalog_utils import get_modeline_properties
@@ -40,8 +40,8 @@ def get_integration_dockerfile(base_image,
     docker_file_contents.append("RUN mkdir -p /workspace")
     docker_file_contents.append("WORKDIR /workspace")
 
-    for file in input_files:
-        docker_file_contents.append(f"COPY {file} .")
+    for input_file in input_files:
+        docker_file_contents.append(f"COPY {input_file} .")
 
     if with_summary:
         docker_file_contents.append("COPY summary.txt .")
@@ -66,8 +66,9 @@ def get_integration_dockerfile(base_image,
                                     "mvn:io.kubernetes:client-java:11.0.0")
     else:
         # Overwrite the integration file with a file already filled in.
-        for file in input_files:
-            docker_file_contents.append(f"COPY {file} my-integration/routes")
+        for input_file in input_files:
+            docker_file_contents.append(
+                f"COPY {input_file} my-integration/routes")
 
     # Include any envvars that were provided.
     # The list of envvars is of the format:
@@ -797,7 +798,7 @@ def get_registry(args):
 
 
 def clean_error_exit(workspace_directory, message):
-    files.delete_workspace_directory(workspace_directory)
+    file.delete_workspace_directory(workspace_directory)
     raise RuntimeError(message)
 
 
