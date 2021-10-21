@@ -22,7 +22,6 @@ import rayvens.cli.java as java
 import rayvens.cli.docker as docker
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
-from rayvens.cli.docker import docker_push, docker_build
 
 
 def build_base_image(args):
@@ -61,20 +60,22 @@ rm {preload_file.name}""")
 
 
 def build_integration(args):
-    # Create a work directory in the current directory:
-    workspace_directory = file.create_workspace_directory()
+    # Create image for integration:
+    docker_image = docker.DockerImage(get_base_image_name(args))
 
-    # Check if the source/sink is predefined.
+    # Create workspace inside the image.
+    docker_image.run("mkdir -p /workspace")
+    docker_image.workdir("/workspace")
+
+    # Create the yaml source for the integration locally and transfer it
+    # to the image.
     predefined_integration = args.kind is not None and (args.kind in sources
                                                         or args.kind in sinks)
-    # By default the HTTP transport is used. This is the only supported
-    # transport for now.
     inverted_transport = True
 
-    # Put together the specification file.
-    integration_file_path = None
-    integration_file_name = None
-    input_files = []
+    # Put together the summary file.
+    summary_file = utils.get_summary_file(args)
+
     if predefined_integration:
         # Get a skeleton configuration for this integration kind.
         base_config, _ = utils.get_current_config(args)
@@ -88,70 +89,73 @@ def build_integration(args):
         else:
             spec = construct_sink(base_config, f'platform-http:{route}')
 
-        # Write the specification to the file.
-        integration_file_name = f'{args.kind + "-spec"}.yaml'
-        input_files.append(integration_file_name)
-        integration_file_path = workspace_directory.joinpath(
-            integration_file_name)
-        with open(integration_file_path, 'w') as f:
-            modeline_options = utils.get_modeline_config(workspace_directory,
-                                                         args,
-                                                         run=False)
-            f.write("\n".join(modeline_options) + "\n\n")
-            f.write(yaml.dump(spec))
+        # Any command line specified properties get transformed into modeline
+        # options. Modeline options live at the top of the integration source
+        # file.
+        modeline_options = utils.get_modeline_header_code(args)
+        integration_source_file = "\n".join(
+            modeline_options) + "\n\n" + yaml.dump(spec)
+        integration_file = file.File(f'{args.kind + "-spec"}.yaml',
+                                     contents=integration_source_file)
+        docker_image.copy(integration_file)
 
         # Check if additional files need to be added.
-        input_files.extend(
-            utils.add_additional_files(workspace_directory,
-                                       predefined_integration, spec,
-                                       inverted_transport))
+        additional_files = utils.get_additional_files(spec, inverted_transport)
+        for additional_file in additional_files:
+            docker_image.copy(additional_file)
 
-        # Put together the summary file.
-        summary_file_contents = utils.get_summary_file_contents(args)
-        # print("Summary file contents:")
-        # print(summary_file_contents)
-        summary_file_name = 'summary.txt'
-        summary_file_path = workspace_directory.joinpath(summary_file_name)
-        with open(summary_file_path, 'w') as summary_file:
-            summary_file.write(summary_file_contents)
+        # Add summary file to image.
+        docker_image.copy(summary_file)
     else:
-        raise utils.clean_error_exit(workspace_directory,
-                                     "Not implemented yet")
-
-    # Resolve base image name:
-    base_image = get_base_image_name(args)
+        raise RuntimeError("Not implemented yet")
 
     # Copy the current kubeconfig to the workspace directory:
     path_to_kubeconfig = os.path.expanduser('~') + "/.kube/config"
-    file.copy_file(path_to_kubeconfig,
-                   str(workspace_directory.joinpath("config")))
+    kubeconfig_file = file.File(path_to_kubeconfig)
+    docker_image.copy(kubeconfig_file)
 
-    # Write docker file contents:
-    envvars = utils.get_modeline_envvars(workspace_directory, args)
-    docker_file_contents = utils.get_integration_dockerfile(
-        base_image,
-        input_files,
-        envvars=envvars,
-        with_summary=True,
-        preload_dependencies=True)
-    print(docker_file_contents)
-    docker_file_path = workspace_directory.joinpath("Dockerfile")
-    with open(docker_file_path, mode='w') as docker_file:
-        docker_file.write(docker_file_contents)
+    # Additional files to be added to the RUN command line:
+    files_list = " ".join(
+        [additional_file.name for additional_file in additional_files])
 
-    # Put together the image name:
-    integration_image = get_integration_image(args)
+    # Command that is run when building the image. This command is meant
+    # to preload all dependencies to run the integration.
+    docker_image.run(
+        f"""kamel local build {integration_file.name} {files_list} \
+--integration-directory my-integration \
+--dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl \
+--dependency mvn:com.googlecode.json-simple:json-simple:1.1.1 \
+--dependency mvn:io.kubernetes:client-java:11.0.0
+""")
 
-    # Build integration image:
-    #   docker build workspace -t <image>
-    docker_build(str(workspace_directory), integration_image)
+    # List of all environment variables either given on the command line
+    # or as part of the summary file or are part of the inner image scope
+    # and are relevant to kamel local run.
+    envvars = utils.get_modeline_envvars(summary_file, args)
+    envvars.extend([
+        "PATH", "KUBERNETES_SERVICE_PORT", "KUBERNETES_PORT", "HOSTNAME",
+        "JAVA_VERSION", "KUBERNETES_PORT_443_TCP_ADDR",
+        "KUBERNETES_PORT_443_TCP_PORT", "KUBERNETES_PORT_443_TCP_PROTO",
+        "LANG", "HTTP_SOURCE_ENTRYPOINT_PORT", "KUBERNETES_PORT_443_TCP",
+        "KUBERNETES_SERVICE_PORT_HTTPS", "LC_ALL", "JAVA_HOME",
+        "KUBERNETES_SERVICE_HOST", "PWD"
+    ])
 
-    # Push base image to registry:
-    #   docker push <image>
-    docker_push(integration_image)
+    # The list of envvars is of the format:
+    #   --env ENV_VAR=$ENV_VAR
+    outer_scope_envvars = []
+    for envvar in envvars:
+        outer_scope_envvars.append(f"--env {envvar}=${envvar}")
+    outer_scope_envvars = " ".join(outer_scope_envvars)
 
-    # Clean-up
-    file.delete_workspace_directory(workspace_directory)
+    docker_image.cmd("kamel local run --integration-directory my-integration "
+                     f"{outer_scope_envvars}")
+
+    # Build image.
+    docker_image.build(get_integration_image(args))
+
+    # Push base image to registry.
+    docker_image.push()
 
 
 def get_base_image_name(args):

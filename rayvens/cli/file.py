@@ -18,6 +18,7 @@ import os
 import pathlib
 import platform
 import subprocess
+import rayvens.cli.utils as utils
 
 
 class FileSystemObject:
@@ -50,7 +51,6 @@ class File(FileSystemObject):
         self.contents = contents
         self.original_name = self.name
         self.original_full_path = self.full_path
-        self.file_exists = self.contents is None
 
     def delete(self):
         try:
@@ -75,8 +75,22 @@ class File(FileSystemObject):
         else:
             raise RuntimeError(f"Cannot emit file: {str(self.full_path)}")
 
+    def exists_on_file_system(self):
+        return os.path.isfile(self.full_path)
 
-class Directory:
+    def original_exists_on_file_system(self):
+        return os.path.isfile(self.original_full_path)
+
+    def read(self):
+        file_contents = None
+        if not self.original_exists_on_file_system():
+            return file_contents
+        with open(self.original_full_path, 'r') as f:
+            file_contents = f.read()
+        return file_contents
+
+
+class Directory(FileSystemObject):
     def __init__(self, path):
         FileSystemObject.__init__(self, path)
         self.files = []
@@ -90,9 +104,9 @@ class Directory:
     def add_file(self, file, sub_path=None, override=False):
         if not isinstance(file, File):
             raise RuntimeError("Invalid file object type provided, use File.")
-        if sub_path is None and self.file_exists(file) and not override:
+        if sub_path is None and self.already_added(file) and not override:
             raise RuntimeWarning(
-                f"A file with name {file.name} already exists in "
+                f"A file with name {file.name} already added to "
                 f"directory {self.full_path}")
         if sub_path is not None and not isinstance(sub_path, str):
             raise RuntimeError("Invalid sub_path type provided, use string.")
@@ -139,11 +153,69 @@ class Directory:
         for directory in self.sub_directories:
             directory.emit()
 
-    def file_exists(self, file):
+    def already_added(self, file):
         for existing_file in self.files:
             if existing_file.name == file.name:
                 return True
         return False
+
+
+class SummaryFile(File):
+    def __init__(self, path=None):
+        self.kind = None
+        self.properties = {}
+        self.envvars = {}
+        self._property_prefix = "property: "
+        self._envvar_prefix = "envvar: "
+        if path is None:
+            File.__init__(self, 'summary.txt', contents=None)
+        else:
+            File.__init__(self, path, contents=None)
+            self.parse()
+
+    def add_property(self, property_name, property_value):
+        self.properties[property_name] = property_value
+
+    def add_envvar(self, property_name, envvar):
+        self.envvars[property_name] = envvar
+
+    def get_envvars(self):
+        return [key for key in self.envvars]
+
+    def parse(self):
+        if not self.original_exists_on_file_system():
+            raise RuntimeError(
+                "Parsed summary file is not on the file system.")
+        # Get kind:
+        self.kind = utils._get_field_from_summary(self.original_full_path,
+                                                  "kind")
+        valid_properties = utils.get_all_properties(self.kind)
+        for property_name in valid_properties:
+            # Property is of type:
+            # property: <property_name>=<value>
+            value = utils._get_field_from_summary(self.original_full_path,
+                                                  property_name,
+                                                  prefix=self._property_prefix)
+            if value is not None:
+                self.add_property(property_name, value)
+            # Envvar is of type:
+            # property: <property_name>=<envvar>
+            envvar = utils._get_field_from_summary(self.original_full_path,
+                                                   property_name,
+                                                   prefix=self._envvar_prefix)
+            if envvar is not None:
+                self.add_envvar(property_name, envvar)
+
+    def emit(self):
+        summary = []
+        summary.append(f"kind={self.kind}")
+        for prop in self.properties:
+            summary.append(
+                f"{self._property_prefix}{prop}={self.properties[prop]}")
+        for prop in self.envvars:
+            summary.append(f"{self._envvar_prefix}{prop}={self.envvars[prop]}")
+        self.contents = "\n".join(summary)
+        File.emit(self)
 
 
 # REMOVE

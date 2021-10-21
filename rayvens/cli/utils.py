@@ -201,10 +201,10 @@ spec:
     return deployment
 
 
-def get_summary_file_contents(args):
-    summary = []
+def get_summary_file(args):
+    integration_summary = file.SummaryFile()
 
-    summary.append(f"kind={args.kind}")
+    integration_summary.kind = args.kind
 
     if args.properties is not None:
         config, missing_property_value = fill_config(args.kind,
@@ -212,14 +212,13 @@ def get_summary_file_contents(args):
                                                      show_missing=False)
         for key in config:
             if key not in missing_property_value:
-                summary.append(f"{property_prefix}{key}={config[key]}")
+                integration_summary.add_property(key, config[key])
 
     envvars = get_current_envvars(args)
     for property_key in envvars:
-        summary.append(
-            f"{envvar_prefix}{property_key}={envvars[property_key]}")
+        integration_summary.add_envvar(property_key, envvars[property_key])
 
-    return "\n".join(summary)
+    return integration_summary
 
 
 def get_process_file_contents():
@@ -743,6 +742,7 @@ def _create_file(workspace_directory, file_name, file_contents):
     return file_name
 
 
+# REMOVE
 def add_additional_files(workspace_directory, predefined_integration, spec,
                          inverted_transport):
     files = []
@@ -782,6 +782,46 @@ def add_additional_files(workspace_directory, predefined_integration, spec,
             files.append(
                 _create_file(workspace_directory, "Queue.java",
                              get_java_queue_contents()))
+    return files
+
+
+def get_additional_files(spec, inverted_transport):
+    files = []
+    if catalog_utils.integration_requires_file_processor(spec):
+        files.append(
+            file.File("ProcessFile.java",
+                      contents=get_process_file_contents()))
+
+    if catalog_utils.integration_requires_path_processor(spec):
+        files.append(
+            file.File("ProcessPath.java",
+                      contents=get_process_path_contents()))
+
+    # Write the Java queue code to the file when using HTTP transport.
+    if inverted_transport:
+        if catalog_utils.integration_requires_file_queue(spec):
+            files.append(
+                file.File("FileQueue.java",
+                          contents=get_java_file_queue_contents()))
+
+        if catalog_utils.integration_requires_file_queue(spec):
+            files.append(
+                file.File("FileQueueJson.java",
+                          contents=get_java_file_queue_json_contents()))
+
+        if catalog_utils.integration_requires_file_watch_queue(spec):
+            files.append(
+                file.File("FileWatchQueue.java",
+                          contents=get_java_file_watch_queue_contents()))
+
+        if catalog_utils.integration_requires_meta_event_queue(spec):
+            files.append(
+                file.File("MetaEventQueue.java",
+                          contents=get_java_meta_event_queue_contents()))
+
+        if catalog_utils.integration_requires_queue(spec):
+            files.append(
+                file.File("Queue.java", contents=get_java_queue_contents()))
     return files
 
 
@@ -968,6 +1008,32 @@ def get_full_config(workspace_directory, args):
     return config
 
 
+def get_modeline_header_code(args):
+    # Get the kind of the integration:
+    kind = args.kind
+
+    # Get envvars given as args:
+    given_envvars = get_given_property_envvars(args)
+
+    # Validate user-given envvars:
+    invalid_props = check_properties(kind, given_envvars)
+    if len(invalid_props) > 0:
+        invalid_props = " ".join(invalid_props)
+        raise RuntimeError(f"Invalid properties provided: {invalid_props}")
+
+    # Assemble list of all property-value envvar pairs:
+    envvars = []
+    if args.envvars is not None:
+        envvars = args.envvars
+
+    # Transform configuarion in list of modeline properties:
+    modeline_properties = get_modeline_properties(kind, envvars)
+    result = []
+    for key in modeline_properties:
+        result.append(modeline_properties[key])
+    return "\n".join(result)
+
+
 def get_modeline_config(workspace_directory, args, run=True):
     # Get the kind of the integration:
     if run:
@@ -1002,15 +1068,12 @@ def get_modeline_config(workspace_directory, args, run=True):
     return result
 
 
-def get_modeline_envvars(workspace_directory, args):
-    # Get the kind of the integration:
-    kind = summary_get_kind(workspace_directory)
-
+def get_modeline_envvars(summary_file, args):
     # Get envvars given as args:
     given_envvars = get_given_envvars(args)
 
     # Get envvars from summary file:
-    given_envvars.extend(summary_get_envvars(kind, workspace_directory))
+    given_envvars.extend(summary_file.get_envvars())
     return given_envvars
 
 

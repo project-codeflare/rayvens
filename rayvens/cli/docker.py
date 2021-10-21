@@ -286,6 +286,12 @@ class DockerImage:
         docker_build(self.workspace_directory.name, docker_image_name)
         self.delete_directory_structure()
 
+    def push(self):
+        if self.docker_image_name is None:
+            raise RuntimeError(
+                "Attempting to push an image that has not been built.")
+        docker_push(self.docker_image_name)
+
     def emit(self):
         image = []
         for stage in self.stages:
