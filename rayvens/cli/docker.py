@@ -18,6 +18,9 @@ import subprocess
 import rayvens.cli.version as v
 import rayvens.cli.file as file
 
+image_workspace_name = "workspace"
+local_workspace_name = "docker_workspace"
+
 
 def docker_run_integration(image_name,
                            local_integration_path,
@@ -31,7 +34,7 @@ def docker_run_integration(image_name,
     # Mount integration file:
     # -v local_integration_path:inside_image_integration_path
     inside_image_integration_path = "/".join(
-        ["/workspace", integration_file_name])
+        [f"/{image_workspace_name}", integration_file_name])
 
     # Mount argument:
     local_to_image_integration_mount = ":".join(
@@ -236,7 +239,7 @@ class DockerImage:
         if self.base_image is not None:
             self.add_stage(self.base_image)
         self.current_stage = self.stages[-1]
-        self.workspace_directory = file.Directory("docker_workspace")
+        self.workspace_directory = file.Directory(local_workspace_name)
         self.os_type = None
 
     def copy(self, source, destination=".", from_stage=None, from_image=None):
@@ -273,8 +276,8 @@ class DockerImage:
     def add_directory(self, directory):
         self.workspace_directory.add_directory(directory)
 
-    def output_directory_structure(self):
-        self.add_file(file.File("Dockerfile", contents=self))
+    def output_directory_structure(self, dockerfile_name="Dockerfile"):
+        self.add_file(file.File(dockerfile_name, contents=self))
         self.workspace_directory.emit()
 
     def delete_directory_structure(self):
@@ -345,3 +348,24 @@ class JavaAlpineDockerImage(DockerImage):
         self.copy("/usr/local/bin/kamel",
                   "/usr/local/bin/",
                   from_image="docker.io/apache/camel-k:" + kamel_version)
+
+
+def add_summary_from_image(image, workspace_directory):
+    # Create container from original image:
+    container_id = docker_create(image)
+
+    # Copy summary file from container to current workspace:
+    docker_cp_to_host(container_id,
+                      f"/{image_workspace_name}/{file.summary_file_name}", ".")
+
+    # Remove container
+    docker_rm(container_id)
+
+    # Create a virtual summary file starting from the local file:
+    summary_file = file.SummaryFile(file.summary_file_name)
+
+    # Delete actual local file, the virtual file will continue to exist.
+    summary_file.delete()
+
+    # Add file to working directory:
+    workspace_directory.add_file(summary_file)

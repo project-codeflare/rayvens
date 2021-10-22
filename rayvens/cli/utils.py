@@ -31,6 +31,7 @@ job_launcher_cluster_role_binding = "job-launcher-service-account"
 job_manager_role = "job-manager-role"
 
 
+# REMOVE
 def get_integration_dockerfile(base_image,
                                input_files,
                                envvars=[],
@@ -907,15 +908,13 @@ def summary_get_kind(workspace_directory):
     return _get_field_from_summary(summary_path, "kind")
 
 
-def summary_get_envvar_properties(kind, workspace_directory, given_envvars):
+def summary_get_envvar_properties(kind, summary_file, given_envvars):
     envvars = []
-    summary_path = summary_file_path(workspace_directory)
     valid_properties = get_all_properties(kind)
     for property_name in valid_properties:
-        if property_name not in given_envvars:
-            property_value = _get_field_from_summary(summary_path,
-                                                     property_name,
-                                                     prefix=envvar_prefix)
+        if property_name not in given_envvars and \
+           property_name in summary_file.envvars:
+            property_value = summary_file.envvars[property_name]
             if property_value is not None:
                 envvars.append(f"{property_name}={property_value}")
     return envvars
@@ -934,15 +933,13 @@ def summary_get_envvars(kind, workspace_directory):
     return envvars
 
 
-def summary_get_properties(kind, workspace_directory, given_properties):
+def summary_get_properties(kind, summary_file, given_properties):
     properties = []
-    summary_path = summary_file_path(workspace_directory)
     valid_properties = get_all_properties(kind)
     for property_name in valid_properties:
-        if property_name not in given_properties:
-            property_value = _get_field_from_summary(summary_path,
-                                                     property_name,
-                                                     prefix=property_prefix)
+        if property_name not in given_properties and \
+           property_name in summary_file.properties:
+            property_value = summary_file.properties[property_name]
             if property_value is not None:
                 properties.append(f"{property_name}={property_value}")
     return properties
@@ -982,9 +979,9 @@ def get_current_config(args):
     return config, missing_requirements
 
 
-def get_full_config(workspace_directory, args):
+def get_full_config(summary_file, args):
     # Get the kind of the integration:
-    kind = summary_get_kind(workspace_directory)
+    kind = summary_file.kind
 
     # Get properties given as args:
     given_properties = get_given_properties(args)
@@ -993,24 +990,53 @@ def get_full_config(workspace_directory, args):
     invalid_props = check_properties(kind, given_properties)
     if len(invalid_props) > 0:
         invalid_props = " ".join(invalid_props)
-        clean_error_exit(workspace_directory,
-                         f"Invalid properties provided: {invalid_props}")
+        raise RuntimeError(f"Invalid properties provided: {invalid_props}")
 
     # Assemble list of all property-value pairs:
     properties = []
     if args.properties is not None:
         properties = args.properties
     properties.extend(
-        summary_get_properties(kind, workspace_directory, given_properties))
+        summary_get_properties(kind, summary_file, given_properties))
 
     # Fill configuration with values:
     config, _ = fill_config(kind, properties, show_missing=False)
     return config
 
 
-def get_modeline_header_code(args):
+# REMOVE
+# def get_modeline_header_code(args):
+#     # Get the kind of the integration:
+#     kind = args.kind
+
+#     # Get envvars given as args:
+#     given_envvars = get_given_property_envvars(args)
+
+#     # Validate user-given envvars:
+#     invalid_props = check_properties(kind, given_envvars)
+#     if len(invalid_props) > 0:
+#         invalid_props = " ".join(invalid_props)
+#         raise RuntimeError(f"Invalid properties provided: {invalid_props}")
+
+#     # Assemble list of all property-value envvar pairs:
+#     envvars = []
+#     if args.envvars is not None:
+#         envvars = args.envvars
+
+#     # Transform configuarion in list of modeline properties:
+#     modeline_properties = get_modeline_properties(kind, envvars)
+#     result = []
+#     for key in modeline_properties:
+#         result.append(modeline_properties[key])
+#     return "\n".join(result)
+
+
+def get_modeline_config(args, summary_file=None):
     # Get the kind of the integration:
-    kind = args.kind
+    if summary_file is not None:
+        kind = summary_file.kind
+    else:
+        kind = args.kind
 
     # Get envvars given as args:
     given_envvars = get_given_property_envvars(args)
@@ -1025,6 +1051,9 @@ def get_modeline_header_code(args):
     envvars = []
     if args.envvars is not None:
         envvars = args.envvars
+    if summary_file is not None:
+        envvars.extend(
+            summary_get_envvar_properties(kind, summary_file, given_envvars))
 
     # Transform configuarion in list of modeline properties:
     modeline_properties = get_modeline_properties(kind, envvars)
@@ -1032,40 +1061,6 @@ def get_modeline_header_code(args):
     for key in modeline_properties:
         result.append(modeline_properties[key])
     return "\n".join(result)
-
-
-def get_modeline_config(workspace_directory, args, run=True):
-    # Get the kind of the integration:
-    if run:
-        kind = summary_get_kind(workspace_directory)
-    else:
-        kind = args.kind
-
-    # Get envvars given as args:
-    given_envvars = get_given_property_envvars(args)
-
-    # Validate user-given envvars:
-    invalid_props = check_properties(kind, given_envvars)
-    if len(invalid_props) > 0:
-        invalid_props = " ".join(invalid_props)
-        clean_error_exit(workspace_directory,
-                         f"Invalid properties provided: {invalid_props}")
-
-    # Assemble list of all property-value envvar pairs:
-    envvars = []
-    if args.envvars is not None:
-        envvars = args.envvars
-    if run:
-        envvars.extend(
-            summary_get_envvar_properties(kind, workspace_directory,
-                                          given_envvars))
-
-    # Transform configuarion in list of modeline properties:
-    modeline_properties = get_modeline_properties(kind, envvars)
-    result = []
-    for key in modeline_properties:
-        result.append(modeline_properties[key])
-    return result
 
 
 def get_modeline_envvars(summary_file, args):
@@ -1103,3 +1098,16 @@ def get_kube_proxy_image_name(args):
 
     # Base image name:
     return registry + "/" + kube_proxy_image_name
+
+
+def get_integration_image(args):
+    # Registry name:
+    registry = get_registry(args)
+
+    # Actual image name:
+    image_name = args.kind + "-image"
+    if args.image is not None:
+        image_name = args.image
+
+    # Integration image name:
+    return registry + "/" + image_name

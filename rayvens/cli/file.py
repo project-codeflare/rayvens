@@ -20,6 +20,8 @@ import platform
 import subprocess
 import rayvens.cli.utils as utils
 
+summary_file_name = "summary.txt"
+
 
 class FileSystemObject:
     def __init__(self, path_to_file):
@@ -53,6 +55,9 @@ class File(FileSystemObject):
         self.original_full_path = self.full_path
 
     def delete(self):
+        # TODO: keep track of all places where the file was emitted
+        # and then when delete is invoked, remove the file from
+        # all those locations.
         try:
             os.remove(self.full_path)
         except OSError as e:
@@ -153,11 +158,24 @@ class Directory(FileSystemObject):
         for directory in self.sub_directories:
             directory.emit()
 
+    # Checks if a file has already been added to the list of files this
+    # directory holds.
     def already_added(self, file):
         for existing_file in self.files:
             if existing_file.name == file.name:
                 return True
         return False
+
+    # Returns the first time it find a file in the directory hierarchy.
+    def get_file(self, file_name):
+        for file in self.files:
+            if file.name == file_name:
+                return file
+        for sub_directory in self.sub_directories:
+            found_file = sub_directory.get_file_reference()
+            if found_file is not None:
+                return found_file
+        return None
 
 
 class SummaryFile(File):
@@ -168,7 +186,7 @@ class SummaryFile(File):
         self._property_prefix = "property: "
         self._envvar_prefix = "envvar: "
         if path is None:
-            File.__init__(self, 'summary.txt', contents=None)
+            File.__init__(self, summary_file_name, contents=None)
         else:
             File.__init__(self, path, contents=None)
             self.parse()
@@ -181,6 +199,9 @@ class SummaryFile(File):
 
     def get_envvars(self):
         return [key for key in self.envvars]
+
+    def get_properties(self):
+        return [key for key in self.properties]
 
     def parse(self):
         if not self.original_exists_on_file_system():

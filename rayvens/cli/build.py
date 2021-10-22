@@ -64,8 +64,8 @@ def build_integration(args):
     docker_image = docker.DockerImage(get_base_image_name(args))
 
     # Create workspace inside the image.
-    docker_image.run("mkdir -p /workspace")
-    docker_image.workdir("/workspace")
+    docker_image.run(f"mkdir -p /{docker.image_workspace_name}")
+    docker_image.workdir(f"/{docker.image_workspace_name}")
 
     # Create the yaml source for the integration locally and transfer it
     # to the image.
@@ -92,9 +92,8 @@ def build_integration(args):
         # Any command line specified properties get transformed into modeline
         # options. Modeline options live at the top of the integration source
         # file.
-        modeline_options = utils.get_modeline_header_code(args)
-        integration_source_file = "\n".join(
-            modeline_options) + "\n\n" + yaml.dump(spec)
+        modeline_options = utils.get_modeline_config(args)
+        integration_source_file = modeline_options + "\n\n" + yaml.dump(spec)
         integration_file = file.File(f'{args.kind + "-spec"}.yaml',
                                      contents=integration_source_file)
         docker_image.copy(integration_file)
@@ -152,7 +151,7 @@ def build_integration(args):
                      f"{outer_scope_envvars}")
 
     # Build image.
-    docker_image.build(get_integration_image(args))
+    docker_image.build(utils.get_integration_image(args))
 
     # Push base image to registry.
     docker_image.push()
@@ -164,16 +163,3 @@ def get_base_image_name(args):
 
     # Base image name:
     return registry + "/" + utils.base_image_name
-
-
-def get_integration_image(args):
-    # Registry name:
-    registry = utils.get_registry(args)
-
-    # Actual image name:
-    image_name = args.kind + "-image"
-    if args.image is not None:
-        image_name = args.image
-
-    # Integration image name:
-    return registry + "/" + image_name
