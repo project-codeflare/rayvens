@@ -56,12 +56,12 @@ def build_base_image(args):
 rm {preload_file.name}""")
 
     # Build image:
-    docker_image.build(get_base_image_name(args))
+    docker_image.build(utils.get_base_image_name(args))
 
 
 def build_integration(args):
     # Create image for integration:
-    docker_image = docker.DockerImage(get_base_image_name(args))
+    docker_image = docker.DockerImage(utils.get_base_image_name(args))
 
     # Create workspace inside the image.
     docker_image.run(f"mkdir -p /{docker.image_workspace_name}")
@@ -72,6 +72,7 @@ def build_integration(args):
     predefined_integration = args.kind is not None and (args.kind in sources
                                                         or args.kind in sinks)
     inverted_transport = True
+    launches_kubectl_jobs = args.launch_image is not None
 
     # Put together the summary file.
     summary_file = utils.get_summary_file(args)
@@ -99,7 +100,8 @@ def build_integration(args):
         docker_image.copy(integration_file)
 
         # Check if additional files need to be added.
-        additional_files = utils.get_additional_files(spec, inverted_transport)
+        additional_files = utils.get_additional_files(spec, inverted_transport,
+                                                      args.launch_image)
         for additional_file in additional_files:
             docker_image.copy(additional_file)
 
@@ -109,9 +111,10 @@ def build_integration(args):
         raise RuntimeError("Not implemented yet")
 
     # Copy the current kubeconfig to the workspace directory:
-    path_to_kubeconfig = os.path.expanduser('~') + "/.kube/config"
-    kubeconfig_file = file.File(path_to_kubeconfig)
-    docker_image.copy(kubeconfig_file)
+    if launches_kubectl_jobs:
+        path_to_kubeconfig = os.path.expanduser('~') + "/.kube/config"
+        kubeconfig_file = file.File(path_to_kubeconfig)
+        docker_image.copy(kubeconfig_file)
 
     # Additional files to be added to the RUN command line:
     files_list = " ".join(
@@ -119,26 +122,27 @@ def build_integration(args):
 
     # Command that is run when building the image. This command is meant
     # to preload all dependencies to run the integration.
-    docker_image.run(
-        f"""kamel local build {integration_file.name} {files_list} \
+    run_command = f"""kamel local build {integration_file.name} {files_list} \
 --integration-directory my-integration \
 --dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl \
---dependency mvn:com.googlecode.json-simple:json-simple:1.1.1 \
---dependency mvn:io.kubernetes:client-java:11.0.0
-""")
+--dependency mvn:com.googlecode.json-simple:json-simple:1.1.1"""
+    if launches_kubectl_jobs:
+        run_command += " --dependency mvn:io.kubernetes:client-java:11.0.0"
+    docker_image.run(run_command)
 
     # List of all environment variables either given on the command line
     # or as part of the summary file or are part of the inner image scope
     # and are relevant to kamel local run.
     envvars = utils.get_modeline_envvars(summary_file, args)
-    envvars.extend([
-        "PATH", "KUBERNETES_SERVICE_PORT", "KUBERNETES_PORT", "HOSTNAME",
-        "JAVA_VERSION", "KUBERNETES_PORT_443_TCP_ADDR",
-        "KUBERNETES_PORT_443_TCP_PORT", "KUBERNETES_PORT_443_TCP_PROTO",
-        "LANG", "HTTP_SOURCE_ENTRYPOINT_PORT", "KUBERNETES_PORT_443_TCP",
-        "KUBERNETES_SERVICE_PORT_HTTPS", "LC_ALL", "JAVA_HOME",
-        "KUBERNETES_SERVICE_HOST", "PWD"
-    ])
+    if launches_kubectl_jobs:
+        envvars.extend([
+            "PATH", "KUBERNETES_SERVICE_PORT", "KUBERNETES_PORT", "HOSTNAME",
+            "JAVA_VERSION", "KUBERNETES_PORT_443_TCP_ADDR",
+            "KUBERNETES_PORT_443_TCP_PORT", "KUBERNETES_PORT_443_TCP_PROTO",
+            "LANG", "HTTP_SOURCE_ENTRYPOINT_PORT", "KUBERNETES_PORT_443_TCP",
+            "KUBERNETES_SERVICE_PORT_HTTPS", "LC_ALL", "JAVA_HOME",
+            "KUBERNETES_SERVICE_HOST", "PWD"
+        ])
 
     # The list of envvars is of the format:
     #   --env ENV_VAR=$ENV_VAR
@@ -155,11 +159,3 @@ def build_integration(args):
 
     # Push base image to registry.
     docker_image.push()
-
-
-def get_base_image_name(args):
-    # Registry name:
-    registry = utils.get_registry(args)
-
-    # Base image name:
-    return registry + "/" + utils.base_image_name

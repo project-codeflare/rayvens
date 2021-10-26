@@ -71,6 +71,11 @@ parser_build.add_argument('--dev',
                           help='Use local registry localhost:5000.')
 parser_build.add_argument('-r', '--registry', help='Image registry.')
 parser_build.add_argument('-i', '--image', help='Image name.')
+parser_build.add_argument(
+    '-l',
+    '--launch-image',
+    help='Enable the launching of a job with the provided image each time '
+    'an event is received. This option only makes sense for sources.')
 parser_build.set_defaults(func=build_integration)
 
 # =============================

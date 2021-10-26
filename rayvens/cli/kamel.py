@@ -38,7 +38,7 @@ def kamel_local_build_base_image(args):
     # Wait for docker command to finish before returning:
     outcome = subprocess.run(command)
 
-    image_name = get_base_image_name(args)
+    image_name = utils.get_base_image_name(args)
 
     if outcome.returncode == 0:
         print(f"Base image {image_name} pushed successfully.")
@@ -56,7 +56,7 @@ def kamel_local_build_image(args, integration_file_path):
     command.append("build")
 
     # Image:
-    integration_image = get_integration_image(args)
+    integration_image = utils.get_integration_image(args)
     command.append("--image")
     command.append(integration_image)
 
@@ -70,24 +70,3 @@ def kamel_local_build_image(args, integration_file_path):
         print(f"Base image {integration_image} pushed successfully.")
     else:
         print(f"Base image {integration_image} push failed.")
-
-
-def get_base_image_name(args):
-    # Registry name:
-    registry = utils.get_registry(args)
-
-    # Base image name:
-    return registry + "/" + utils.base_image_name
-
-
-def get_integration_image(args):
-    # Registry name:
-    registry = utils.get_registry(args)
-
-    # Actual image name:
-    image_name = args.kind + "-image"
-    if args.image is not None:
-        image_name = args.image
-
-    # Integration image name:
-    return registry + "/" + image_name

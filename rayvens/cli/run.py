@@ -42,9 +42,8 @@ def run_integration(args):
     # Get integration kind from summary file:
     kind = summary_file.kind
 
-    print("1:", summary_file.kind)
-    print("2:", summary_file.envvars)
-    print("3:", summary_file.properties)
+    # Check if a valid launch image name has been passed:
+    with_job_launcher = summary_file.launch_image != "None"
 
     # The name of the integration:
     name = kind
@@ -77,22 +76,8 @@ def run_integration(args):
         integration_file = file.File(
             utils.get_kubernetes_integration_file_name(name),
             contents=integration_source_file)
-
-        # # Write the specification to the file.
-        # integration_file_name = utils.get_kubernetes_integration_file_name(
-        #     name)
-        # integration_file_path = workspace_directory.joinpath(
-        #     integration_file_name)
-        # with open(integration_file_path, 'w') as f:
-        #     # Dump modeline options:
-        #     modeline_options = utils.get_modeline_config(args, summary_file)
-        #     f.write("\n".join(modeline_options) + "\n\n")
-        #     f.write(yaml.dump(spec))
-
-        # with open(integration_file_path, 'r') as f:
-        #     print(f.read())
     else:
-        utils.clean_error_exit(workspace_directory, "Not implemented yet")
+        raise RuntimeError("Not implemented yet")
 
     # Fetch the variables specified as environment variables.
     envvars = utils.get_modeline_envvars(summary_file, args)
@@ -105,25 +90,20 @@ def run_integration(args):
 
         # Deploy integration in Kubernetes:
         deployment = utils.get_deployment_yaml(name, namespace, args.image,
-                                               utils.get_registry(args), args)
+                                               utils.get_registry(args), args,
+                                               with_job_launcher)
+
+        # Create deployment file:
+        deployment_file_name = utils.get_kubernetes_deployment_file_name(name)
+        deployment_file = file.File(deployment_file_name, contents=deployment)
+        workspace_directory.add_file(deployment_file)
+
+        workspace_directory.emit()
 
         # Prepare Kubernetes API:
         from kubernetes import client, config
         import kubernetes.utils as kube_utils
         config.load_kube_config()
-
-        # Create deployment file:
-        deployment_file_name = utils.get_kubernetes_deployment_file_name(name)
-        deployment_file = file.File(deployment_file_name,
-                                    contents=yaml.dump_all(deployment))
-        workspace_directory.add_file(deployment_file)
-
-        # deployment_file_path = workspace_directory.full_path.joinpath(
-        #     deployment_file_name)
-        # with open(deployment_file_path, 'w') as f:
-        #     yaml.dump_all(deployment, f)
-
-        workspace_directory.emit()
 
         # Call service creation:
         k8s_client = client.ApiClient()

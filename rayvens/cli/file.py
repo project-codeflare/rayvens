@@ -166,7 +166,7 @@ class Directory(FileSystemObject):
                 return True
         return False
 
-    # Returns the first time it find a file in the directory hierarchy.
+    # Returns the first time it finds a file in the directory hierarchy.
     def get_file(self, file_name):
         for file in self.files:
             if file.name == file_name:
@@ -181,6 +181,7 @@ class Directory(FileSystemObject):
 class SummaryFile(File):
     def __init__(self, path=None):
         self.kind = None
+        self.launch_image = None
         self.properties = {}
         self.envvars = {}
         self._property_prefix = "property: "
@@ -210,6 +211,8 @@ class SummaryFile(File):
         # Get kind:
         self.kind = utils._get_field_from_summary(self.original_full_path,
                                                   "kind")
+        self.launch_image = utils._get_field_from_summary(
+            self.original_full_path, "launch_image")
         valid_properties = utils.get_all_properties(self.kind)
         for property_name in valid_properties:
             # Property is of type:
@@ -230,6 +233,10 @@ class SummaryFile(File):
     def emit(self):
         summary = []
         summary.append(f"kind={self.kind}")
+        if self.launch_image is not None:
+            summary.append(f"launch_image={self.launch_image}")
+        else:
+            summary.append("launch_image=None")
         for prop in self.properties:
             summary.append(
                 f"{self._property_prefix}{prop}={self.properties[prop]}")
@@ -237,29 +244,6 @@ class SummaryFile(File):
             summary.append(f"{self._envvar_prefix}{prop}={self.envvars[prop]}")
         self.contents = "\n".join(summary)
         File.emit(self)
-
-
-# REMOVE
-def create_workspace_directory(remove_previous=True):
-    workspace_directory = pathlib.Path.cwd().joinpath("workspace")
-    if remove_previous and os.path.isdir(workspace_directory):
-        delete_workspace_directory(workspace_directory)
-    os.mkdir(workspace_directory)
-    return workspace_directory
-
-
-# REMOVE
-def delete_workspace_directory(workspace_directory):
-    if os.path.isdir(workspace_directory):
-        for file in workspace_directory.iterdir():
-            os.remove(file)
-        os.rmdir(workspace_directory)
-
-
-# REMOVE
-def write_file(file_path, contents):
-    with open(file_path, mode='w') as file:
-        file.write(contents)
 
 
 def find_executable(executable_name):
