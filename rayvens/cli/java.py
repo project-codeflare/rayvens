@@ -323,8 +323,21 @@ public class %s extends RouteBuilder {
            recv_method_name, send_method_name)
 
 
-def get_java_file_queue_contents():
-    job_launcher = ""
+def job_launched_and_handler(launch_image):
+    job_launcher = get_job_launcher(launch_image)
+    handle_event_content = """
+        queue.add(body);
+    """
+    if launch_image is not None:
+        handle_event_content = """
+        this.eventCount += 1;
+        (new Thread(new YamlRunnable(body, this.eventCount))).start();
+        """
+    return job_launcher, handle_event_content
+
+
+def get_java_file_queue_contents(launch_image):
+    job_launcher, handle_event_content = job_launched_and_handler(launch_image)
     receive_processor = """
     public void process(Exchange exchange) throws Exception {
         File file = exchange.getIn().getBody(File.class);
@@ -335,9 +348,10 @@ def get_java_file_queue_contents():
         InputStream inputStream = new FileInputStream(file);
         inputStream.read(allBytes);
         inputStream.close();
-        queue.add(allBytes);
+        String body = new String(allBytes, StandardCharsets.UTF_8);
+        %s
     }
-    """
+    """ % (handle_event_content)
 
     send_processor = """
     public void process(Exchange exchange) throws Exception {
@@ -354,8 +368,8 @@ def get_java_file_queue_contents():
                                      recv_method_name, send_method_name)
 
 
-def get_java_file_queue_json_contents():
-    job_launcher = ""
+def get_java_file_queue_json_contents(launch_image):
+    job_launcher, handle_event_content = job_launched_and_handler(launch_image)
     receive_processor = """
     public void process(Exchange exchange) throws Exception {
         JSONObject returnJsonObject = new JSONObject();
@@ -364,9 +378,10 @@ def get_java_file_queue_json_contents():
 
         Object key = exchange.getIn().getHeader("CamelAwsS3Key");
         returnJsonObject.put("filename", key.toString());
-        queue.add(returnJsonObject.toString());
+        String body = returnJsonObject.toString();
+        %s
     }
-    """
+    """ % (handle_event_content)
 
     send_processor = """
     public void process(Exchange exchange) throws Exception {
@@ -383,8 +398,8 @@ def get_java_file_queue_json_contents():
                                      recv_method_name, send_method_name)
 
 
-def get_java_file_watch_queue_contents():
-    job_launcher = ""
+def get_java_file_watch_queue_contents(launch_image):
+    job_launcher, handle_event_content = job_launched_and_handler(launch_image)
     receive_processor = """
     public void process(Exchange exchange) throws Exception {
         JSONObject returnJsonObject = new JSONObject();
@@ -396,9 +411,10 @@ def get_java_file_watch_queue_contents():
         // Record event type:
         File file = exchange.getIn().getBody(File.class);
         returnJsonObject.put("filename", file.toString());
-        queue.add(returnJsonObject.toString());
+        String body = returnJsonObject.toString();
+        %s
     }
-    """
+    """ % (handle_event_content)
 
     send_processor = """
     public void process(Exchange exchange) throws Exception {
@@ -415,16 +431,17 @@ def get_java_file_watch_queue_contents():
                                      recv_method_name, send_method_name)
 
 
-def get_java_meta_event_queue_contents():
-    job_launcher = ""
+def get_java_meta_event_queue_contents(launch_image):
+    job_launcher, handle_event_content = job_launched_and_handler(launch_image)
     receive_processor = """
     public void process(Exchange exchange) throws Exception {
         JSONObject returnJsonObject = new JSONObject();
         Object key = exchange.getIn().getHeader("CamelAwsS3Key");
         returnJsonObject.put("filename", key.toString());
-        queue.add(returnJsonObject.toString());
+        String body = returnJsonObject.toString();
+        %s
     }
-    """
+    """ % (handle_event_content)
 
     send_processor = """
     public void process(Exchange exchange) throws Exception {
@@ -442,22 +459,13 @@ def get_java_meta_event_queue_contents():
 
 
 def get_java_queue_contents(launch_image):
-    job_launcher = get_job_launcher(launch_image)
-
+    job_launcher, handle_event_content = job_launched_and_handler(launch_image)
     receive_processor = """
     public void process(Exchange exchange) throws Exception {
         String body = exchange.getIn().getBody(String.class);
-        queue.add(body);
+        %s
     }
-    """
-    if launch_image is not None:
-        receive_processor = """
-    public void process(Exchange exchange) throws Exception {
-        String body = exchange.getIn().getBody(String.class);
-        this.eventCount += 1;
-        (new Thread(new YamlRunnable(body, this.eventCount))).start();
-    }
-        """
+    """ % (handle_event_content)
 
     send_processor = """
     public void process(Exchange exchange) throws Exception {
@@ -474,5 +482,4 @@ def get_java_queue_contents(launch_image):
                                                 send_processor, class_name,
                                                 recv_method_name,
                                                 send_method_name)
-    print(java_queue_file)
     return java_queue_file
