@@ -15,6 +15,7 @@
 #
 
 from rayvens.cli import utils
+import rayvens.cli.kubernetes as kube
 
 
 def delete(args):
@@ -87,6 +88,17 @@ def delete_deployment(args, with_job_launcher_priviledges=True):
         k8s_client.delete_namespaced_service(entrypoint_service, namespace)
     except client.exceptions.ApiException:
         exception_occured = True
+
+    # Delete configMap for updating the integration file.
+    count = 0
+    while True:
+        config_map_name = kube.volume_base_name + "-" + str(count)
+        try:
+            k8s_client.delete_namespaced_config_map(config_map_name, namespace)
+        except client.exceptions.ApiException:
+            break
+        else:
+            count += 1
 
     if with_job_launcher_priviledges:
         # Delete service account:

@@ -15,10 +15,55 @@
 #
 
 import yaml
+import subprocess
+import pathlib
 import rayvens.cli.file as file
+import rayvens.cli.docker as docker
 
 all_verbs = ["get", "list", "watch", "create", "update", "patch", "delete"]
 api_groups = {'jobs': ["batch", "extensions"]}
+volume_base_name = "rayvens-volume"
+
+
+def kubectl_create_configmap(name, namespace, embedded_file_path):
+    command = ["kubectl", "create", "configmap", name]
+
+    # Set the namespace:
+    if namespace is not None:
+        command.append("-n")
+        command.append(namespace)
+
+    # From file:
+    command.append("--from-file")
+    command.append(embedded_file_path)
+
+    # Wait for kubectl command to finish before returning:
+    outcome = subprocess.run(command)
+
+    if outcome.returncode == 0:
+        print(f"configmap object {name} created successfully.")
+    else:
+        print(f"configmap object {name} creation failed.")
+
+
+def kubectl_get_yaml(entity_type, name, namespace):
+    command = ["kubectl", "get", entity_type, name]
+
+    # Namespace.
+    if namespace is not None:
+        command.append("-n")
+        command.append(namespace)
+
+    # From file:
+    command.append("-o")
+    command.append("yaml")
+
+    # Wait for kubectl command to finish before returning:
+    outcome = subprocess.run(command)
+    if outcome.returncode == 0:
+        print("Kubernetes get ended successfully.")
+    else:
+        print("Kubernetes get failed.")
 
 
 class KubeEntity:
@@ -56,6 +101,76 @@ class KubeEntity:
     def _specification(self):
         raise RuntimeError("KubeEntity objects do not have a specification.")
 
+    def create(self, k8s_client):
+        import kubernetes.utils as kube_utils
+        try:
+            kube_utils.create_from_dict(k8s_client, self._specification())
+        except kube_utils.FailToCreateError as creation_error:
+            print("Failed to create kubernetes entity", creation_error)
+
+    def _delete(self, api_method):
+        namespace = self.namespace
+        if self.namespace is None:
+            namespace = "default"
+        from kubernetes.client.rest import ApiException
+        try:
+            api_method(self.name, namespace)
+        except ApiException as deletion_error:
+            print("Failed to delete kubernetes entity", deletion_error)
+        else:
+            print(f"Kubernetes entity {self.name} deleted successfully")
+
+    def _exists(self, api_method):
+        namespace = self.namespace
+        if self.namespace is None:
+            namespace = "default"
+        from kubernetes.client.rest import ApiException
+        try:
+            api_response = api_method(namespace)
+        except ApiException as check_error:
+            print("Exception when fetching kubernetes entities: %s\n" %
+                  check_error)
+        return api_response
+
+
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   creationTimestamp: 2017-12-27T18:36:28Z
+#   name: game-config-env-file
+#   namespace: default
+#   resourceVersion: "809965"
+#   uid: d9d1ca5b-eb34-11e7-887b-42010a8002b8
+# data:
+#   filename.ext: |+
+# <file_contents>
+
+
+class ConfigMap(KubeEntity):
+    def __init__(self, embedded_file):
+        KubeEntity.__init__(self, "config-map")
+        self.api_version = "v1"
+        self.kind = "ConfigMap"
+        if file is not None and not isinstance(embedded_file, file.File):
+            raise RuntimeError("Input file must be of File type.")
+        self.embedded_file = embedded_file
+
+    def _specification(self):
+        raise RuntimeError("Not implemented yet for this kubernetes entity.")
+
+    def create(self):
+        self.embedded_file.emit()
+        print(f"Create {self.name} in namespace {self.namespace}.")
+        kubectl_create_configmap(self.name, self.namespace,
+                                 self.embedded_file.full_path)
+        # kubectl_get_yaml("configmap", self.name, self.namespace)
+        self.embedded_file.delete()
+
+    def delete(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.CoreV1Api(k8s_client)
+        self._delete(api_instance.delete_namespaced_config_map)
+
 
 #  apiVersion: v1
 #  kind: Pod
@@ -74,6 +189,66 @@ class KubeEntity:
 #        ports:
 #          - containerPort: 88
 
+#   containers:
+#   - image: k8s.gcr.io/test-webserver
+#     name: test-container
+#     volumeMounts:
+#     - mountPath: /test-pd
+#       name: test-volume
+#   volumes:
+#   - name: test-volume
+#     hostPath:
+#       # directory location on host
+#       path: /data
+
+
+class Volume:
+    def __init__(self, name, namespace=None):
+        self.name = name
+        self.namespace = namespace
+        self.kind = None
+        self.host_file_path = None
+        self.mount_file_path = None
+
+    def _update_integration_file(self, integration_config_map):
+        self.kind = "configMap"
+        self.host_file_path = integration_config_map.embedded_file.full_path
+        self.mount_file_path = docker.get_file_on_image(
+            self.host_file_path.name)
+        if isinstance(self.mount_file_path, str):
+            self.mount_file_path = pathlib.Path(self.mount_file_path)
+        # The configMap object inherits the name and namespace of the volume
+        # it is included in. TODO: make it such that the volume inherits the
+        # the name and namespace from the configMap.
+        integration_config_map.name = self.name
+        integration_config_map.namespace = self.namespace
+
+    def _volume_specification(self):
+        spec = {'name': self.name}
+        volume_spec = {}
+        if self.kind == "hostPath":
+            volume_spec['path'] = str(self.host_file_path)
+        if self.kind == "configMap":
+            volume_spec['name'] = self.name
+            item_spec = {
+                'key': str(self.host_file_path.name),
+                'path': str(self.host_file_path.name)
+            }
+            volume_spec['items'] = [item_spec]
+        spec[self.kind] = volume_spec
+        return spec
+
+    def _volume_mount_specification(self):
+        spec = {'name': self.name}
+        if self.kind == "hostPath" or self.kind == "configMap":
+            spec['mountPath'] = str(self.mount_file_path)
+            if self.mount_file_path is not None:
+                spec['subPath'] = str(self.mount_file_path.name)
+        return spec
+
+    def delete(self):
+        self.config_map.delete()
+
 
 class Container:
     def __init__(self, name, image, image_pull_policy=None):
@@ -83,12 +258,21 @@ class Container:
         self.command = None
         self._envvars = []
         self._ports = []
+        self._volumes = []
+        self._volume_mounted_count = 0
 
     def add_port(self, port_name, value):
         self._ports.append({port_name: value})
 
     def add_envvar(self, env_var_name, value):
         self._envvars.append({"name": env_var_name, "value": value})
+
+    def update_integration(self, integration_config_map):
+        volume = Volume(volume_base_name + "-" +
+                        str(self._volume_mounted_count))
+        volume._update_integration_file(integration_config_map)
+        self._volumes.append(volume)
+        self._volume_mounted_count += 1
 
     def _specification(self):
         spec = {'name': self.name, 'image': self.image}
@@ -105,7 +289,19 @@ class Container:
         if self.image_pull_policy is not None:
             spec['imagePullPolicy'] = self.image_pull_policy
 
+        if len(self._volumes) > 0:
+            volume_mounts_spec = []
+            for volume in self._volumes:
+                volume_mounts_spec.append(volume._volume_mount_specification())
+            spec['volumeMounts'] = volume_mounts_spec
+
         return spec
+
+    def _volumes_specifications(self):
+        volume_specs = []
+        for volume in self._volumes:
+            volume_specs.append(volume._volume_specification())
+        return volume_specs
 
 
 class Pod(KubeEntity):
@@ -113,12 +309,8 @@ class Pod(KubeEntity):
         KubeEntity.__init__(self, name, namespace=namespace)
         self.api_version = "v1"
         self.kind = "Pod"
-        self._service_account = None
-        self.labels = {}
         self.containers = []
-
-    def add_label(self, label_name, label_value):
-        self.labels[label_name] = label_value
+        self._service_account = None
 
     def add_container(self, container):
         self.containers.append(container)
@@ -134,14 +326,16 @@ class Pod(KubeEntity):
         if self.namespace is not None:
             metadata['namespace'] = self.namespace
 
-        if len(self.labels) > 0:
-            metadata['labels'] = self.labels
+        if len(self._labels) > 0:
+            metadata['labels'] = self._labels
 
         container_specs = []
+        volume_specs = []
         for container in self.containers:
             if not isinstance(container, Container):
                 raise RuntimeError("Invalid container used in pod.")
             container_specs.append(container._specification())
+            volume_specs.extend(container._volumes_specifications())
 
         pod_spec = {}
         if self._service_account is not None:
@@ -150,6 +344,9 @@ class Pod(KubeEntity):
                     "Invalid service account type, use ServiceAccount.")
             pod_spec['serviceAccountName'] = self._service_account.name
         pod_spec['containers'] = container_specs
+
+        if len(volume_specs) > 0:
+            pod_spec['volumes'] = volume_specs
 
         spec = {'metadata': metadata, 'spec': pod_spec}
         return spec
@@ -241,6 +438,19 @@ class ServiceAccount(KubeEntity):
             'metadata': metadata
         }
         return spec
+
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.CoreV1Api(k8s_client)
+        service_account_list = KubeEntity._exists(
+            self, api_instance.list_namespaced_service_account)
+        for item in service_account_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
+    def delete(self, k8s_client):
+        self._delete(k8s_client.delete_namespaced_service_account)
 
 
 # apiVersion: rbac.authorization.k8s.io/v1
@@ -491,7 +701,7 @@ class Deployment(KubeEntity):
         self.replicas = replicas
         self.match_labels = {}
         self.managed_pod = managed_pod
-        self.match_labels.update(managed_pod.labels)
+        self.match_labels.update(managed_pod._labels)
         self._services = []
 
     def add_match_label(self, selector_name, label_name):

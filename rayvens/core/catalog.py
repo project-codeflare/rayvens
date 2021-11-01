@@ -341,7 +341,7 @@ def construct_source(config, endpoint, inverted=False):
                     }]
                 }
             })
-        print(yaml.dump(spec_list))
+        # print(yaml.dump(spec_list))
         return spec_list
 
     # Regular integration with only one route:
@@ -362,7 +362,7 @@ def construct_source(config, endpoint, inverted=False):
             from_queue['from']['steps'].extend(remaining_steps)
 
         spec.append(from_queue)
-    print(yaml.dump(spec))
+    # print(yaml.dump(spec))
     return spec
 
 
@@ -643,7 +643,7 @@ def construct_sink(config, endpoint):
         else:
             spec['uri'] = from_uri
         final_spec_list.append({'from': spec})
-    print(yaml.dump(final_spec_list))
+    # print(yaml.dump(final_spec_list))
     return final_spec_list
 
 

@@ -20,6 +20,7 @@ import rayvens.cli.file as file
 
 image_workspace_name = "workspace"
 local_workspace_name = "docker_workspace"
+built_integration_directory = "my-integration"
 
 
 def docker_run_integration(image_name,
@@ -33,8 +34,7 @@ def docker_run_integration(image_name,
 
     # Mount integration file:
     # -v local_integration_path:inside_image_integration_path
-    inside_image_integration_path = "/".join(
-        [f"/{image_workspace_name}", integration_file_name])
+    inside_image_integration_path = get_file_on_image(integration_file_name)
 
     # Mount argument:
     local_to_image_integration_mount = ":".join(
@@ -369,3 +369,24 @@ def add_summary_from_image(image, workspace_directory):
 
     # Add file to working directory:
     workspace_directory.add_file(summary_file)
+
+
+def get_integration_directory_on_image():
+    return "/".join([f"/{image_workspace_name}", built_integration_directory])
+
+
+def get_routes_path_on_image(integration_file_name):
+    directory = get_integration_directory_on_image()
+    return "/".join([directory, "routes", integration_file_name])
+
+
+def get_file_on_image(file_name):
+    directory = get_integration_directory_on_image()
+    return "/".join([directory, file_name])
+
+
+def update_integration_file_in_image(file_name):
+    copy_integration_file = ["cp"]
+    copy_integration_file.append(get_file_on_image(file_name))
+    copy_integration_file.append(get_routes_path_on_image(file_name))
+    return " ".join(copy_integration_file)

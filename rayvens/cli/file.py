@@ -59,21 +59,23 @@ class File(FileSystemObject):
         # and then when delete is invoked, remove the file from
         # all those locations.
         try:
-            os.remove(self.full_path)
+            if self.exists_on_file_system():
+                os.remove(self.full_path)
         except OSError as e:
             print("Error: %s : %s" % (self.full_path, e.strerror))
+
+    def get_contents(self):
+        if isinstance(self.contents, str):
+            return self.contents
+        if not hasattr(self.contents, "emit"):
+            raise RuntimeError(
+                "Non-string file contents must have emit method.")
+        return self.contents.emit()
 
     def emit(self):
         if self.contents is not None:
             with open(self.full_path, mode='w') as fs_file:
-                if isinstance(self.contents, str):
-
-                    fs_file.write(self.contents)
-                else:
-                    if not hasattr(self.contents, "emit"):
-                        raise RuntimeError(
-                            "Non-string file contents must have emit method.")
-                    fs_file.write(self.contents.emit())
+                fs_file.write(self.get_contents())
         elif os.path.isfile(self.original_full_path):
             if self.original_full_path != self.full_path:
                 copy_file(str(self.original_full_path), str(self.full_path))

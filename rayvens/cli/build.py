@@ -77,6 +77,14 @@ def build_integration(args):
     # Put together the summary file.
     summary_file = utils.get_summary_file(args)
 
+    # The name of the integration:
+    name = args.kind
+    if args.name is not None:
+        name = args.name
+
+    # The name of the integration file:
+    integration_file_name = utils.get_kubernetes_integration_file_name(name)
+
     if predefined_integration:
         # Get a skeleton configuration for this integration kind.
         base_config, _ = utils.get_current_config(args)
@@ -95,7 +103,7 @@ def build_integration(args):
         # file.
         modeline_options = utils.get_modeline_config(args)
         integration_source_file = modeline_options + "\n\n" + yaml.dump(spec)
-        integration_file = file.File(f'{args.kind + "-spec"}.yaml',
+        integration_file = file.File(integration_file_name,
                                      contents=integration_source_file)
         docker_image.copy(integration_file)
 
@@ -151,8 +159,19 @@ def build_integration(args):
         outer_scope_envvars.append(f"--env {envvar}=${envvar}")
     outer_scope_envvars = " ".join(outer_scope_envvars)
 
-    docker_image.cmd("kamel local run --integration-directory my-integration "
-                     f"{outer_scope_envvars}")
+    # Kubernetes does not allow us to mount a file over an existing file.
+    # This means that when we deploy the integration on Kubernetes, we need
+    # to mount the updated integration file to a separate location in the image
+    # and then copy the image in the correct location i.e. the routes subfolder
+    # to overwrite the old integration yaml file.
+    print(docker.update_integration_file_in_image(integration_file_name))
+    docker_image.cmd(
+        f"{docker.update_integration_file_in_image(integration_file_name)}; "
+        f"kamel local run --integration-directory "
+        f"{docker.built_integration_directory} "
+        f"{outer_scope_envvars}")
+
+    print(docker_image.emit())
 
     # Build image.
     docker_image.build(utils.get_integration_image(args))

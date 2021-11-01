@@ -18,6 +18,7 @@ import yaml
 import rayvens.cli.utils as utils
 import rayvens.cli.file as file
 import rayvens.cli.docker as docker
+import rayvens.cli.kubernetes as kube
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_run_integration
@@ -82,22 +83,28 @@ def run_integration(args):
     # Fetch the variables specified as environment variables.
     envvars = utils.get_modeline_envvars(summary_file, args)
 
+    integration_file.emit()
     if args.deploy is not None and args.deploy:
         # Set the namespace:
         namespace = "default"
         if args.namespace is not None:
             namespace = args.namespace
 
+        # Update integration file on image via configMap:
+        integration_config_map = kube.ConfigMap(integration_file)
+
         # Deploy integration in Kubernetes:
         deployment = utils.get_deployment_yaml(name, namespace, args.image,
                                                utils.get_registry(args), args,
-                                               with_job_launcher)
+                                               with_job_launcher,
+                                               integration_config_map)
 
         # Create deployment file:
         deployment_file_name = utils.get_kubernetes_deployment_file_name(name)
         deployment_file = file.File(deployment_file_name, contents=deployment)
         workspace_directory.add_file(deployment_file)
 
+        # Ensure all files are emitted onto disk.
         workspace_directory.emit()
 
         # Prepare Kubernetes API:
@@ -105,8 +112,13 @@ def run_integration(args):
         import kubernetes.utils as kube_utils
         config.load_kube_config()
 
-        # Call service creation:
+        # Kubernetes client:
         k8s_client = client.ApiClient()
+
+        # Create configMap that updates the integration file.
+        integration_config_map.create()
+
+        # Create deployment:
         try:
             kube_utils.create_from_yaml(k8s_client,
                                         str(deployment_file.full_path))
@@ -115,6 +127,7 @@ def run_integration(args):
         else:
             print(f"{name} successfully deployed in namespace {namespace}")
 
+        # Clean-up all emitted files.
         workspace_directory.delete()
     else:
         # Run final integration image:
@@ -122,9 +135,9 @@ def run_integration(args):
         #      -v integration_file_path:/workspace/<integration_file_name> \
         #      --env ENV_VAR=$ENV_VAR \
         #      <image>
-        integration_file.emit()
         docker_run_integration(image,
                                integration_file.full_path,
                                integration_file.name,
                                envvars=envvars)
-        integration_file.delete()
+
+    integration_file.delete()

@@ -34,7 +34,7 @@ job_manager_role = "job-manager-role"
 
 
 def get_deployment_yaml(name, namespace, image_name, registry, args,
-                        with_job_launcher):
+                        with_job_launcher, integration_config_map):
     # Kubernetes deployment options:
     replicas = 1
     full_image_name = image_name
@@ -51,6 +51,9 @@ def get_deployment_yaml(name, namespace, image_name, registry, args,
     container = kube.Container(image_name,
                                full_image_name,
                                image_pull_policy="Always")
+
+    # Update integration file from host file.
+    container.update_integration(integration_config_map)
 
     combined_configuration = []
 

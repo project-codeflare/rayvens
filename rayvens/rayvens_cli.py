@@ -76,6 +76,8 @@ parser_build.add_argument(
     '--launch-image',
     help='Enable the launching of a job with the provided image each time '
     'an event is received. This option only makes sense for sources.')
+parser_build.add_argument('--name',
+                          help='Kubernetes name used for the integration.')
 parser_build.set_defaults(func=build_integration)
 
 # =============================
