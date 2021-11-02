@@ -19,10 +19,86 @@ import subprocess
 import pathlib
 import rayvens.cli.file as file
 import rayvens.cli.docker as docker
+import rayvens.cli.utils as utils
 
 all_verbs = ["get", "list", "watch", "create", "update", "patch", "delete"]
 api_groups = {'jobs': ["batch", "extensions"]}
 volume_base_name = "rayvens-volume"
+kubernetes_tag = "kubectl"
+
+
+def get_deployment_yaml(name, namespace, image_name, registry, args,
+                        with_job_launcher, integration_config_map):
+    # Kubernetes deployment options:
+    replicas = 1
+    full_image_name = image_name
+    if registry is not None:
+        full_image_name = "/".join([registry, image_name])
+
+    integration_name = utils.get_kubernetes_integration_name(name)
+    entrypoint_name = utils.get_kubernetes_entrypoint_name(name)
+    label_name = utils.get_kubernetes_label_name(name)
+
+    # TODO: these deployment options work with a local Kubernetes cluster
+    # with a local registry i.e. localhost:5000. Test with actual cluster.
+
+    container = Container(image_name,
+                          full_image_name,
+                          image_pull_policy="Always")
+
+    # Update integration file from host file.
+    container.update_integration(integration_config_map)
+
+    combined_configuration = []
+
+    if with_job_launcher:
+        # Service account for the job lunch permissions:
+        service_account = ServiceAccount(utils.job_launcher_service_account,
+                                         namespace)
+        combined_configuration.append(service_account.configuration())
+
+        # Create the cluster role specifying the resource type and the
+        # allowable actions (verbs). By default all verbs are enabled if
+        # none are specified.
+        cluster_role = ClusterRole(utils.job_manager_role, namespace)
+        cluster_role.add_rule("jobs")
+        combined_configuration.append(cluster_role.configuration())
+
+        # Create a cluster role binding between the service account and
+        # the cluster role defined above.
+        cluster_role_binding = ClusterRoleBinding(
+            utils.job_launcher_cluster_role_binding, [service_account],
+            cluster_role)
+        combined_configuration.append(cluster_role_binding.configuration())
+
+    # Assemble the pod that the deployment will be managing.
+    managed_pod = Pod("managed_pod", namespace)
+
+    # Ensure the pod has the ability to launch jobs by addint the service
+    # account created above.
+    if with_job_launcher:
+        managed_pod.add_service_account(service_account)
+    managed_pod.add_container(container)
+    managed_pod.add_label("integration", label_name)
+
+    # Create the deployment.
+    deployment = Deployment(integration_name,
+                            managed_pod,
+                            namespace=namespace,
+                            replicas=replicas)
+
+    # Create a NodePort service to enable outside communication.
+    node_port_spec = NodePortSpec()
+    node_port_spec.add_selector("integration", label_name)
+    node_port_spec.add_port(3000, 30001)
+    service = Service(entrypoint_name, node_port_spec, namespace=namespace)
+    # Add the service to the deployment.
+    deployment.add_service(service)
+
+    combined_configuration.append(deployment.configuration())
+
+    # print("\n---\n".join(combined_configuration))
+    return "\n---\n".join(combined_configuration)
 
 
 def kubectl_create_configmap(name, namespace, embedded_file_path):
@@ -41,9 +117,11 @@ def kubectl_create_configmap(name, namespace, embedded_file_path):
     outcome = subprocess.run(command)
 
     if outcome.returncode == 0:
-        print(f"configmap object {name} created successfully.")
+        utils.PRINT(f"configmap object {name} created successfully.",
+                    tag=kubernetes_tag)
     else:
-        print(f"configmap object {name} creation failed.")
+        utils.PRINT(f"configmap object {name} creation failed.",
+                    tag=kubernetes_tag)
 
 
 def kubectl_get_yaml(entity_type, name, namespace):
@@ -61,9 +139,9 @@ def kubectl_get_yaml(entity_type, name, namespace):
     # Wait for kubectl command to finish before returning:
     outcome = subprocess.run(command)
     if outcome.returncode == 0:
-        print("Kubernetes get ended successfully.")
+        utils.PRINT("Kubernetes get ended successfully.", tag=kubernetes_tag)
     else:
-        print("Kubernetes get failed.")
+        utils.PRINT("Kubernetes get failed.", tag=kubernetes_tag)
 
 
 class KubeEntity:
@@ -106,7 +184,8 @@ class KubeEntity:
         try:
             kube_utils.create_from_dict(k8s_client, self._specification())
         except kube_utils.FailToCreateError as creation_error:
-            print("Failed to create kubernetes entity", creation_error)
+            utils.PRINT(f"Failed to create kubernetes entity {creation_error}",
+                        tag=kubernetes_tag)
 
     def _delete(self, api_method):
         namespace = self.namespace
@@ -116,9 +195,11 @@ class KubeEntity:
         try:
             api_method(self.name, namespace)
         except ApiException as deletion_error:
-            print("Failed to delete kubernetes entity", deletion_error)
+            utils.PRINT(f"Failed to delete kubernetes entity {deletion_error}",
+                        tag=kubernetes_tag)
         else:
-            print(f"Kubernetes entity {self.name} deleted successfully")
+            utils.PRINT(f"Kubernetes entity {self.name} deleted successfully",
+                        tag=kubernetes_tag)
 
     def _exists(self, api_method):
         namespace = self.namespace
@@ -128,8 +209,9 @@ class KubeEntity:
         try:
             api_response = api_method(namespace)
         except ApiException as check_error:
-            print("Exception when fetching kubernetes entities: %s\n" %
-                  check_error)
+            utils.PRINT(
+                f"Exception when fetching kubernetes entities {check_error}",
+                tag=kubernetes_tag)
         return api_response
 
 
@@ -160,7 +242,8 @@ class ConfigMap(KubeEntity):
 
     def create(self):
         self.embedded_file.emit()
-        print(f"Create {self.name} in namespace {self.namespace}.")
+        utils.PRINT(f"Create {self.name} in namespace {self.namespace}.",
+                    tag=kubernetes_tag)
         kubectl_create_configmap(self.name, self.namespace,
                                  self.embedded_file.full_path)
         # kubectl_get_yaml("configmap", self.name, self.namespace)

@@ -16,6 +16,9 @@
 
 import subprocess
 import rayvens.cli.utils as utils
+from rayvens.cli.utils import PRINT
+
+kamel_tag = "kamel"
 
 
 def kamel_local_build_base_image(args):
@@ -41,9 +44,9 @@ def kamel_local_build_base_image(args):
     image_name = utils.get_base_image_name(args)
 
     if outcome.returncode == 0:
-        print(f"Base image {image_name} pushed successfully.")
+        PRINT(f"Base image {image_name} pushed successfully.", tag=kamel_tag)
     else:
-        print(f"Base image {image_name} push failed.")
+        PRINT(f"Base image {image_name} push failed.", tag=kamel_tag)
 
 
 def kamel_local_build_image(args, integration_file_path):
@@ -67,6 +70,7 @@ def kamel_local_build_image(args, integration_file_path):
     outcome = subprocess.run(command)
 
     if outcome.returncode == 0:
-        print(f"Base image {integration_image} pushed successfully.")
+        PRINT(f"Base image {integration_image} pushed successfully.",
+              tag=kamel_tag)
     else:
-        print(f"Base image {integration_image} push failed.")
+        PRINT(f"Base image {integration_image} push failed.", tag=kamel_tag)

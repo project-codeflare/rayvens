@@ -119,6 +119,10 @@ parser_run.add_argument('--handler-image',
                         help='Name of the job image used for handling events.')
 parser_run.add_argument('--handler-name',
                         help='Name of the job used for handling events.')
+parser_run.add_argument('-v',
+                        '--verbose',
+                        action='store_true',
+                        help='Verbose mode.')
 parser_run.set_defaults(func=run_integration)
 
 # =============================

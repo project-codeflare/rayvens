@@ -164,14 +164,11 @@ def build_integration(args):
     # to mount the updated integration file to a separate location in the image
     # and then copy the image in the correct location i.e. the routes subfolder
     # to overwrite the old integration yaml file.
-    print(docker.update_integration_file_in_image(integration_file_name))
     docker_image.cmd(
         f"{docker.update_integration_file_in_image(integration_file_name)}; "
         f"kamel local run --integration-directory "
         f"{docker.built_integration_directory} "
         f"{outer_scope_envvars}")
-
-    print(docker_image.emit())
 
     # Build image.
     docker_image.build(utils.get_integration_image(args))

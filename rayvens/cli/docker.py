@@ -17,12 +17,14 @@
 import subprocess
 import rayvens.cli.version as v
 import rayvens.cli.file as file
-import rayvens.core.utils as rayvens_utils
+from rayvens.cli.utils import PRINT, VERBOSE_MODE
 
 image_workspace_name = "workspace"
 local_workspace_name = "docker_workspace"
 built_integration_directory = "my-integration"
 input_port_var_name = "INPUT_PORT"
+docker_tag = "docker"
+free_port = None
 
 
 def docker_run_integration(image_name,
@@ -54,7 +56,6 @@ def docker_run_integration(image_name,
 
     # Add communication port:
     if is_sink:
-        free_port = rayvens_utils.random_port(True)
         command.append("-p")
         command.append(f"{free_port}:8080")
 
@@ -62,13 +63,19 @@ def docker_run_integration(image_name,
     command.append(image_name)
 
     # Wait for docker command to finish before returning:
-    print("Executing =>", " ".join(command))
-    outcome = subprocess.run(command)
+    printed_command = " ".join(command)
+    PRINT(f"Executing => {printed_command}", tag=docker_tag)
+    if VERBOSE_MODE():
+        outcome = subprocess.run(command)
+    else:
+        outcome = subprocess.run(command,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
 
     if outcome.returncode == 0:
-        print(f"Image {image_name} has been run successfully.")
+        PRINT(f"Image {image_name} has been run successfully.", tag=docker_tag)
     else:
-        print(f"Image {image_name} run failed.")
+        PRINT(f"Image {image_name} run failed.", tag=docker_tag)
 
 
 def docker_build(working_directory, image_name):
@@ -88,9 +95,9 @@ def docker_build(working_directory, image_name):
     outcome = subprocess.run(command)
 
     if outcome.returncode == 0:
-        print(f"Base image {image_name} built successfully.")
+        PRINT(f"Base image {image_name} built successfully.", tag=docker_tag)
     else:
-        print(f"Base image {image_name} building failed.")
+        PRINT(f"Base image {image_name} building failed.", tag=docker_tag)
 
 
 def docker_push(image_name):
@@ -106,9 +113,9 @@ def docker_push(image_name):
     outcome = subprocess.run(command)
 
     if outcome.returncode == 0:
-        print(f"Base image {image_name} pushed successfully.")
+        PRINT(f"Base image {image_name} pushed successfully.", tag=docker_tag)
     else:
-        print(f"Base image {image_name} push failed.")
+        PRINT(f"Base image {image_name} push failed.", tag=docker_tag)
 
 
 def docker_cp_to_host(container_id, from_file, to_file):
@@ -124,12 +131,19 @@ def docker_cp_to_host(container_id, from_file, to_file):
     command.append(f"{to_file}")
 
     # Wait for docker command to finish before returning:
-    outcome = subprocess.run(command)
+    if VERBOSE_MODE():
+        outcome = subprocess.run(command)
+    else:
+        outcome = subprocess.run(command,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
 
     if outcome.returncode == 0:
-        print(f"Container file {from_file} successfully copied to host.")
+        PRINT(f"Container file {from_file} successfully copied to host.",
+              tag=docker_tag)
     else:
-        print(f"Container file {from_file} copy to host failed.")
+        PRINT(f"Container file {from_file} copy to host failed.",
+              tag=docker_tag)
 
 
 def docker_create(image):
@@ -142,12 +156,17 @@ def docker_create(image):
     command.append(image)
 
     # Wait for docker command to finish before returning:
-    outcome = subprocess.run(command, stdout=subprocess.PIPE)
+    if VERBOSE_MODE():
+        outcome = subprocess.run(command, stdout=subprocess.PIPE)
+    else:
+        outcome = subprocess.run(command,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
 
     if outcome.returncode == 0:
-        print(f"Container for {image} created successfully.")
+        PRINT(f"Container for {image} created successfully.", tag=docker_tag)
     else:
-        print(f"Container creation for {image} failed.")
+        PRINT(f"Container creation for {image} failed.", tag=docker_tag)
 
     return outcome.stdout.decode('utf8').strip()
 
@@ -162,12 +181,17 @@ def docker_rm(container_id):
     command.append(container_id)
 
     # Wait for docker command to finish before returning:
-    outcome = subprocess.run(command)
+    if VERBOSE_MODE():
+        outcome = subprocess.run(command)
+    else:
+        outcome = subprocess.run(command,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
 
     if outcome.returncode == 0:
-        print("Container removed successfully.")
+        PRINT("Container removed successfully.", tag=docker_tag)
     else:
-        print("Container removal failed.")
+        PRINT("Container removal failed.", tag=docker_tag)
 
 
 class DockerCopyStep:

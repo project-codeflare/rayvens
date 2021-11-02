@@ -19,9 +19,12 @@ import rayvens.cli.utils as utils
 import rayvens.cli.file as file
 import rayvens.cli.docker as docker
 import rayvens.cli.kubernetes as kube
+import rayvens.core.utils as rayvens_utils
+from rayvens.cli.utils import PRINT
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_run_integration
+run_tag = "run"
 
 
 def run_integration(args):
@@ -30,6 +33,12 @@ def run_integration(args):
         raise RuntimeError("No image name provided")
     registry = utils.get_registry(args)
     image = registry + "/" + args.image
+
+    # Set verbosity:
+    utils.verbose = args.verbose
+
+    # Get a free port:
+    docker.free_port = rayvens_utils.random_port(True)
 
     # Create a work directory in the current directory:
     workspace_directory = file.Directory("workspace")
@@ -82,6 +91,11 @@ def run_integration(args):
     else:
         raise RuntimeError("Not implemented yet")
 
+    # Output endpoint for sink:
+    if is_sink:
+        endpoint = f"http://localhost:{docker.free_port}{route}"
+        print(f"{name} input endpoint: {endpoint}")
+
     # Fetch the variables specified as environment variables.
     envvars = utils.get_modeline_envvars(summary_file, args)
 
@@ -96,10 +110,10 @@ def run_integration(args):
         integration_config_map = kube.ConfigMap(integration_file)
 
         # Deploy integration in Kubernetes:
-        deployment = utils.get_deployment_yaml(name, namespace, args.image,
-                                               utils.get_registry(args), args,
-                                               with_job_launcher,
-                                               integration_config_map)
+        deployment = kube.get_deployment_yaml(name, namespace, args.image,
+                                              utils.get_registry(args), args,
+                                              with_job_launcher,
+                                              integration_config_map)
 
         # Create deployment file:
         deployment_file_name = utils.get_kubernetes_deployment_file_name(name)
@@ -125,9 +139,10 @@ def run_integration(args):
             kube_utils.create_from_yaml(k8s_client,
                                         str(deployment_file.full_path))
         except kube_utils.FailToCreateError as creation_error:
-            print("Failed to create deployment", creation_error)
+            PRINT(f"Failed to create deployment {creation_error}", tag=run_tag)
         else:
-            print(f"{name} successfully deployed in namespace {namespace}")
+            PRINT(f"{name} successfully deployed in namespace {namespace}",
+                  tag=run_tag)
 
         # Clean-up all emitted files.
         workspace_directory.delete()
