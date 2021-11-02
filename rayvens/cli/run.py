@@ -58,6 +58,7 @@ def run_integration(args):
     # transport for now.
     inverted_transport = True
 
+    is_sink = False
     if predefined_integration:
         # Extract predefined integration kind:
         full_config = utils.get_full_config(summary_file, args)
@@ -70,6 +71,7 @@ def run_integration(args):
                                     inverted=inverted_transport)
         else:
             spec = construct_sink(full_config, f'platform-http:{route}')
+            is_sink = True
 
         # Write the specification to the file.
         modeline_options = utils.get_modeline_config(args, summary_file)
@@ -133,11 +135,12 @@ def run_integration(args):
         # Run final integration image:
         #   docker run \
         #      -v integration_file_path:/workspace/<integration_file_name> \
-        #      --env ENV_VAR=$ENV_VAR \
+        #      --env ENV_VAR=$ENV_VAR -p <free_host_port>:8080 \
         #      <image>
         docker_run_integration(image,
                                integration_file.full_path,
                                integration_file.name,
-                               envvars=envvars)
+                               envvars=envvars,
+                               is_sink=is_sink)
 
     integration_file.delete()

@@ -17,16 +17,19 @@
 import subprocess
 import rayvens.cli.version as v
 import rayvens.cli.file as file
+import rayvens.core.utils as rayvens_utils
 
 image_workspace_name = "workspace"
 local_workspace_name = "docker_workspace"
 built_integration_directory = "my-integration"
+input_port_var_name = "INPUT_PORT"
 
 
 def docker_run_integration(image_name,
                            local_integration_path,
                            integration_file_name,
-                           envvars=[]):
+                           envvars=[],
+                           is_sink=False):
     command = ["docker"]
 
     # Build command:
@@ -48,6 +51,12 @@ def docker_run_integration(image_name,
     for envvar in envvars:
         command.append("--env")
         command.append(f"{envvar}=${envvar}")
+
+    # Add communication port:
+    if is_sink:
+        free_port = rayvens_utils.random_port(True)
+        command.append("-p")
+        command.append(f"{free_port}:8080")
 
     # Add image:
     command.append(image_name)
