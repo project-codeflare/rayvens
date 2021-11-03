@@ -154,6 +154,7 @@ def run_integration(args):
         docker_run_integration(image,
                                integration_file.full_path,
                                integration_file.name,
+                               name,
                                envvars=envvars,
                                is_sink=is_sink,
                                server_address=server_address)

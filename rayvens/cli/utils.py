@@ -350,7 +350,7 @@ def get_integration_image(args):
     registry = get_registry(args)
 
     # Actual image name:
-    image_name = args.kind + "-image"
+    image_name = args.kind
     if args.image is not None:
         image_name = args.image
 

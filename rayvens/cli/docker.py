@@ -32,6 +32,7 @@ free_port = None
 def docker_run_integration(image_name,
                            local_integration_path,
                            integration_file_name,
+                           name,
                            envvars=[],
                            is_sink=False,
                            server_address=None):
@@ -59,6 +60,10 @@ def docker_run_integration(image_name,
     if is_sink:
         command.append("-p")
         command.append(f"{free_port}:8080")
+
+    # Add container name:
+    command.append("--name")
+    command.append(get_unique_container_name(name))
 
     # Add image:
     command.append(image_name)
@@ -173,16 +178,8 @@ def docker_create(image):
     return outcome.stdout.decode('utf8').strip()
 
 
-def docker_rm(container_id):
-    command = ["docker"]
-
-    # Copy command:
-    command.append("rm")
-
-    # Source:
-    command.append(container_id)
-
-    # Wait for docker command to finish before returning:
+def docker_kill(container_id):
+    command = ["docker", "kill", container_id]
     if VERBOSE_MODE():
         outcome = subprocess.run(command)
     else:
@@ -191,9 +188,68 @@ def docker_rm(container_id):
                                  stderr=subprocess.PIPE)
 
     if outcome.returncode == 0:
-        PRINT("Container removed successfully.", tag=docker_tag)
+        PRINT(f"Container {container_id} killed successfully.", tag=docker_tag)
     else:
-        PRINT("Container removal failed.", tag=docker_tag)
+        PRINT(f"Container {container_id} kill failed.", tag=docker_tag)
+
+
+def docker_rm(container_id):
+    command = ["docker", "rm", container_id]
+    if VERBOSE_MODE():
+        outcome = subprocess.run(command)
+    else:
+        outcome = subprocess.run(command,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+
+    if outcome.returncode == 0:
+        PRINT(f"Container {container_id} removed successfully.",
+              tag=docker_tag)
+    else:
+        PRINT(f"Container {container_id} removal failed.", tag=docker_tag)
+
+
+def docker_container_ls():
+    command = ["docker", "container", "ls", "--all"]
+
+    container_fields = []
+    container_fields.append("{{.Names}}")
+    container_fields.append("{{.ID}}")
+
+    if len(container_fields) > 0:
+        command.append("--format")
+        command.append("=".join(container_fields))
+
+    # List all local containers:
+    outcome = subprocess.run(command,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    if outcome is None:
+        return {}
+
+    container_pairs = outcome.stdout.decode('utf8').strip().split()
+
+    containers = {}
+    for container_pair in container_pairs:
+        components = container_pair.split("=")
+        containers[components[0]] = components[1]
+    return containers
+
+
+def get_unique_container_name(name):
+    containers = docker_container_ls()
+    new_name = name
+    count = 0
+    while True:
+        found = False
+        for container_name in containers:
+            if new_name == container_name:
+                new_name = name + "-" + str(count)
+                count += 1
+                found = True
+                break
+        if not found:
+            return new_name
 
 
 class DockerCopyStep:

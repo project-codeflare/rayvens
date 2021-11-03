@@ -113,8 +113,7 @@ parser_run.add_argument(
     '-n',
     '--namespace',
     help='Kubernetes namespace used for deploying the integration.')
-parser_run.add_argument('--name',
-                        help='Kubernetes name used for the integration.')
+parser_run.add_argument('--name', help='Integration name.')
 parser_run.add_argument('--handler-image',
                         help='Name of the job image used for handling events.')
 parser_run.add_argument('--handler-name',
@@ -148,11 +147,18 @@ parser_print.set_defaults(func=rayvens_print)
 # =============================
 # Delete sub-command:
 # =============================
-parser_delete = subparsers.add_parser('delete', help='Delete deployments.')
+parser_delete = subparsers.add_parser('delete', help='Delete integration.')
 parser_delete.add_argument('--name', help='Integration name.')
+parser_delete.add_argument('--deployed',
+                           action='store_true',
+                           help='Delete a Kubernetes-deployed integration.')
 parser_delete.add_argument('-n', '--namespace', help='Deployment namespace.')
 parser_delete.add_argument('--all-jobs',
                            help="Delete all jobs with the provided base name.")
+parser_delete.add_argument('-v',
+                           '--verbose',
+                           action='store_true',
+                           help='Verbose mode.')
 parser_delete.set_defaults(func=delete)
 
 args = parser.parse_args()

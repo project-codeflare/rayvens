@@ -16,11 +16,19 @@
 
 from rayvens.cli import utils
 import rayvens.cli.kubernetes as kube
+import rayvens.cli.docker as docker
 
 
 def delete(args):
-    if args.name is not None:
-        delete_deployment(args)
+    # Set verbosity:
+    utils.verbose = args.verbose
+
+    if args.deployed:
+        if args.name is not None:
+            delete_deployment(args)
+    else:
+        if args.name is not None:
+            delete_local_deployment(args)
 
     if args.all_jobs is not None:
         delete_all_jobs(args)
@@ -38,7 +46,7 @@ def delete_all_jobs(args):
     config.load_kube_config()
     k8s_client = client.BatchV1Api(client.ApiClient())
 
-    exception_occured = False
+    exception_occurred = False
     try:
         api_response = k8s_client.list_namespaced_job(namespace)
         body = client.V1DeleteOptions(propagation_policy='Background')
@@ -48,17 +56,17 @@ def delete_all_jobs(args):
                                                  namespace,
                                                  body=body)
     except client.exceptions.ApiException:
-        exception_occured = True
+        exception_occurred = True
 
     # Delete the jobs that start with the provided string.
     k8s_client = client.CoreV1Api(client.ApiClient())
 
-    if not exception_occured:
+    if not exception_occurred:
         print(f"Successfully deleted jobs starting with {prefix} from "
               f"{namespace} namespace.")
 
 
-def delete_deployment(args, with_job_launcher_priviledges=True):
+def delete_deployment(args, with_job_launcher_privileges=True):
     if args.name is None:
         raise RuntimeError("No integration name provided.")
 
@@ -100,7 +108,7 @@ def delete_deployment(args, with_job_launcher_priviledges=True):
         else:
             count += 1
 
-    if with_job_launcher_priviledges:
+    if with_job_launcher_privileges:
         # Delete service account:
         # job-launcher-service-account
         name = utils.job_launcher_service_account
@@ -140,3 +148,15 @@ def delete_deployment(args, with_job_launcher_priviledges=True):
     else:
         print("Successfully deleted the remaining components of "
               f"{deployment_name} from {namespace} namespace")
+
+
+def delete_local_deployment(args):
+    if args.name is None:
+        raise RuntimeError("No integration name provided.")
+
+    containers = docker.docker_container_ls()
+
+    for container_name in containers:
+        if container_name.startswith(args.name):
+            docker.docker_kill(containers[container_name])
+            docker.docker_rm(containers[container_name])
