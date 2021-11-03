@@ -91,14 +91,10 @@ def run_integration(args):
     else:
         raise RuntimeError("Not implemented yet")
 
-    # Output endpoint for sink:
-    if is_sink:
-        endpoint = f"http://localhost:{docker.free_port}{route}"
-        print(f"{name} input endpoint: {endpoint}")
-
     # Fetch the variables specified as environment variables.
     envvars = utils.get_modeline_envvars(summary_file, args)
 
+    server_address = None
     integration_file.emit()
     if args.deploy is not None and args.deploy:
         # Set the namespace:
@@ -147,6 +143,9 @@ def run_integration(args):
         # Clean-up all emitted files.
         workspace_directory.delete()
     else:
+        # Output endpoint for sink:
+        server_address = f"http://localhost:{docker.free_port}"
+
         # Run final integration image:
         #   docker run \
         #      -v integration_file_path:/workspace/<integration_file_name> \
@@ -156,6 +155,10 @@ def run_integration(args):
                                integration_file.full_path,
                                integration_file.name,
                                envvars=envvars,
-                               is_sink=is_sink)
+                               is_sink=is_sink,
+                               server_address=server_address)
 
     integration_file.delete()
+
+    if is_sink and server_address is not None:
+        print(f"{name} input endpoint: {server_address}{route}")

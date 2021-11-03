@@ -17,13 +17,15 @@
 import subprocess
 import rayvens.cli.version as v
 import rayvens.cli.file as file
+from rayvens.core.invocation import DockerIntegrationInvocation
 from rayvens.cli.utils import PRINT, VERBOSE_MODE
+from rayvens.core.common import wait_for_ready_integration
 
 image_workspace_name = "workspace"
 local_workspace_name = "docker_workspace"
 built_integration_directory = "my-integration"
 input_port_var_name = "INPUT_PORT"
-docker_tag = "docker"
+docker_tag = "Docker"
 free_port = None
 
 
@@ -31,11 +33,10 @@ def docker_run_integration(image_name,
                            local_integration_path,
                            integration_file_name,
                            envvars=[],
-                           is_sink=False):
-    command = ["docker"]
-
+                           is_sink=False,
+                           server_address=None):
     # Build command:
-    command.append("run")
+    command = ["run"]
 
     # Mount integration file:
     # -v local_integration_path:inside_image_integration_path
@@ -62,20 +63,21 @@ def docker_run_integration(image_name,
     # Add image:
     command.append(image_name)
 
-    # Wait for docker command to finish before returning:
-    printed_command = " ".join(command)
-    PRINT(f"Executing => {printed_command}", tag=docker_tag)
-    if VERBOSE_MODE():
-        outcome = subprocess.run(command)
-    else:
-        outcome = subprocess.run(command,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-
-    if outcome.returncode == 0:
+    # Invoke integration:
+    docker_run_invocation = DockerIntegrationInvocation(command)
+    success = docker_run_invocation.invoke(stop_check="Installed features")
+    if success:
         PRINT(f"Image {image_name} has been run successfully.", tag=docker_tag)
     else:
         PRINT(f"Image {image_name} run failed.", tag=docker_tag)
+
+    # Check integration is ready to receive events:
+    if server_address is not None:
+        integration_ready = wait_for_ready_integration(server_address)
+        if integration_ready:
+            PRINT(f"Integration inside {image_name} is ready.", tag=docker_tag)
+        else:
+            PRINT(f"Integration inside {image_name} failed.", tag=docker_tag)
 
 
 def docker_build(working_directory, image_name):

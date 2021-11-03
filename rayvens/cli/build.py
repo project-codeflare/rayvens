@@ -52,11 +52,15 @@ def build_base_image(args):
 
     # Add run command:
     docker_image.run(f"""kamel local run {preload_file.name} \
---dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl; \
+--dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl \
+--dependency camel:camel-quarkus-microprofile-health; \
 rm {preload_file.name}""")
 
     # Build image:
     docker_image.build(utils.get_base_image_name(args))
+
+    # Push base image to registry.
+    docker_image.push()
 
 
 def build_integration(args):
@@ -133,7 +137,8 @@ def build_integration(args):
     run_command = f"""kamel local build {integration_file.name} {files_list} \
 --integration-directory my-integration \
 --dependency mvn:org.apache.camel.quarkus:camel-quarkus-java-joor-dsl \
---dependency mvn:com.googlecode.json-simple:json-simple:1.1.1"""
+--dependency mvn:com.googlecode.json-simple:json-simple:1.1.1 \
+--dependency camel:camel-quarkus-microprofile-health"""
     if launches_kubectl_jobs:
         run_command += " --dependency mvn:io.kubernetes:client-java:11.0.0"
     docker_image.run(run_command)
@@ -173,5 +178,5 @@ def build_integration(args):
     # Build image.
     docker_image.build(utils.get_integration_image(args))
 
-    # Push base image to registry.
+    # Push integration image to registry.
     docker_image.push()

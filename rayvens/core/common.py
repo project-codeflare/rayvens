@@ -41,8 +41,7 @@ def get_run_mode(camel_mode, check_port):
     return mode
 
 
-def _wait_for_ready_integration(mode, integration):
-    server_address = mode.server_address(integration)
+def wait_for_ready_integration(server_address):
     health_check_address = f"{server_address}/q/health"
 
     healthy_integration = False
@@ -98,7 +97,8 @@ def await_start(mode, integration):
         return True
 
     # Perform readiness check and wait for integration to be ready.
-    healthy_integration = _wait_for_ready_integration(mode, integration)
+    server_address = mode.server_address(integration)
+    healthy_integration = wait_for_ready_integration(server_address)
 
     if healthy_integration:
         print(f'Integration {integration.integration_name} is ready.')
