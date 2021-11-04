@@ -103,16 +103,9 @@ def get_additional_files(spec, inverted_transport, launch_image):
 
 
 def get_registry(args):
-    # Registry name:
-    registry = None
     if args.dev:
-        registry = "localhost:5000"
-    elif args.registry is not None:
-        registry = args.registry
-    else:
-        raise RuntimeError("One of --dev or --registry flags are required")
-
-    return registry
+        return "localhost:5000"
+    return args.registry
 
 
 def get_given_properties(args):
@@ -350,12 +343,29 @@ def get_integration_image(args):
     registry = get_registry(args)
 
     # Actual image name:
-    image_name = args.kind
-    if args.image is not None:
+    image_name = None
+    if hasattr(args, "kind"):
+        image_name = args.kind
+    if hasattr(args, "image") and args.image is not None:
         image_name = args.image
+
+    # When registry is not provided the image name on the command line
+    # should contain the full path to the image.
+    if registry is None:
+        return args.image
 
     # Integration image name:
     return registry + "/" + image_name
+
+
+def extract_image_name(args):
+    if args.image is None:
+        raise RuntimeError("Missing image name")
+    registry = get_registry(args)
+    if registry is None:
+        components = args.image.split("/")
+        return components[-1]
+    return args.image
 
 
 def PRINT(output, tag=None):

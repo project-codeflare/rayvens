@@ -30,9 +30,8 @@ run_tag = "run"
 def run_integration(args):
     # Form full image name:
     if args.image is None:
-        raise RuntimeError("No image name provided")
-    registry = utils.get_registry(args)
-    image = registry + "/" + args.image
+        raise RuntimeError("Missing image name")
+    image = utils.get_integration_image(args)
 
     # Set verbosity:
     utils.verbose = args.verbose
@@ -106,7 +105,7 @@ def run_integration(args):
         integration_config_map = kube.ConfigMap(integration_file)
 
         # Deploy integration in Kubernetes:
-        deployment = kube.get_deployment_yaml(name, namespace, args.image,
+        deployment = kube.get_deployment_yaml(name, namespace,
                                               utils.get_registry(args), args,
                                               with_job_launcher,
                                               integration_config_map)
@@ -162,4 +161,4 @@ def run_integration(args):
     integration_file.delete()
 
     if is_sink and server_address is not None:
-        print(f"{name} input endpoint: {server_address}{route}")
+        print(f"{server_address}{route}")

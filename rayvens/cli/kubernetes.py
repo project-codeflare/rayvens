@@ -27,13 +27,11 @@ volume_base_name = "rayvens-volume"
 kubernetes_tag = "kubectl"
 
 
-def get_deployment_yaml(name, namespace, image_name, registry, args,
-                        with_job_launcher, integration_config_map):
+def get_deployment_yaml(name, namespace, registry, args, with_job_launcher,
+                        integration_config_map):
     # Kubernetes deployment options:
     replicas = 1
-    full_image_name = image_name
-    if registry is not None:
-        full_image_name = "/".join([registry, image_name])
+    full_image_name = utils.get_base_image_name(args)
 
     integration_name = utils.get_kubernetes_integration_name(name)
     entrypoint_name = utils.get_kubernetes_entrypoint_name(name)
@@ -42,6 +40,7 @@ def get_deployment_yaml(name, namespace, image_name, registry, args,
     # TODO: these deployment options work with a local Kubernetes cluster
     # with a local registry i.e. localhost:5000. Test with actual cluster.
 
+    image_name = utils.extract_image_name(args)
     container = Container(image_name,
                           full_image_name,
                           image_pull_policy="Always")
