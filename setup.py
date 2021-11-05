@@ -34,7 +34,7 @@ setup(
     name='rayvens',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    packages=['rayvens', 'rayvens.core'],
+    packages=['rayvens', 'rayvens.core', 'rayvens.cli'],
     package_data={'rayvens.core': ['*.java']},
     install_requires=[
         'confluent-kafka>=1.6.1', 'ray[default,serve,k8s]>=1.3.0'

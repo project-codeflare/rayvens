@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-kamel_version = "1.5.0"
+kamel_version = "1.6.1"
