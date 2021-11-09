@@ -30,13 +30,17 @@ def _kafka_SASL_uri(topic, kafka_brokers, password):
     security_protocol = 'SASL_SSL'
     username = "token"
     conf = 'org.apache.kafka.common.security.plain.PlainLoginModule' \
-           f' required username=\"{username}\" password=\"{password}\";'
-    uri = f'kafka:{topic}?brokers={kafka_brokers}' \
-          f'&securityProtocol={security_protocol}' \
-          f'&saslMechanism=PLAIN' \
-          f'&saslJaasConfig={conf}' \
-          f'&sslKeyPassword={password}'
-    return uri
+        f' required username=\"{username}\" password=\"{password}\";'
+
+    if password == 'modeline':
+        return f'kafka:{topic}?brokers={kafka_brokers}' \
+               f'&securityProtocol={security_protocol}' \
+               f'&saslMechanism=PLAIN'
+    return f'kafka:{topic}?brokers={kafka_brokers}' \
+           f'&securityProtocol={security_protocol}' \
+           f'&saslMechanism=PLAIN' \
+           f'&saslJaasConfig={conf}' \
+           f'&sslKeyPassword={password}'
 
 
 def kafka_source(config):
@@ -337,6 +341,7 @@ def construct_source(config, endpoint, inverted=False):
                     }]
                 }
             })
+        # print(yaml.dump(spec_list))
         return spec_list
 
     # Regular integration with only one route:
@@ -357,20 +362,27 @@ def construct_source(config, endpoint, inverted=False):
             from_queue['from']['steps'].extend(remaining_steps)
 
         spec.append(from_queue)
+    # print(yaml.dump(spec))
     return spec
 
 
 def slack_sink(config):
     if 'channel' not in config:
         raise TypeError('Kind slack-sink requires a channel.')
-    if 'webhook_url' not in config:
-        raise TypeError('Kind slack-sink requires a webhook url.')
     channel = config['channel']
-    webhook_url = config['webhook_url']
+
+    option_values = []
+    if 'webhook_url' in config:
+        webhook_url = config['webhook_url']
+        option_values.append(f"webhookUrl={webhook_url}")
+
+    options = ""
+    if len(option_values) > 0:
+        options = "?" + "&".join(option_values)
 
     final_spec = {
         'steps': [{
-            'to': f'slack:{channel}?webhookUrl={webhook_url}',
+            'to': f'slack:{channel}{options}',
         }]
     }
 
@@ -631,6 +643,7 @@ def construct_sink(config, endpoint):
         else:
             spec['uri'] = from_uri
         final_spec_list.append({'from': spec})
+    # print(yaml.dump(final_spec_list))
     return final_spec_list
 
 

@@ -23,6 +23,7 @@ import time
 from rayvens.core import utils
 from rayvens.core import kamel_utils
 from rayvens.core import kubernetes_utils
+from rayvens.cli.utils import PRINT, VERBOSE_MODE
 
 #
 # Kamel invocation.
@@ -238,6 +239,9 @@ class KubectlInvocation:
         if not utils.executable_is_available("kubectl"):
             raise RuntimeError('kubectl executable not found in PATH')
 
+        # Log kamel command.
+        print("Exec command => ", command)
+
         # Launch kamel command in a new process.
         self.process = subprocess.Popen(command,
                                         stdout=subprocess.PIPE,
@@ -358,6 +362,47 @@ class KafkaInvocation:
                 return True
 
             if checked_topic is None and "already exists" in output:
+                return True
+
+            # Check process has not exited prematurely.
+            if self.process.poll() is not None:
+                break
+
+        return False
+
+
+#
+# Docker run invocation.
+#
+
+
+class DockerIntegrationInvocation:
+    subprocess_name = "Docker"
+
+    def __init__(self, command_options):
+        final_command = ['docker']
+        final_command.extend(command_options)
+
+        # Log kamel command.
+        command_to_print = " ".join(final_command)
+        PRINT(f"Exec command => {command_to_print}", tag=self.subprocess_name)
+
+        # Launch kafka command in a new process.
+        self.process = subprocess.Popen(final_command,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        start_new_session=True)
+
+    def invoke(self, stop_check=None):
+        return self._check_kafka_output(stop_check)
+
+    def _check_kafka_output(self, stop_check):
+        while True:
+            # Log progress of kafka topic creation subprocess:
+            output = utils.print_log_from_subprocess(self.subprocess_name,
+                                                     self.process.stdout,
+                                                     VERBOSE_MODE())
+            if stop_check is not None and stop_check in output:
                 return True
 
             # Check process has not exited prematurely.

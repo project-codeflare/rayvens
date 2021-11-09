@@ -15,9 +15,9 @@
 #
 
 import os
-import yaml
 from rayvens.core import kamel_utils
 from rayvens.core.mode import mode
+from rayvens.core import catalog_utils
 
 
 # Method to install kamel in a cluster.
@@ -89,24 +89,25 @@ def run(integration_content,
     command = ["run"]
 
     # Append ProcessPath.java file.
-    if _integration_requires_path_processor(integration_content):
+    if catalog_utils.integration_requires_path_processor(integration_content):
         process_file = os.path.join(os.path.dirname(__file__),
                                     'ProcessPath.java')
         command.append(process_file)
 
     # Append ProcessFile.java file.
-    if _integration_requires_file_processor(integration_content):
+    if catalog_utils.integration_requires_file_processor(integration_content):
         process_file = os.path.join(os.path.dirname(__file__),
                                     'ProcessFile.java')
         command.append(process_file)
 
     # Use appropriate Queue type(s).
     if mode.transport == 'http' and integration_type == 'source':
-        if _integration_requires_file_queue(integration_content):
+        if catalog_utils.integration_requires_file_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
             command.append(queue)
 
-        if _integration_requires_file_queue_json(integration_content):
+        if catalog_utils.integration_requires_file_queue_json(
+                integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'FileQueueJson.java')
             command.append(queue)
@@ -114,7 +115,8 @@ def run(integration_content,
             command.append("-d")
             command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-        if _integration_requires_file_watch_queue(integration_content):
+        if catalog_utils.integration_requires_file_watch_queue(
+                integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'FileWatchQueue.java')
             command.append(queue)
@@ -122,12 +124,13 @@ def run(integration_content,
             command.append("-d")
             command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-        if _integration_requires_meta_event_queue(integration_content):
+        if catalog_utils.integration_requires_meta_event_queue(
+                integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'MetaEventQueue.java')
             command.append(queue)
 
-        if _integration_requires_queue(integration_content):
+        if catalog_utils.integration_requires_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
             command.append(queue)
 
@@ -167,24 +170,25 @@ def local_run(integration_content,
     command = ["local", "run"]
 
     # Append ProcessPath.java file.
-    if _integration_requires_path_processor(integration_content):
+    if catalog_utils.integration_requires_path_processor(integration_content):
         process_file = os.path.join(os.path.dirname(__file__),
                                     'ProcessPath.java')
         command.append(process_file)
 
     # Append ProcessFile.java file.
-    if _integration_requires_file_processor(integration_content):
+    if catalog_utils.integration_requires_file_processor(integration_content):
         process_file = os.path.join(os.path.dirname(__file__),
                                     'ProcessFile.java')
         command.append(process_file)
 
     # Use appropriate Queue type(s).
     if mode.transport == 'http' and integration_type == 'source':
-        if _integration_requires_file_queue(integration_content):
+        if catalog_utils.integration_requires_file_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
             command.append(queue)
 
-        if _integration_requires_file_queue_json(integration_content):
+        if catalog_utils.integration_requires_file_queue_json(
+                integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'FileQueueJson.java')
             command.append(queue)
@@ -192,7 +196,8 @@ def local_run(integration_content,
             command.append("-d")
             command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-        if _integration_requires_file_watch_queue(integration_content):
+        if catalog_utils.integration_requires_file_watch_queue(
+                integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'FileWatchQueue.java')
             command.append(queue)
@@ -200,7 +205,8 @@ def local_run(integration_content,
             command.append("-d")
             command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-        if _integration_requires_meta_event_queue(integration_content):
+        if catalog_utils.integration_requires_meta_event_queue(
+                integration_content):
             queue = os.path.join(os.path.dirname(__file__),
                                  'MetaEventQueue.java')
             command.append(queue)
@@ -208,7 +214,7 @@ def local_run(integration_content,
             command.append("-d")
             command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
-        if _integration_requires_queue(integration_content):
+        if catalog_utils.integration_requires_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__), 'Queue.java')
             command.append(queue)
 
@@ -262,52 +268,3 @@ def delete(integration_invocation, integration_name):
     return kamel_utils.invoke_kamel_command(command,
                                             integration_invocation.mode,
                                             integration_name)
-
-
-def _integration_requires_path_processor(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: processPath' in configuration:
-        return True
-    return False
-
-
-def _integration_requires_file_processor(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: processFile' in configuration:
-        return True
-    return False
-
-
-def _integration_requires_file_queue(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: addToFileQueue' in configuration:
-        return True
-    return False
-
-
-def _integration_requires_file_queue_json(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: addToFileJsonQueue' in configuration:
-        return True
-    return False
-
-
-def _integration_requires_file_watch_queue(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: addToFileWatchQueue' in configuration:
-        return True
-    return False
-
-
-def _integration_requires_meta_event_queue(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: addToMetaEventQueue' in configuration:
-        return True
-    return False
-
-
-def _integration_requires_queue(integration_content):
-    configuration = yaml.dump(integration_content)
-    if 'bean: addToQueue' in configuration:
-        return True
-    return False
