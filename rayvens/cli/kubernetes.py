@@ -28,7 +28,7 @@ kubernetes_tag = "kubectl"
 
 
 def get_deployment_yaml(name, namespace, registry, args, with_job_launcher,
-                        integration_config_map):
+                        integration_config_map, k8s_client):
     # Kubernetes deployment options:
     replicas = 1
     full_image_name = utils.get_base_image_name(args)
@@ -54,21 +54,28 @@ def get_deployment_yaml(name, namespace, registry, args, with_job_launcher,
         # Service account for the job lunch permissions:
         service_account = ServiceAccount(utils.job_launcher_service_account,
                                          namespace)
-        combined_configuration.append(service_account.configuration())
+        print("Service Account exists:", service_account.exists(k8s_client))
+        if not service_account.exists(k8s_client):
+            combined_configuration.append(service_account.configuration())
 
         # Create the cluster role specifying the resource type and the
         # allowable actions (verbs). By default all verbs are enabled if
         # none are specified.
         cluster_role = ClusterRole(utils.job_manager_role, namespace)
         cluster_role.add_rule("jobs")
-        combined_configuration.append(cluster_role.configuration())
+        print("Cluster Role exists:", cluster_role.exists(k8s_client))
+        if not cluster_role.exists(k8s_client):
+            combined_configuration.append(cluster_role.configuration())
 
         # Create a cluster role binding between the service account and
         # the cluster role defined above.
         cluster_role_binding = ClusterRoleBinding(
             utils.job_launcher_cluster_role_binding, [service_account],
             cluster_role)
-        combined_configuration.append(cluster_role_binding.configuration())
+        print("Cluster Role Binding exists:",
+              cluster_role_binding.exists(k8s_client))
+        if not cluster_role_binding.exists(k8s_client):
+            combined_configuration.append(cluster_role_binding.configuration())
 
     # Assemble the pod that the deployment will be managing.
     managed_pod = Pod("managed_pod", namespace)
@@ -590,6 +597,16 @@ class ClusterRole(KubeEntity):
             resources_list = [resources]
         self.rules.append(ClusterRoleRule(resources_list, verbs))
 
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.RbacAuthorizationV1Api(k8s_client)
+        cluster_role_list = KubeEntity._exists(self,
+                                               api_instance.list_cluster_role)
+        for item in cluster_role_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
     def _specification(self):
         metadata = {'name': self.name}
         if self.namespace is not None:
@@ -653,6 +670,16 @@ class ClusterRoleBinding(KubeEntity):
         self.cluster_role = cluster_role
         if not isinstance(cluster_role, ClusterRole):
             raise RuntimeError("Input role must be of ClusterRole type.")
+
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.RbacAuthorizationV1Api(k8s_client)
+        cluster_role_binding_list = KubeEntity._exists(
+            self, api_instance.list_cluster_role_binding)
+        for item in cluster_role_binding_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
 
     def _specification(self):
         metadata = {'name': self.name}

@@ -104,11 +104,20 @@ def run_integration(args):
         # Update integration file on image via configMap:
         integration_config_map = kube.ConfigMap(integration_file)
 
+        # Prepare Kubernetes API:
+        from kubernetes import client, config
+        import kubernetes.utils as kube_utils
+        config.load_kube_config()
+
+        # Kubernetes client:
+        k8s_client = client.ApiClient()
+
         # Deploy integration in Kubernetes:
         deployment = kube.get_deployment_yaml(name, namespace,
                                               utils.get_registry(args), args,
                                               with_job_launcher,
-                                              integration_config_map)
+                                              integration_config_map,
+                                              k8s_client)
 
         # Create deployment file:
         deployment_file_name = utils.get_kubernetes_deployment_file_name(name)
@@ -117,14 +126,6 @@ def run_integration(args):
 
         # Ensure all files are emitted onto disk.
         workspace_directory.emit()
-
-        # Prepare Kubernetes API:
-        from kubernetes import client, config
-        import kubernetes.utils as kube_utils
-        config.load_kube_config()
-
-        # Kubernetes client:
-        k8s_client = client.ApiClient()
 
         # Create configMap that updates the integration file.
         integration_config_map.create()
