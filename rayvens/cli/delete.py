@@ -77,77 +77,40 @@ def delete_deployment(args, with_job_launcher_privileges=True):
     # Delete kubernetes deployment for integration.
     from kubernetes import client, config
     config.load_kube_config()
-    k8s_client = client.AppsV1Api(client.ApiClient())
+    k8s_client = client.ApiClient()
 
     # Delete the integration deployment.
     deployment_name = utils.get_kubernetes_integration_name(args.name)
-
-    exception_occured = False
-    try:
-        k8s_client.delete_namespaced_deployment(deployment_name, namespace)
-    except client.exceptions.ApiException:
-        exception_occured = True
+    deployment = kube.Deployment(deployment_name, namespace=namespace)
+    deployment.delete(k8s_client, starting_with=deployment_name)
 
     # Delete the entrypoint service.
-    k8s_client = client.CoreV1Api(client.ApiClient())
-    entrypoint_service = utils.get_kubernetes_entrypoint_name(args.name)
-
-    try:
-        k8s_client.delete_namespaced_service(entrypoint_service, namespace)
-    except client.exceptions.ApiException:
-        exception_occured = True
+    entrypoint_service_name = utils.get_kubernetes_entrypoint_name(args.name)
+    service = kube.Service(entrypoint_service_name, namespace=namespace)
+    service.delete(k8s_client, starting_with=entrypoint_service_name)
 
     # Delete configMap for updating the integration file.
-    count = 0
-    while True:
-        config_map_name = kube.volume_base_name + "-" + str(count)
-        try:
-            k8s_client.delete_namespaced_config_map(config_map_name, namespace)
-        except client.exceptions.ApiException:
-            break
-        else:
-            count += 1
+    config_map = kube.ConfigMap(namespace=namespace)
+    config_map.delete(k8s_client, kube.volume_base_name)
 
     if with_job_launcher_privileges:
         # Delete service account:
         # job-launcher-service-account
         name = utils.job_launcher_service_account
-        try:
-            k8s_client.delete_namespaced_service_account(name, namespace)
-        except client.exceptions.ApiException:
-            exception_occured = True
-
-        api_instance = client.RbacAuthorizationV1Api(client.ApiClient())
+        service_account = kube.ServiceAccount(name, namespace=namespace)
+        service_account.delete(k8s_client)
 
         # Delete cluster role binding:
         # job-launcher-service-account
         name = utils.job_launcher_cluster_role_binding
-        try:
-            api_instance.delete_cluster_role_binding(
-                name, body=client.V1DeleteOptions())
-        except client.exceptions.ApiException:
-            exception_occured = True
+        cluster_role_binding = kube.ClusterRoleBinding(name, [], None)
+        cluster_role_binding.delete(k8s_client)
 
         # Delete cluster role:
         # job-manager-role
         name = utils.job_manager_role
-        try:
-            api_instance.delete_cluster_role(name,
-                                             body=client.V1DeleteOptions())
-        except client.exceptions.ApiException:
-            exception_occured = True
-
-    try:
-        k8s_client.delete_namespaced_service(entrypoint_service, namespace)
-    except client.exceptions.ApiException:
-        exception_occured = True
-
-    if not exception_occured:
-        print(f"Successfully deleted {deployment_name} from {namespace} "
-              "namespace")
-    else:
-        print("Successfully deleted the remaining components of "
-              f"{deployment_name} from {namespace} namespace")
+        cluster_role_binding = kube.ClusterRole(name, namespace=namespace)
+        cluster_role_binding.delete(k8s_client)
 
 
 def delete_local_deployment(args):

@@ -29,14 +29,14 @@ rayvens_random = random.Random()
 rayvens_random.seed()
 
 
-def random_port(check_port):
-    port = rayvens_random.randint(49152, 65535)
+def random_port(check_port=True, start=49152, end=65535):
+    port = rayvens_random.randint(start, end)
     if not check_port:
         return port
 
     while not _port_is_free(port):
         print(f"Port {port} busy, trying new port.")
-        port = rayvens_random.randint(49152, 65535)
+        port = rayvens_random.randint(start, end)
 
     return port
 

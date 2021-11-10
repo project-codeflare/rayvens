@@ -20,7 +20,6 @@ import rayvens.cli.file as file
 import rayvens.cli.docker as docker
 import rayvens.cli.kubernetes as kube
 import rayvens.core.utils as rayvens_utils
-from rayvens.cli.utils import PRINT
 from rayvens.core.catalog import sources, sinks
 from rayvens.core.catalog import construct_source, construct_sink
 from rayvens.cli.docker import docker_run_integration
@@ -37,7 +36,7 @@ def run_integration(args):
     utils.verbose = args.verbose
 
     # Get a free port:
-    docker.free_port = rayvens_utils.random_port(True)
+    docker.free_port = rayvens_utils.random_port()
 
     # Create a work directory in the current directory:
     workspace_directory = file.Directory("workspace")
@@ -102,45 +101,26 @@ def run_integration(args):
             namespace = args.namespace
 
         # Update integration file on image via configMap:
-        integration_config_map = kube.ConfigMap(integration_file)
-
-        # Deploy integration in Kubernetes:
-        deployment = kube.get_deployment_yaml(name, namespace,
-                                              utils.get_registry(args), args,
-                                              with_job_launcher,
-                                              integration_config_map)
-
-        # Create deployment file:
-        deployment_file_name = utils.get_kubernetes_deployment_file_name(name)
-        deployment_file = file.File(deployment_file_name, contents=deployment)
-        workspace_directory.add_file(deployment_file)
-
-        # Ensure all files are emitted onto disk.
-        workspace_directory.emit()
+        integration_config_map = kube.ConfigMap(integration_file,
+                                                namespace=namespace)
 
         # Prepare Kubernetes API:
         from kubernetes import client, config
-        import kubernetes.utils as kube_utils
         config.load_kube_config()
 
         # Kubernetes client:
         k8s_client = client.ApiClient()
 
         # Create configMap that updates the integration file.
-        integration_config_map.create()
+        integration_config_map.create(k8s_client)
 
-        # Create deployment:
-        try:
-            kube_utils.create_from_yaml(k8s_client,
-                                        str(deployment_file.full_path))
-        except kube_utils.FailToCreateError as creation_error:
-            PRINT(f"Failed to create deployment {creation_error}", tag=run_tag)
-        else:
-            PRINT(f"{name} successfully deployed in namespace {namespace}",
-                  tag=run_tag)
+        # Deploy integration in Kubernetes:
+        deployment = kube.get_deployment(name, namespace,
+                                         utils.get_registry(args), args,
+                                         with_job_launcher,
+                                         integration_config_map, k8s_client)
 
-        # Clean-up all emitted files.
-        workspace_directory.delete()
+        deployment.create(k8s_client)
     else:
         # Output endpoint for sink:
         server_address = f"http://localhost:{docker.free_port}"

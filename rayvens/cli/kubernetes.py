@@ -17,6 +17,8 @@
 import yaml
 import subprocess
 import pathlib
+from enum import Enum
+import rayvens.core.utils as rayvens_utils
 import rayvens.cli.file as file
 import rayvens.cli.docker as docker
 import rayvens.cli.utils as utils
@@ -27,48 +29,50 @@ volume_base_name = "rayvens-volume"
 kubernetes_tag = "kubectl"
 
 
-def get_deployment_yaml(name, namespace, registry, args, with_job_launcher,
-                        integration_config_map):
+# Enum that specifies the policy to apply when creating a new Kubernetes
+# entity when a Kubernetes entity with the same name already exists. The
+# policy can only be applied at the time the entity is created to ensure the
+# uniqueness of the name.
+class CreatePolicy(Enum):
+    # Create a new Kubernetes entity with a new unique name:
+    NEW = 1
+
+    # Skip creation of a new entity and reuse the one that exists already:
+    REUSE = 2
+
+    # Delete the old entity and create a new one with the same name:
+    REPLACE = 3
+
+
+def get_deployment(name, namespace, registry, args, with_job_launcher,
+                   integration_config_map, k8s_client):
     # Kubernetes deployment options:
     replicas = 1
-    full_image_name = utils.get_base_image_name(args)
-
     integration_name = utils.get_kubernetes_integration_name(name)
     entrypoint_name = utils.get_kubernetes_entrypoint_name(name)
     label_name = utils.get_kubernetes_label_name(name)
-
-    # TODO: these deployment options work with a local Kubernetes cluster
-    # with a local registry i.e. localhost:5000. Test with actual cluster.
-
     image_name = utils.extract_image_name(args)
-    container = Container(image_name,
-                          full_image_name,
-                          image_pull_policy="Always")
+    container = Container(image_name, args.image, image_pull_policy="Always")
 
     # Update integration file from host file.
     container.update_integration(integration_config_map)
-
-    combined_configuration = []
-
     if with_job_launcher:
         # Service account for the job lunch permissions:
         service_account = ServiceAccount(utils.job_launcher_service_account,
                                          namespace)
-        combined_configuration.append(service_account.configuration())
 
         # Create the cluster role specifying the resource type and the
         # allowable actions (verbs). By default all verbs are enabled if
         # none are specified.
         cluster_role = ClusterRole(utils.job_manager_role, namespace)
         cluster_role.add_rule("jobs")
-        combined_configuration.append(cluster_role.configuration())
 
         # Create a cluster role binding between the service account and
         # the cluster role defined above.
         cluster_role_binding = ClusterRoleBinding(
             utils.job_launcher_cluster_role_binding, [service_account],
             cluster_role)
-        combined_configuration.append(cluster_role_binding.configuration())
+        cluster_role_binding.create(k8s_client)
 
     # Assemble the pod that the deployment will be managing.
     managed_pod = Pod("managed_pod", namespace)
@@ -89,15 +93,15 @@ def get_deployment_yaml(name, namespace, registry, args, with_job_launcher,
     # Create a NodePort service to enable outside communication.
     node_port_spec = NodePortSpec()
     node_port_spec.add_selector("integration", label_name)
-    node_port_spec.add_port(3000, 30001)
+
+    # Fetch unused port:
+    node_port_spec.add_port(3000,
+                            rayvens_utils.random_port(start=30000, end=32767))
     service = Service(entrypoint_name, node_port_spec, namespace=namespace)
+
     # Add the service to the deployment.
     deployment.add_service(service)
-
-    combined_configuration.append(deployment.configuration())
-
-    # print("\n---\n".join(combined_configuration))
-    return "\n---\n".join(combined_configuration)
+    return deployment
 
 
 def kubectl_create_configmap(name, namespace, embedded_file_path):
@@ -156,6 +160,7 @@ class KubeEntity:
         if namespace is not None:
             self._metadata["namespace"] = namespace
         self._labels = {}
+        self._count = 0
         if application is not None:
             self._labels["app"] = application
         self.template = None
@@ -175,24 +180,48 @@ class KubeEntity:
     def file(self):
         return file.File(self.name + ".yaml", contents=self.configuration())
 
-    def _specification(self):
-        raise RuntimeError("KubeEntity objects do not have a specification.")
-
     def create(self, k8s_client):
         import kubernetes.utils as kube_utils
-        try:
-            kube_utils.create_from_dict(k8s_client, self._specification())
-        except kube_utils.FailToCreateError as creation_error:
-            utils.PRINT(f"Failed to create kubernetes entity {creation_error}",
-                        tag=kubernetes_tag)
 
-    def _delete(self, api_method):
+        # Kubernetes entities may or may not support specifications. For those
+        # without a specification method, create the kubernetes entity starting
+        # from the configuration.
+        if hasattr(self, "_specification"):
+            try:
+                kube_utils.create_from_dict(k8s_client, self._specification())
+            except kube_utils.FailToCreateError as creation_error:
+                utils.PRINT(
+                    f"Failed to create kubernetes entity {creation_error}",
+                    tag=kubernetes_tag)
+        else:
+            workspace_directory = file.Directory("kube-workspace")
+            file_name = utils.get_kubernetes_deployment_file_name(self.name)
+            spec_file = file.File(file_name, contents=self.configuration())
+
+            # Materialize file:
+            workspace_directory.add_file(spec_file)
+            workspace_directory.emit()
+
+            # Create entity:
+            try:
+                kube_utils.create_from_yaml(k8s_client,
+                                            str(spec_file.full_path))
+            except kube_utils.FailToCreateError as creation_error:
+                utils.PRINT(
+                    f"Failed to create kubernetes entity {creation_error}.",
+                    tag=kubernetes_tag)
+            else:
+                utils.PRINT(f"{self.name} successfully created.",
+                            tag=kubernetes_tag)
+            workspace_directory.delete()
+
+    def _delete_namespaced(self, api_method, name):
         namespace = self.namespace
         if self.namespace is None:
             namespace = "default"
         from kubernetes.client.rest import ApiException
         try:
-            api_method(self.name, namespace)
+            api_method(name, namespace)
         except ApiException as deletion_error:
             utils.PRINT(f"Failed to delete kubernetes entity {deletion_error}",
                         tag=kubernetes_tag)
@@ -200,7 +229,18 @@ class KubeEntity:
             utils.PRINT(f"Kubernetes entity {self.name} deleted successfully",
                         tag=kubernetes_tag)
 
-    def _exists(self, api_method):
+    def _delete(self, api_method, name):
+        from kubernetes.client.rest import ApiException
+        try:
+            api_method(name)
+        except ApiException as deletion_error:
+            utils.PRINT(f"Failed to delete kubernetes entity {deletion_error}",
+                        tag=kubernetes_tag)
+        else:
+            utils.PRINT(f"Kubernetes entity {self.name} deleted successfully",
+                        tag=kubernetes_tag)
+
+    def _exists_namespaced(self, api_method):
         namespace = self.namespace
         if self.namespace is None:
             namespace = "default"
@@ -213,45 +253,89 @@ class KubeEntity:
                 tag=kubernetes_tag)
         return api_response
 
+    def _exists(self, api_method):
+        from kubernetes.client.rest import ApiException
+        try:
+            api_response = api_method()
+        except ApiException as check_error:
+            utils.PRINT(
+                f"Exception when fetching kubernetes entities {check_error}",
+                tag=kubernetes_tag)
+        return api_response
+
 
 # apiVersion: v1
 # kind: ConfigMap
 # metadata:
-#   creationTimestamp: 2017-12-27T18:36:28Z
 #   name: game-config-env-file
 #   namespace: default
-#   resourceVersion: "809965"
-#   uid: d9d1ca5b-eb34-11e7-887b-42010a8002b8
 # data:
 #   filename.ext: |+
 # <file_contents>
 
 
 class ConfigMap(KubeEntity):
-    def __init__(self, embedded_file):
-        KubeEntity.__init__(self, "config-map")
+    def __init__(self, embedded_file=None, namespace=None):
+        KubeEntity.__init__(self, "config-map", namespace=namespace)
         self.api_version = "v1"
         self.kind = "ConfigMap"
-        if file is not None and not isinstance(embedded_file, file.File):
+        if embedded_file is not None and not isinstance(
+                embedded_file, file.File):
             raise RuntimeError("Input file must be of File type.")
         self.embedded_file = embedded_file
+        self._create_policy = CreatePolicy.NEW
 
     def _specification(self):
         raise RuntimeError("Not implemented yet for this kubernetes entity.")
 
-    def create(self):
-        self.embedded_file.emit()
-        utils.PRINT(f"Create {self.name} in namespace {self.namespace}.",
-                    tag=kubernetes_tag)
-        kubectl_create_configmap(self.name, self.namespace,
-                                 self.embedded_file.full_path)
-        # kubectl_get_yaml("configmap", self.name, self.namespace)
-        self.embedded_file.delete()
+    def create(self, k8s_client, create_policy=None):
+        policy = self._create_policy
+        if create_policy is not None and isinstance(create_policy,
+                                                    CreatePolicy):
+            policy = create_policy
+        if policy == CreatePolicy.NEW:
+            while True:
+                self.name = volume_base_name + "-" + str(self._count)
+                if not self.exists(k8s_client):
+                    self.embedded_file.emit()
+                    utils.PRINT(
+                        f"Create {self.name} in namespace {self.namespace}.",
+                        tag=kubernetes_tag)
+                    kubectl_create_configmap(self.name, self.namespace,
+                                             self.embedded_file.full_path)
+                    # kubectl_get_yaml("configmap", self.name, self.namespace)
+                    self.embedded_file.delete()
+                    self._count += 1
+                    break
+                self._count += 1
+        else:
+            raise RuntimeError(
+                f"Create policy {create_policy} not implemented.")
 
-    def delete(self, k8s_client):
+    def exists(self, k8s_client):
         from kubernetes import client
         api_instance = client.CoreV1Api(k8s_client)
-        self._delete(api_instance.delete_namespaced_config_map)
+        config_map_list = KubeEntity._exists_namespaced(
+            self, api_instance.list_namespaced_config_map)
+        for item in config_map_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
+    def delete(self, k8s_client, starting_with=None):
+        from kubernetes import client
+        api_instance = client.CoreV1Api(k8s_client)
+        if starting_with is not None:
+            config_map_list = KubeEntity._exists_namespaced(
+                self, api_instance.list_namespaced_config_map)
+            for item in config_map_list.items:
+                if item.metadata.name.startswith(starting_with):
+                    KubeEntity._delete_namespaced(
+                        self, api_instance.delete_namespaced_config_map,
+                        item.metadata.name)
+        else:
+            KubeEntity._delete_namespaced(
+                self, api_instance.delete_namespaced_config_map, self.name)
 
 
 #  apiVersion: v1
@@ -299,11 +383,6 @@ class Volume:
             self.host_file_path.name)
         if isinstance(self.mount_file_path, str):
             self.mount_file_path = pathlib.Path(self.mount_file_path)
-        # The configMap object inherits the name and namespace of the volume
-        # it is included in. TODO: make it such that the volume inherits the
-        # the name and namespace from the configMap.
-        integration_config_map.name = self.name
-        integration_config_map.namespace = self.namespace
 
     def _volume_specification(self):
         spec = {'name': self.name}
@@ -350,8 +429,7 @@ class Container:
         self._envvars.append({"name": env_var_name, "value": value})
 
     def update_integration(self, integration_config_map):
-        volume = Volume(volume_base_name + "-" +
-                        str(self._volume_mounted_count))
+        volume = Volume(integration_config_map.name)
         volume._update_integration_file(integration_config_map)
         self._volumes.append(volume)
         self._volume_mounted_count += 1
@@ -393,6 +471,7 @@ class Pod(KubeEntity):
         self.kind = "Pod"
         self.containers = []
         self._service_account = None
+        self._create_policy = CreatePolicy.NEW
 
     def add_container(self, container):
         self.containers.append(container)
@@ -465,6 +544,7 @@ class Job(KubeEntity):
         self.containers = []
         self.restart_policy = "Never"
         self.backoff_limit = 4
+        self._create_policy = CreatePolicy.NEW
 
     def add_container(self, container):
         self.containers.append(container)
@@ -509,6 +589,7 @@ class ServiceAccount(KubeEntity):
         KubeEntity.__init__(self, name, namespace=namespace)
         self.api_version = "v1"
         self.kind = "ServiceAccount"
+        self._create_policy = CreatePolicy.REUSE
 
     def _specification(self):
         metadata = {'name': self.name}
@@ -521,18 +602,42 @@ class ServiceAccount(KubeEntity):
         }
         return spec
 
+    def create(self, k8s_client, create_policy=None):
+        policy = self._create_policy
+        if create_policy is not None and isinstance(create_policy,
+                                                    CreatePolicy):
+            policy = create_policy
+        if policy == CreatePolicy.REUSE:
+            if not self.exists(k8s_client):
+                KubeEntity.create(self, k8s_client)
+        else:
+            raise RuntimeError(f"Policy {policy} not implemented.")
+
     def exists(self, k8s_client):
         from kubernetes import client
         api_instance = client.CoreV1Api(k8s_client)
-        service_account_list = KubeEntity._exists(
+        service_account_list = KubeEntity._exists_namespaced(
             self, api_instance.list_namespaced_service_account)
         for item in service_account_list.items:
             if item.metadata.name == self.name:
                 return True
         return False
 
-    def delete(self, k8s_client):
-        self._delete(k8s_client.delete_namespaced_service_account)
+    def delete(self, k8s_client, starting_with=None):
+        from kubernetes import client
+        api_instance = client.CoreV1Api(k8s_client)
+        if starting_with is not None:
+            service_account_list = KubeEntity._exists_namespaced(
+                self, api_instance.list_namespaced_service_account)
+            for item in service_account_list.items:
+                if item.metadata.name.startswith(starting_with):
+                    KubeEntity._delete_namespaced(
+                        self, api_instance.delete_namespaced_service_account,
+                        item.metadata.name)
+        elif self.exists(k8s_client):
+            KubeEntity._delete_namespaced(
+                self, api_instance.delete_namespaced_service_account,
+                self.name)
 
 
 # apiVersion: rbac.authorization.k8s.io/v1
@@ -583,6 +688,7 @@ class ClusterRole(KubeEntity):
         self.api_version = "rbac.authorization.k8s.io/v1"
         self.kind = "ClusterRole"
         self.rules = []
+        self._create_policy = CreatePolicy.REUSE
 
     def add_rule(self, resources, verbs=[]):
         resources_list = resources
@@ -590,20 +696,58 @@ class ClusterRole(KubeEntity):
             resources_list = [resources]
         self.rules.append(ClusterRoleRule(resources_list, verbs))
 
-    def _specification(self):
-        metadata = {'name': self.name}
-        if self.namespace is not None:
-            metadata['namespace'] = self.namespace
-        rules = []
-        for rule in self.rules:
-            rules.append(rule._specification())
-        spec = {
-            'apiVersion': self.api_version,
-            'kind': self.kind,
-            'metadata': metadata,
-            'rules': rules
-        }
-        return spec
+    def create(self, k8s_client, create_policy=None):
+        policy = self._create_policy
+        if create_policy is not None and isinstance(create_policy,
+                                                    CreatePolicy):
+            policy = create_policy
+        if policy == CreatePolicy.REUSE:
+            if not self.exists(k8s_client):
+                KubeEntity.create(self, k8s_client)
+        else:
+            raise RuntimeError(f"Policy {policy} not implemented.")
+
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.RbacAuthorizationV1Api(k8s_client)
+        cluster_role_list = KubeEntity._exists(self,
+                                               api_instance.list_cluster_role)
+        for item in cluster_role_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
+    def delete(self, k8s_client, starting_with=None):
+        from kubernetes import client
+        api_instance = client.RbacAuthorizationV1Api(k8s_client)
+        if starting_with is not None:
+            role_binding_list = KubeEntity._exists(
+                self, api_instance.list_cluster_role)
+            for item in role_binding_list.items:
+                if item.metadata.name.startswith(starting_with):
+                    KubeEntity._delete(self, api_instance.delete_cluster_role,
+                                       item.metadata.name)
+        elif self.exists(k8s_client):
+            KubeEntity._delete(self, api_instance.delete_cluster_role,
+                               self.name)
+
+    # ISSUE: ClusterRoleRule cannot be encoded using the specification
+    # notation. This is due to the special syntax for rule which does
+    # not translate using the Python yaml package.
+    # def _specification(self):
+    #     metadata = {'name': self.name}
+    #     if self.namespace is not None:
+    #         metadata['namespace'] = self.namespace
+    #     rules = []
+    #     for rule in self.rules:
+    #         rules.append(rule._specification())
+    #     spec = {
+    #         'apiVersion': self.api_version,
+    #         'kind': self.kind,
+    #         'metadata': metadata,
+    #         'rules': rules
+    #     }
+    #     return spec
 
     def configuration(self):
         result = [" ".join(["apiVersion:", self.api_version])]
@@ -651,8 +795,60 @@ class ClusterRoleBinding(KubeEntity):
         self.kind = "ClusterRoleBinding"
         self.subjects = subjects
         self.cluster_role = cluster_role
-        if not isinstance(cluster_role, ClusterRole):
+        self._create_policy = CreatePolicy.REUSE
+        if cluster_role is not None and not isinstance(cluster_role,
+                                                       ClusterRole):
             raise RuntimeError("Input role must be of ClusterRole type.")
+
+    def create(self, k8s_client, create_policy=None):
+        # Create all subjects:
+        for subject in self.subjects:
+            if not hasattr(subject, "create"):
+                raise RuntimeError(
+                    "Cluster role binding subject has no create method.")
+            subject.create(k8s_client)
+
+        # Create cluster role:
+        if not hasattr(self.cluster_role, "create"):
+            raise RuntimeError(
+                "Cluster role binding subject has no create method.")
+        self.cluster_role.create(k8s_client)
+
+        # Create cluster role binding:
+        policy = self._create_policy
+        if create_policy is not None and isinstance(create_policy,
+                                                    CreatePolicy):
+            policy = create_policy
+        if policy == CreatePolicy.REUSE:
+            if not self.exists(k8s_client):
+                KubeEntity.create(self, k8s_client)
+        else:
+            raise RuntimeError(f"Policy {policy} not implemented.")
+
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.RbacAuthorizationV1Api(k8s_client)
+        cluster_role_binding_list = KubeEntity._exists(
+            self, api_instance.list_cluster_role_binding)
+        for item in cluster_role_binding_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
+    def delete(self, k8s_client, starting_with=None):
+        from kubernetes import client
+        api_instance = client.RbacAuthorizationV1Api(k8s_client)
+        if starting_with is not None:
+            cluster_role_binding_list = KubeEntity._exists(
+                self, api_instance.list_cluster_role_binding)
+            for item in cluster_role_binding_list.items:
+                if item.metadata.name.startswith(starting_with):
+                    KubeEntity._delete(
+                        self, api_instance.delete_cluster_role_binding,
+                        item.metadata.name)
+        elif self.exists(k8s_client):
+            KubeEntity._delete(self, api_instance.delete_cluster_role_binding,
+                               self.name)
 
     def _specification(self):
         metadata = {'name': self.name}
@@ -730,11 +926,53 @@ class NodePortSpec(ServiceSpec):
 
 
 class Service(KubeEntity):
-    def __init__(self, name, spec, namespace=None):
+    def __init__(self, name, spec=None, namespace=None):
         KubeEntity.__init__(self, name, namespace=namespace)
         self.api_version = "v1"
         self.kind = "Service"
         self.spec = spec
+        self._create_policy = CreatePolicy.NEW
+
+    def create(self, k8s_client, create_policy=None):
+        policy = self._create_policy
+        if create_policy is not None and isinstance(create_policy,
+                                                    CreatePolicy):
+            policy = create_policy
+        if policy == CreatePolicy.NEW:
+            old_name = self.name
+            while True:
+                if not self.exists(k8s_client):
+                    KubeEntity.create(self, k8s_client)
+                    break
+                self.name = old_name + "-" + str(self._count)
+                self._count += 1
+        else:
+            raise RuntimeError(f"Policy {policy} not implemented.")
+
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.CoreV1Api(k8s_client)
+        service_list = KubeEntity._exists_namespaced(
+            self, api_instance.list_namespaced_service)
+        for item in service_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
+    def delete(self, k8s_client, starting_with=None):
+        from kubernetes import client
+        api_instance = client.CoreV1Api(k8s_client)
+        if starting_with is not None:
+            service_list = KubeEntity._exists_namespaced(
+                self, api_instance.list_namespaced_service)
+            for item in service_list.items:
+                if item.metadata.name.startswith(starting_with):
+                    KubeEntity._delete_namespaced(
+                        self, api_instance.delete_namespaced_service,
+                        item.metadata.name)
+        elif self.exists(k8s_client):
+            KubeEntity._delete_namespaced(
+                self, api_instance.delete_namespaced_service, self.name)
 
     def _specification(self):
         metadata = {'name': self.name}
@@ -776,21 +1014,76 @@ class Service(KubeEntity):
 
 
 class Deployment(KubeEntity):
-    def __init__(self, name, managed_pod, namespace=None, replicas=None):
+    def __init__(self, name, managed_pod=None, namespace=None, replicas=None):
         KubeEntity.__init__(self, name, namespace=namespace)
         self.api_version = "apps/v1"
         self.kind = "Deployment"
         self.replicas = replicas
         self.match_labels = {}
         self.managed_pod = managed_pod
-        self.match_labels.update(managed_pod._labels)
+        if managed_pod is not None:
+            self.match_labels.update(managed_pod._labels)
         self._services = []
+        self._create_policy = CreatePolicy.NEW
 
     def add_match_label(self, selector_name, label_name):
         self.match_labels[selector_name] = label_name
 
     def add_service(self, service):
         self._services.append(service)
+
+    def add_managed_pod(self, managed_pod):
+        self.managed_pod = managed_pod
+        if managed_pod is not None:
+            self.match_labels.update(managed_pod._labels)
+
+    def create(self, k8s_client, create_policy=None):
+        # Create all services:
+        for service in self._services:
+            if not hasattr(service, "create"):
+                raise RuntimeError("Service does not have create method.")
+            service.create(k8s_client)
+
+        # Create deployment:
+        policy = self._create_policy
+        if create_policy is not None and isinstance(create_policy,
+                                                    CreatePolicy):
+            policy = create_policy
+        if policy == CreatePolicy.NEW:
+            old_name = self.name
+            while True:
+                if not self.exists(k8s_client):
+                    KubeEntity.create(self, k8s_client)
+                    break
+                self.name = old_name + "-" + str(self._count)
+                self._count += 1
+        else:
+            raise RuntimeError(f"Policy {policy} not implemented.")
+
+    def exists(self, k8s_client):
+        from kubernetes import client
+        api_instance = client.AppsV1Api(k8s_client)
+        deployment_list = KubeEntity._exists_namespaced(
+            self, api_instance.list_namespaced_deployment)
+        for item in deployment_list.items:
+            if item.metadata.name == self.name:
+                return True
+        return False
+
+    def delete(self, k8s_client, starting_with=None):
+        from kubernetes import client
+        api_instance = client.AppsV1Api(k8s_client)
+        if starting_with is not None:
+            deployment_list = KubeEntity._exists_namespaced(
+                self, api_instance.list_namespaced_deployment)
+            for item in deployment_list.items:
+                if item.metadata.name.startswith(starting_with):
+                    KubeEntity._delete_namespaced(
+                        self, api_instance.delete_namespaced_deployment,
+                        item.metadata.name)
+        elif self.exists(k8s_client):
+            KubeEntity._delete_namespaced(
+                self, api_instance.delete_namespaced_deployment, self.name)
 
     def _specification(self):
         metadata = {'name': self.name}

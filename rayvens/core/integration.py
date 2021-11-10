@@ -62,7 +62,7 @@ class Integration:
         self.thread = None
 
     def invoke_local_run(self, mode, integration_content):
-        self.port = random_port(mode.check_port)
+        self.port = random_port(check_port=mode.check_port)
         self.invocation = kamel.local_run(
             [integration_content],
             mode,
