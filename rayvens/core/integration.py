@@ -132,19 +132,10 @@ class Integration:
         # process that runs it.
         self.invocation.kill()
 
-    # Check if the sink we are routing the message to has any restrictions
-    # in terms of message type. A message will only be routed to a sink
-    # if the sink accepts its type.
-    def accepts_data_type(self, data):
+    # Get any type restrictions:
+    def get_restricted_data_type(self):
         # If there are no restrictions return immediately:
-        restricted_message_types = self.input_restrictions[
-            'restricted_message_types']
-        if len(restricted_message_types) == 0:
-            return True
-        for restricted_type in restricted_message_types:
-            if isinstance(data, restricted_type):
-                return True
-        return False
+        return self.input_restrictions['restricted_message_types']
 
     # Method that checks if, based on the configuration, the integration
     # requires something to be run or created before the integration is run.
