@@ -18,7 +18,9 @@ import ray
 import rayvens
 import sys
 
-# Send message to Slack sink using a multi-tasking operator.
+# Send message to Slack sink using a multi-tasking operator. The operator
+# will be a Ray Task which spawns three other Ray Tasks. Each of the three
+# spawned tasks will send their event to the sinks attached to the stream.
 
 # Command line arguments and validation:
 if len(sys.argv) < 4:
