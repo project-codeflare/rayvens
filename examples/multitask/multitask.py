@@ -70,7 +70,8 @@ sink_config = dict(kind='slack-sink',
 # Add sink to stream.
 sink = stream.add_sink(sink_config)
 
-stream.add_multi_operator(multi_part_task)
+# Add multi-task operator to stream.
+stream.add_multitask_operator(multi_part_task)
 
 # Sends message to all sinks attached to this stream.
 stream << f'Sending message to Slack sink in run mode {run_mode}.'

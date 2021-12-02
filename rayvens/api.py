@@ -177,7 +177,7 @@ class StreamActor:
     def add_operator(self, operator):
         self._operator = operator
 
-    def add_multi_operator(self, operator):
+    def add_multitask_operator(self, operator):
         self._operator = operator
         self.context.is_multi_operator = True
 
@@ -250,7 +250,6 @@ class StreamActor:
         self.context.latest_sent_event_timestamp = timestamp
 
 
-# def _eval(f, data, subscribers=None, is_multi_operator=False):
 def _eval(context, f, data):
     if isinstance(f, Stream):
         return f.append(data)
