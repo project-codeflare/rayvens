@@ -47,8 +47,7 @@ sink_config = dict(kind='cloud-object-storage-sink',
                    bucket_name=bucket,
                    access_key_id=access_key_id,
                    secret_access_key=secret_access_key,
-                   endpoint=endpoint,
-                   file_name="test-file-name.txt")
+                   endpoint=endpoint)
 
 if region is not None:
     sink_config['region'] = region
@@ -57,7 +56,9 @@ if region is not None:
 sink = stream.add_sink(sink_config)
 
 # Send file contents to Cloud Object Storage:
-stream << "File contents sample!"
+event = rayvens.OutputEvent("File contents sample!",
+                            {"CamelAwsS3Key": "custom_file.txt"})
+stream << event
 
 # Run for a while
 time.sleep(10)

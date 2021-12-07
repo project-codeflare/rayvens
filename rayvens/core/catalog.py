@@ -578,18 +578,19 @@ def cos_sink(config):
 
     # This is the default behavior when user application data is
     # written into a COS file directly.
-    if 'file_name' not in config:
-        raise TypeError('Created cloud object name is required.')
-    regular_spec = {
-        'steps': [{
-            'set-header': {
-                'name': 'CamelAwsS3Key',
-                'simple': f"{file_name}"
-            }
-        }, {
-            'to': uri
-        }]
-    }
+    if 'file_name' in config:
+        regular_spec = {
+            'steps': [{
+                'set-header': {
+                    'name': 'CamelAwsS3Key',
+                    'simple': f"{file_name}"
+                }
+            }, {
+                'to': uri
+            }]
+        }
+    else:
+        regular_spec = {'steps': [{'to': uri}]}
     spec_list.append((regular_spec, None))
     return spec_list
 
