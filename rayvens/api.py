@@ -56,6 +56,9 @@ class Stream:
     def add_operator(self, operator):
         return ray.get(self.actor.add_operator.remote(operator))
 
+    def add_multi_operator(self, operator):
+        return ray.get(self.actor.add_multi_operator.remote(operator))
+
     def add_source(self, source_config):
         return ray.get(self.actor.add_source.remote(self, source_config))
 
@@ -112,44 +115,71 @@ class Stream:
         return time.time() - latest_timestamp
 
 
+class StreamContext:
+    def __init__(self):
+        self.sink_restrictions = {}
+        self.subscribers = {}
+        self.latest_sent_event_timestamp = None
+        self.event_counter = 0
+        self.limit_subscribers = False
+        self.is_multi_operator = False
+
+    def publish(self, data):
+        if data is not None:
+            for name, subscriber in self.subscribers.items():
+                if name in self.sink_restrictions:
+                    type_restrictions = self.sink_restrictions[name]
+                    if not self._accepts_data_type(data, type_restrictions):
+                        continue
+                _eval(self, subscriber, data)
+
+    # Check if the sink we are routing the message to has any restrictions
+    # in terms of message type. A message will only be routed to a sink
+    # if the sink accepts its type.
+    def _accepts_data_type(self, data, type_restrictions):
+        # If there are no restrictions return immediately:
+        if len(type_restrictions) == 0:
+            return True
+        for restricted_type in type_restrictions:
+            if isinstance(data, restricted_type):
+                return True
+        return False
+
+
 @ray.remote(num_cpus=0)
 class StreamActor:
     def __init__(self, name, operator=None):
         self.name = name
-        self._subscribers = {}
         self._operator = operator
         self._sources = {}
         self._sinks = {}
-        self._latest_sent_event_timestamp = None
-        self._limit_subscribers = False
-        self._event_counter = 0
+        self.context = StreamContext()
 
     def send_to(self, subscriber, name=None):
-        if self._limit_subscribers:
+        if self.context.limit_subscribers:
             return
-        if name in self._subscribers:
+        if name in self.context.subscribers:
             raise RuntimeError(
                 f'Stream {self.name} already has a subscriber named {name}.')
         if name is None:
             name = object()
-        self._subscribers[name] = subscriber
+        self.context.subscribers[name] = subscriber
 
     def append(self, data):
         if data is None:
             return
         if self._operator is not None:
-            data = _eval(self._operator, data)
-        for name, subscriber in self._subscribers.items():
-            if name in self._sinks:
-                integration = self._sinks[name]
-                if not integration.accepts_data_type(data):
-                    continue
-            _eval(subscriber, data)
-        self._latest_sent_event_timestamp = time.time()
-        self._event_counter += 1
+            data = _eval(self.context, self._operator, data)
+        self.context.publish(data)
+        self.context.latest_sent_event_timestamp = time.time()
+        self.context.event_counter += 1
 
     def add_operator(self, operator):
         self._operator = operator
+
+    def add_multitask_operator(self, operator):
+        self._operator = operator
+        self.context.is_multi_operator = True
 
     def add_source(self, stream, source_config):
         source_config["integration_type"] = 'source'
@@ -170,13 +200,15 @@ class StreamActor:
                 f'Stream {self.name} already has a sink named {sink_name}.')
         self._sinks[sink_name] = _global_camel.add_sink(
             stream, sink_config, sink_name)
+        self.context.sink_restrictions[sink_name] = self._sinks[
+            sink_name].get_restricted_data_type()
         return sink_name
 
     def unsubscribe(self, subscriber_name):
         if subscriber_name not in self._subscribers:
             raise RuntimeError(f'Stream {self.name} has no subscriber named'
                                f' {subscriber_name}.')
-        self._subscribers.pop(subscriber_name)
+        self.context.subscribers.pop(subscriber_name)
 
     def disconnect_source(self, source_name):
         if source_name not in self._sources:
@@ -191,7 +223,8 @@ class StreamActor:
                 f'Stream {self.name} has no sink named {sink_name}.')
         _global_camel.disconnect(self._sinks[sink_name])
         self._sinks.pop(sink_name)
-        self._subscribers.pop(sink_name)
+        self.context.sink_restrictions.pop(sink_name)
+        self.context.subscribers.pop(sink_name)
 
     def disconnect_all(self, stream_drain_timeout):
         for source_name in dict(self._sources):
@@ -201,29 +234,35 @@ class StreamActor:
             self.disconnect_sink(sink_name)
 
     def event_count(self):
-        return self.event_count
+        return self.context.event_counter
 
     def _meta(self, action, *args, **kwargs):
         return verify_do(self, _global_camel, action, *args, **kwargs)
 
     def _get_latest_timestamp(self):
-        return self._latest_sent_event_timestamp
+        return self.context.latest_sent_event_timestamp
 
     def _fetch_processors(self):
-        self._limit_subscribers = True
-        return self._subscribers, self._operator
+        self.context.limit_subscribers = True
+        return self.context.subscribers, self._operator
 
     def _update_timestamp(self, timestamp):
-        self._latest_sent_event_timestamp = timestamp
+        self.context.latest_sent_event_timestamp = timestamp
 
 
-def _eval(f, data):
+def _eval(context, f, data):
     if isinstance(f, Stream):
         return f.append(data)
     elif isinstance(f, ray.actor.ActorHandle):
         return f.append.remote(data)
-    elif isinstance(f, ray.actor.ActorMethod) or isinstance(
-            f, ray.remote_function.RemoteFunction):
+    elif isinstance(f, ray.actor.ActorMethod):
+        return f.remote(data)
+    elif isinstance(f, ray.remote_function.RemoteFunction):
+        if context.is_multi_operator:
+            if context.subscribers is None:
+                raise RuntimeError('No subscribers or sinks provided.')
+            f.remote(context, data)
+            return None
         return f.remote(data)
     else:
         return f(data)
