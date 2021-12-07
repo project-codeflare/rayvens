@@ -18,6 +18,7 @@ import ray
 import rayvens
 import sys
 import time
+import json
 
 # This example demonstrates how to send objects to the AWS S3 or
 # IBM Cloud Object Storage.
@@ -56,8 +57,9 @@ if region is not None:
 sink = stream.add_sink(sink_config)
 
 # Send file contents to Cloud Object Storage:
-event = rayvens.OutputEvent("File contents sample!",
-                            {"CamelAwsS3Key": "custom_file.txt"})
+json_content = ['test', {'json': ('content', None, 1.0, 2)}]
+event = rayvens.OutputEvent(json.dumps(json_content),
+                            {"CamelAwsS3Key": "custom_file.json"})
 stream << event
 
 # Run for a while
