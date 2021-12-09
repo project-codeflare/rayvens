@@ -203,9 +203,11 @@ class ProducerHelper:
         self.name = name
         self.producer = Producer({'bootstrap.servers': brokers()})
 
-    def produce(self, data):
+    def produce(self, data, headers={}):
         if data is not None:
-            self.producer.produce(self.name, data.encode('utf-8'))
+            self.producer.produce(self.name,
+                                  data.encode('utf-8'),
+                                  headers=headers)
 
 
 @ray.remote(num_cpus=0.05)

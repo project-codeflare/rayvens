@@ -455,7 +455,7 @@ def cos_sink(config):
     secret_access_key = config['secret_access_key']
     endpoint = config['endpoint']
 
-    file_name = None
+    file_name = "default.txt"
     if 'file_name' in config:
         file_name = config['file_name']
 

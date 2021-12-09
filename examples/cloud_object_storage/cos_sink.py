@@ -38,6 +38,10 @@ if len(sys.argv) == 6:
 
 # Initialize Ray and Rayvens
 ray.init()
+
+# TODO: make header setting work for Kafka transport. Currently the
+# Camel-K component for Kafka does not propagate message headers.
+# rayvens.init(transport="kafka")
 rayvens.init()
 
 # Create an object stream
