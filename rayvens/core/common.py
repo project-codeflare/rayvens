@@ -28,6 +28,12 @@ from ray.actor import ActorHandle, ActorMethod
 from ray.remote_function import RemoteFunction
 
 
+class OutputEvent:
+    def __init__(self, data, headers={}):
+        self.data = data
+        self.headers = headers
+
+
 def get_run_mode(camel_mode, check_port):
     if camel_mode == 'auto' or camel_mode == 'local':
         mode.run_mode = RayvensMode.LOCAL
@@ -116,11 +122,22 @@ class ProducerActor:
         self.url = url
 
     def append(self, data):
+        event_data = data
+        event_headers = {}
+        if isinstance(data, OutputEvent):
+            event_data = data.data
+            event_headers = data.headers
         try:
             if isinstance(data, Path):
-                requests.post(self.url, str(data), timeout=(5, None))
+                requests.post(self.url,
+                              str(event_data),
+                              timeout=(5, None),
+                              headers=event_headers)
             else:
-                requests.post(self.url, data, timeout=(5, None))
+                requests.post(self.url,
+                              event_data,
+                              timeout=(5, None),
+                              headers=event_headers)
         except requests.exceptions.ConnectionError:
             pass
 
@@ -170,10 +187,15 @@ class KafkaProducerActor:
         self.producer = ProducerHelper(name)
 
     def append(self, data):
+        event_data = data
+        event_headers = {}
+        if isinstance(data, OutputEvent):
+            event_data = data.data
+            event_headers = data.headers
         if isinstance(data, Path):
-            self.producer.produce(str(data))
+            self.producer.produce(str(event_data), headers=event_headers)
         else:
-            self.producer.produce(data)
+            self.producer.produce(event_data, headers=event_headers)
 
 
 class ProducerHelper:
@@ -181,9 +203,11 @@ class ProducerHelper:
         self.name = name
         self.producer = Producer({'bootstrap.servers': brokers()})
 
-    def produce(self, data):
+    def produce(self, data, headers={}):
         if data is not None:
-            self.producer.produce(self.name, data.encode('utf-8'))
+            self.producer.produce(self.name,
+                                  data.encode('utf-8'),
+                                  headers=headers)
 
 
 @ray.remote(num_cpus=0.05)

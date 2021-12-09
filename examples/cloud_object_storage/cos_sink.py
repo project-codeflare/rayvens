@@ -18,6 +18,7 @@ import ray
 import rayvens
 import sys
 import time
+import json
 
 # This example demonstrates how to send objects to the AWS S3 or
 # IBM Cloud Object Storage.
@@ -37,6 +38,11 @@ if len(sys.argv) == 6:
 
 # Initialize Ray and Rayvens
 ray.init()
+
+# TODO: make header setting work for Kafka transport. Currently the
+# Camel-K component for Kafka does not propagate message headers. This
+# will be fixed by Camel-K 1.8.0 release.
+# rayvens.init(transport="kafka")
 rayvens.init()
 
 # Create an object stream
@@ -47,8 +53,7 @@ sink_config = dict(kind='cloud-object-storage-sink',
                    bucket_name=bucket,
                    access_key_id=access_key_id,
                    secret_access_key=secret_access_key,
-                   endpoint=endpoint,
-                   file_name="test-file-name.txt")
+                   endpoint=endpoint)
 
 if region is not None:
     sink_config['region'] = region
@@ -57,7 +62,10 @@ if region is not None:
 sink = stream.add_sink(sink_config)
 
 # Send file contents to Cloud Object Storage:
-stream << "File contents sample!"
+json_content = ['test', {'json': ('content', None, 1.0, 2)}]
+event = rayvens.OutputEvent(json.dumps(json_content),
+                            {"CamelAwsS3Key": "custom_file.json"})
+stream << event
 
 # Run for a while
 time.sleep(10)

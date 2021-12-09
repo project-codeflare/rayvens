@@ -15,5 +15,6 @@
 #
 
 from rayvens.api import init, Stream
+from rayvens.core.common import OutputEvent
 
-__all__ = ['init', 'Stream']
+__all__ = ['init', 'Stream', 'OutputEvent']
