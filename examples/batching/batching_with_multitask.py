@@ -18,7 +18,8 @@ import ray
 import rayvens
 import sys
 
-# Send message to Slack sink using a stream which batches events.
+# Send message to Slack sink using a stream which batches events and a
+# multi-task operator.
 
 # Command line arguments and validation:
 if len(sys.argv) < 4:
@@ -40,14 +41,20 @@ else:
 rayvens.init(mode=run_mode)
 
 # Create stream.
-stream = rayvens.Stream('slack', batch_size=2)
+stream = rayvens.Stream('slack', batch_size=6)
+
+
+# Operator sub-task:
+@ray.remote
+def sub_task(context, sub_event):
+    context.publish(sub_event)
 
 
 # Operator task:
 @ray.remote
-def batching_operator(incoming_events):
-    print(incoming_events)
-    return " ".join(incoming_events)
+def batching_multi_task_operator(context, incoming_events):
+    for sub_event in incoming_events:
+        sub_task.remote(context, sub_event)
 
 
 # Event sink config.
@@ -60,7 +67,7 @@ sink_config = dict(kind='slack-sink',
 sink = stream.add_sink(sink_config)
 
 # Add multi-task operator to stream.
-stream.add_operator(batching_operator)
+stream.add_multitask_operator(batching_multi_task_operator)
 
 # Sends messages to all sinks attached to this stream.
 stream << "Hello"

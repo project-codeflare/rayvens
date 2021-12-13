@@ -58,9 +58,9 @@ class Stream:
     def add_operator(self, operator, batch_size=None):
         return ray.get(self.actor.add_operator.remote(operator, batch_size))
 
-    def add_multi_operator(self, operator, batch_size=None):
+    def add_multitask_operator(self, operator, batch_size=None):
         return ray.get(
-            self.actor.add_multi_operator.remote(operator, batch_size))
+            self.actor.add_multitask_operator.remote(operator, batch_size))
 
     def add_source(self, source_config):
         return ray.get(self.actor.add_source.remote(self, source_config))
