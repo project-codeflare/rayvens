@@ -245,12 +245,28 @@ class StreamActor:
     def disconnect_all(self, stream_drain_timeout):
         for source_name in dict(self._sources):
             self.disconnect_source(source_name)
+        if self.queue is not None:
+            self.flush_batch()
         time.sleep(stream_drain_timeout)
         for sink_name in dict(self._sinks):
             self.disconnect_sink(sink_name)
 
     def event_count(self):
         return self.context.event_counter
+
+    def flush_batch(self):
+        data = None
+        if self.queue is not None:
+            data = list(self.queue.queue)
+            with self.queue.mutex:
+                self.queue.queue.clear()
+        if data is None:
+            return
+        if self._operator is not None:
+            data = _eval(self.context, self._operator, data)
+        self.context.publish(data)
+        self.context.latest_sent_event_timestamp = time.time()
+        self.context.event_counter += 1
 
     def _meta(self, action, *args, **kwargs):
         return verify_do(self, _global_camel, action, *args, **kwargs)
