@@ -52,10 +52,11 @@ source_config = dict(
 source = source_stream.add_source(source_config)
 
 # Verify outcome.
-source_stream._meta('verify_log',
-                    test_sink,
-                    "quoteResponse",
-                    wait_for_events=True)
+rayvens.meta(source_stream,
+             'verify_log',
+             test_sink,
+             "quoteResponse",
+             wait_for_events=True)
 
 # Disconnect source and sink.
 source_stream.disconnect_all(after=5)

@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from rayvens.api import init, Stream
+from rayvens.api import init, meta, Stream
 from rayvens.core.common import OutputEvent
 
-__all__ = ['init', 'Stream', 'OutputEvent']
+__all__ = ['init', 'meta', 'Stream', 'OutputEvent']
