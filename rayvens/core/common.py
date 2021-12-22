@@ -27,6 +27,9 @@ from rayvens.core.mode import mode, RayvensMode
 from ray.actor import ActorHandle, ActorMethod
 from ray.remote_function import RemoteFunction
 
+# Batch timeout in seconds:
+batch_timeout = 10
+
 
 class OutputEvent:
     def __init__(self, data, headers={}):
@@ -142,6 +145,27 @@ class ProducerActor:
             pass
 
 
+class BatchTimeoutThread(threading.Thread):
+    def __init__(self, handle):
+        threading.Thread.__init__(self)
+        self.stop_flag = threading.Event()
+        self.received_a_message = threading.Event()
+        self.handle = handle
+
+    def run(self):
+        # Wait for at least one message to be delivered:
+        while not self.received_a_message:
+            pass
+
+        # Start monitoring timeout:
+        while not self.stop_flag.is_set():
+            self.received_a_message = threading.Event()
+            time.sleep(batch_timeout)
+            if not self.received_a_message.is_set():
+                self.handle.flush_batch.remote()
+        self.handle.flush_batch.remote()
+
+
 class QueueReadThread(threading.Thread):
     def __init__(self, handle, server_address, route):
         threading.Thread.__init__(self)
@@ -150,6 +174,9 @@ class QueueReadThread(threading.Thread):
         self.handle = handle
         self.server_address = server_address
         self.route = route
+        self.timeout_thread = BatchTimeoutThread(handle)
+        self.timeout_thread.daemon = True
+        self.timeout_thread.start()
 
     def run(self):
         while not self.stop_flag.is_set():
@@ -161,9 +188,11 @@ class QueueReadThread(threading.Thread):
                     continue
                 response.encoding = 'latin-1'
                 self.handle.append.remote(response.text)
+                self.timeout_thread.received_a_message.set()
             except requests.exceptions.ConnectionError:
                 time.sleep(1)
 
+        self.timeout_thread.stop_flag.set()
         self.run_flag.set()
 
 

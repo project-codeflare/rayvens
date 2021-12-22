@@ -25,6 +25,7 @@ from rayvens.core.operator_kafka import start as start_operator_kafka
 from rayvens.core.ray_serve import start as start_operator_ray_serve
 from rayvens.core.name import name_source, name_sink
 from rayvens.core.verify import verify_do
+from queue import Queue
 
 
 class Stream:
@@ -33,13 +34,14 @@ class Stream:
                  actor_options=None,
                  operator=None,
                  source_config=None,
-                 sink_config=None):
+                 sink_config=None,
+                 batch_size=None):
         if _global_camel is None:
             raise RuntimeError(
                 "Rayvens has not been started. Start with 'rayvens.init()'.")
         self.name = name
         self.actor = StreamActor.options(actor_options).remote(
-            name, operator=operator)
+            name, operator=operator, batch_size=batch_size)
         if sink_config is not None:
             self.add_sink(sink_config)
         if source_config is not None:
@@ -53,11 +55,12 @@ class Stream:
         self.actor.append.remote(data)
         return self
 
-    def add_operator(self, operator):
-        return ray.get(self.actor.add_operator.remote(operator))
+    def add_operator(self, operator, batch_size=None):
+        return ray.get(self.actor.add_operator.remote(operator, batch_size))
 
-    def add_multi_operator(self, operator):
-        return ray.get(self.actor.add_multi_operator.remote(operator))
+    def add_multitask_operator(self, operator, batch_size=None):
+        return ray.get(
+            self.actor.add_multitask_operator.remote(operator, batch_size))
 
     def add_source(self, source_config):
         return ray.get(self.actor.add_source.remote(self, source_config))
@@ -116,13 +119,14 @@ class Stream:
 
 
 class StreamContext:
-    def __init__(self):
+    def __init__(self, stream_batch_size):
         self.sink_restrictions = {}
         self.subscribers = {}
         self.latest_sent_event_timestamp = None
         self.event_counter = 0
         self.limit_subscribers = False
         self.is_multi_operator = False
+        self.stream_batch_size = stream_batch_size
 
     def publish(self, data):
         if data is not None:
@@ -148,12 +152,15 @@ class StreamContext:
 
 @ray.remote(num_cpus=0)
 class StreamActor:
-    def __init__(self, name, operator=None):
+    def __init__(self, name, operator=None, batch_size=None):
         self.name = name
         self._operator = operator
         self._sources = {}
         self._sinks = {}
-        self.context = StreamContext()
+        self.context = StreamContext(batch_size)
+        self.queue = None
+        if self.context.stream_batch_size is not None:
+            self.queue = Queue(maxsize=self.context.stream_batch_size)
 
     def send_to(self, subscriber, name=None):
         if self.context.limit_subscribers:
@@ -168,17 +175,26 @@ class StreamActor:
     def append(self, data):
         if data is None:
             return
+        if self.queue is not None:
+            self.queue.put_nowait(data)
+            if not self.queue.full():
+                return
+            data = list(self.queue.queue)
+            with self.queue.mutex:
+                self.queue.queue.clear()
         if self._operator is not None:
             data = _eval(self.context, self._operator, data)
         self.context.publish(data)
         self.context.latest_sent_event_timestamp = time.time()
         self.context.event_counter += 1
 
-    def add_operator(self, operator):
+    def add_operator(self, operator, batch_size):
         self._operator = operator
+        self.context.batch_size = batch_size
 
-    def add_multitask_operator(self, operator):
+    def add_multitask_operator(self, operator, batch_size):
         self._operator = operator
+        self.context.batch_size = batch_size
         self.context.is_multi_operator = True
 
     def add_source(self, stream, source_config):
@@ -229,12 +245,28 @@ class StreamActor:
     def disconnect_all(self, stream_drain_timeout):
         for source_name in dict(self._sources):
             self.disconnect_source(source_name)
+        if self.queue is not None:
+            self.flush_batch()
         time.sleep(stream_drain_timeout)
         for sink_name in dict(self._sinks):
             self.disconnect_sink(sink_name)
 
     def event_count(self):
         return self.context.event_counter
+
+    def flush_batch(self):
+        data = None
+        if self.queue is not None:
+            data = list(self.queue.queue)
+            with self.queue.mutex:
+                self.queue.queue.clear()
+        if data is None:
+            return
+        if self._operator is not None:
+            data = _eval(self.context, self._operator, data)
+        self.context.publish(data)
+        self.context.latest_sent_event_timestamp = time.time()
+        self.context.event_counter += 1
 
     def _meta(self, action, *args, **kwargs):
         return verify_do(self, _global_camel, action, *args, **kwargs)
