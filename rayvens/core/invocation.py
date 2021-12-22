@@ -151,7 +151,7 @@ class KamelInvocation:
 
     def _check_kamel_output(self,
                             end_condition,
-                            with_output=True,
+                            with_output=False,
                             with_timeout=False):
         # Implicit 5 minute timout in hundredths of a second:
         timout_duration = 5 * 60 * 100
