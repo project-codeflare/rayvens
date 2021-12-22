@@ -14,57 +14,56 @@
 # limitations under the License.
 #
 
+import ray
 import time
 from rayvens.core import kamel
 
 
-def verify_do(stream, _global_camel, action, *args, **kwargs):
+def verify_do(handle, _global_camel, action, *args, **kwargs):
     if action == 'verify_log':
-        return _verify_log(stream, _global_camel, *args, **kwargs)
+        return _verify_log(handle, _global_camel, *args, **kwargs)
     raise RuntimeError('invalid meta action')
 
 
-def _verify_log(stream,
+def wait_for_event(handle):
+    event_count = 0
+    countdown = 20
+    while event_count == 0:
+        event_count = ray.get(handle.event_count.remote())
+        time.sleep(1)
+        countdown -= 1
+        if countdown == 0:
+            break
+    if event_count == 0:
+        return False
+    return True
+
+
+def _verify_log(handle,
                 _global_camel,
                 sink_source_name,
                 message,
                 wait_for_events=False):
-    # Get integration:
-    integration = None
-    if sink_source_name in stream._sinks:
-        integration = stream._sinks[sink_source_name]
-    if sink_source_name in stream._sources:
-        integration = stream._sources[sink_source_name]
-    if integration is None:
-        raise RuntimeError(
-            f'{sink_source_name} not found on stream {stream.name}')
-
     log = "FAIL"
 
     # Wait for at least one event to happen.
     if wait_for_events:
-        event_count = 0
-        countdown = 20
-        while event_count == 0:
-            event_count = stream.event_count()
-            time.sleep(1)
-            countdown -= 1
-            if countdown == 0:
-                break
-        if event_count == 0:
-            print("[LOG CHECK]:", log)
+        if not wait_for_event(handle):
+            print("[LOG CHECK]:", "NO EVENTS RECEIVED")
             return False
 
     if _global_camel.mode.is_local():
         # In the local case the integration run is ongoing and we can
         # access the logs directly.
-        outcome = integration.invocation.invoke(message)
+        outcome = ray.get(
+            handle._integration_invoke.remote(sink_source_name, message))
     else:
         # When running using the operator then the integration run command
         # is non-blocking and returns immediately. The logs can be queried
         # using the kamel log command.
-        invocation = kamel.log(_global_camel.mode,
-                               integration.integration_name, message)
+        integration_name = ray.get(
+            handle._get_integration_name.remote(sink_source_name))
+        invocation = kamel.log(_global_camel.mode, integration_name, message)
         outcome = invocation is not None
         invocation.kill()
 

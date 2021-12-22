@@ -31,7 +31,7 @@ else:
     ray.init(address='auto')
 
 # The Kafka topic used for communication.
-topic = "testTopic"
+topic = "testTopicPartitioned"
 
 rayvens.init(mode=run_mode, transport='kafka')
 
@@ -53,11 +53,13 @@ source_config = dict(
     kafka_transport_partitions=3)
 source = source_stream.add_source(source_config)
 
-# Verify outcome.
-source_stream._meta('verify_log',
-                    test_sink,
-                    "quoteResponse",
-                    wait_for_events=True)
+# Verify outcome. Since events are going through the Kafka infrastructure
+# we need to disable checks based on event counts.
+rayvens.meta(source_stream,
+             'verify_log',
+             test_sink,
+             "quoteResponse",
+             wait_for_events=False)
 
 # Disconnect source and sink.
 source_stream.disconnect_all(after=10)

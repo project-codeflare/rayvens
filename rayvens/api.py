@@ -268,8 +268,22 @@ class StreamActor:
         self.context.latest_sent_event_timestamp = time.time()
         self.context.event_counter += 1
 
-    def _meta(self, action, *args, **kwargs):
-        return verify_do(self, _global_camel, action, *args, **kwargs)
+    def _get_integration(self, source_sink_name):
+        if source_sink_name in self._sinks:
+            integration = self._sinks[source_sink_name]
+        if source_sink_name in self._sources:
+            integration = self._sources[source_sink_name]
+        if integration is None:
+            raise RuntimeError(
+                f'{source_sink_name} not found on stream {self.name}')
+        return integration
+
+    def _integration_invoke(self, source_sink_name, message):
+        integration = self._get_integration(source_sink_name)
+        return integration.invocation.invoke(message)
+
+    def _get_integration_name(self, source_sink_name):
+        return self._get_integration(source_sink_name).integration_name
 
     def _get_latest_timestamp(self):
         return self.context.latest_sent_event_timestamp
@@ -341,3 +355,7 @@ def init(mode=os.getenv('RAYVENS_MODE', 'auto'),
                 f'{transport} transport unsupported for mode {mode}.')
     else:
         raise RuntimeError(f'Unsupported mode {mode}.')
+
+
+def meta(stream, action, *args, **kwargs):
+    return verify_do(stream.actor, _global_camel, action, *args, **kwargs)

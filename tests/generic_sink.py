@@ -59,7 +59,7 @@ output_message = f'Sending message to Slack sink in run mode {run_mode}.'
 stream << output_message
 
 # Verify outcome.
-stream._meta('verify_log', sink, output_message, wait_for_events=True)
+rayvens.meta(stream, 'verify_log', sink, output_message, wait_for_events=True)
 
 # Delete all integrations from stream.
 stream.disconnect_all(after_idle_for=5)
