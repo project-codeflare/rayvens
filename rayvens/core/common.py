@@ -37,7 +37,7 @@ class OutputEvent:
         self.headers = headers
 
 
-def get_run_mode(camel_mode, check_port):
+def get_run_mode(camel_mode, check_port, release):
     if camel_mode == 'auto' or camel_mode == 'local':
         mode.run_mode = RayvensMode.LOCAL
     elif camel_mode == 'mixed':
@@ -47,6 +47,7 @@ def get_run_mode(camel_mode, check_port):
     else:
         raise RuntimeError("Unsupported camel mode.")
     mode.check_port = check_port
+    mode.release = release
     return mode
 
 

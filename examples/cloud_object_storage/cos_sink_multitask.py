@@ -42,7 +42,7 @@ ray.init()
 # Camel-K component for Kafka does not propagate message headers. This
 # will be fixed by Camel-K 1.8.0 release.
 # rayvens.init(transport="kafka")
-rayvens.init()
+rayvens.init(release=True)
 
 # Create an object stream
 stream = rayvens.Stream('upload-file')

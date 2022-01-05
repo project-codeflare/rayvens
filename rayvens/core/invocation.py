@@ -153,6 +153,12 @@ class KamelInvocation:
                             end_condition,
                             with_output=False,
                             with_timeout=False):
+        # Decide whether to print logs or not. If this is release mode
+        # then no output will be printed:
+        with_output_final = with_output
+        if self.mode.release:
+            with_output_final = False
+
         # Implicit 5 minute timout in hundredths of a second:
         timout_duration = 5 * 60 * 100
         if with_timeout:
@@ -175,10 +181,11 @@ class KamelInvocation:
             if with_timeout:
                 output = utils.print_log_from_queue(self.subprocess_name,
                                                     reading_thread.queue,
-                                                    with_output)
+                                                    with_output_final)
             else:
                 output = utils.print_log_from_subprocess(
-                    self.subprocess_name, self.process.stdout, with_output)
+                    self.subprocess_name, self.process.stdout,
+                    with_output_final)
 
             # Use the Kamel output to decide when Kamel instance is
             # ready to receive requests.

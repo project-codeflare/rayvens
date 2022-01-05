@@ -53,6 +53,7 @@ class RunMode:
         self.namespace = "ray"
         self.transport = None
         self.check_port = True
+        self.release = False
 
     def server_address(self, integration):
         return self._get_server_address(integration.integration_name,

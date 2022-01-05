@@ -24,8 +24,8 @@ from rayvens.core.common import await_start
 from rayvens.core.integration import Integration
 
 
-def start(camel_mode, check_port):
-    return Camel(common.get_run_mode(camel_mode, check_port))
+def start(camel_mode, check_port, release):
+    return Camel(common.get_run_mode(camel_mode, check_port, release))
 
 
 class Camel:
