@@ -377,7 +377,7 @@ EOF
         cat >> "$config" << EOF
 file_mounts:
     {
-        "/home/ray/$dir_name": "$project_dir"
+        "/home/ray/$dir_name": "$project_dir",
 EOF
 
         if [ ! -z "$project_requirements_file" ]; then
