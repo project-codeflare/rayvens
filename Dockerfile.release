@@ -17,7 +17,7 @@
 ARG base_image=rayproject/ray:1.4.1-py38
 FROM ${base_image}
 
-COPY --from=docker.io/apache/camel-k:1.5.0 /usr/local/bin/kamel /usr/local/bin/
+COPY --from=docker.io/apache/camel-k:1.5.1 /usr/local/bin/kamel /usr/local/bin/
 
 RUN sudo apt-get update \
     && sudo apt-get install -y --no-install-recommends openjdk-11-jdk maven \

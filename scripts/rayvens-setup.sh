@@ -706,7 +706,7 @@ if [ -n "$kamel" ]; then
     echo "--- installing Kamel operator"
     kubectl create serviceaccount kamel -n "$namespace"
     kubectl create clusterrolebinding kamel --clusterrole=cluster-admin --serviceaccount="$namespace":kamel
-    kubectl run --rm -i -t kamel --image=apache/camel-k:1.5.0 --restart=Never --serviceaccount=kamel -n "$namespace" -- \
+    kubectl run --rm -i -t kamel --image=apache/camel-k:1.5.1 --restart=Never --serviceaccount=kamel -n "$namespace" -- \
         kamel install --force $(echo "$options")
     kubectl delete clusterrolebinding kamel
     kubectl delete serviceaccount kamel -n "$namespace"
