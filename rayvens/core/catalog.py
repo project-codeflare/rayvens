@@ -114,11 +114,8 @@ def cos_source(config):
     if 'secret_access_key' not in config:
         raise TypeError(
             'Cloud object storage source requires an secret access key.')
-    # if 'endpoint' not in config:
-    #     raise TypeError('Cloud object storage source requires an endpoint.')
     bucket_name = config['bucket_name']
     access_key_id = config['access_key_id']
-    # secret_access_key = config['secret_access_key']
     secret_access_key = 'RAW('+config['secret_access_key']+')' # add RAW() to deal with special characters in key
 
     split_endpoint = None
@@ -461,11 +458,8 @@ def cos_sink(config):
     if 'secret_access_key' not in config:
         raise TypeError(
             'Cloud object storage sink requires an secret access key.')
-    # if 'endpoint' not in config:
-    #     raise TypeError('Cloud object storage sink requires an endpoint.')
     bucket_name = config['bucket_name']
     access_key_id = config['access_key_id']
-    # secret_access_key = config['secret_access_key'] 
     secret_access_key = 'RAW('+config['secret_access_key']+')' # add RAW() to deal with special characters in key
 
     split_endpoint = None
@@ -548,7 +542,7 @@ def cos_sink(config):
                         'simple': file_name
                     }
                 })
-            spec['steps'].append({'to': uri}) # <===
+            spec['steps'].append({'to': uri})
             spec_list.append((spec, None))
 
             # If the from_file option is active we need to create a route
@@ -667,7 +661,6 @@ def construct_sink(config, endpoint):
         else:
             spec['uri'] = from_uri
         final_spec_list.append({'from': spec})
-    # print(yaml.dump(final_spec_list)) # print out kamel integration yaml, use with 'kamel local run'
     return final_spec_list
 
 
