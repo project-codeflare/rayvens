@@ -114,29 +114,39 @@ def cos_source(config):
     if 'secret_access_key' not in config:
         raise TypeError(
             'Cloud object storage source requires an secret access key.')
-    if 'endpoint' not in config:
-        raise TypeError('Cloud object storage source requires an endpoint.')
     bucket_name = config['bucket_name']
     access_key_id = config['access_key_id']
-    secret_access_key = config['secret_access_key']
-    endpoint = config['endpoint']
+    secret_access_key = 'RAW('+config['secret_access_key']+')' # add RAW() to deal with special characters in key
 
-    # Ensure this is a valid, supported endpoint:
-    split_endpoint = _parse_endpoint(endpoint)
+    split_endpoint = None
+
+    if 'endpoint' in config:
+        endpoint = config['endpoint']
+
+        # Ensure this is a valid, supported endpoint:
+        split_endpoint = _parse_endpoint(endpoint)
 
     # Resolve region:
     region = 'us-east'
     if 'region' in config:
         region = config['region']
     else:
-        region = split_endpoint[1]
+        if split_endpoint:
+            region = split_endpoint[1]
 
     # Assemble URI:
-    uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
-          f'&secretKey={secret_access_key}' \
-          '&overrideEndpoint=true' \
-          f'&uriEndpointOverride={endpoint}' \
-          f'&region={region}'
+    if 'endpoint' not in config:
+
+        uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
+            f'&secretKey={secret_access_key}' \
+            f'&region={region}'
+    else:
+
+        uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
+            f'&secretKey={secret_access_key}' \
+            '&overrideEndpoint=true' \
+            f'&uriEndpointOverride={endpoint}' \
+            f'&region={region}'
 
     # Move after read options:
     if 'move_after_read' in config:
@@ -448,26 +458,28 @@ def cos_sink(config):
     if 'secret_access_key' not in config:
         raise TypeError(
             'Cloud object storage sink requires an secret access key.')
-    if 'endpoint' not in config:
-        raise TypeError('Cloud object storage sink requires an endpoint.')
     bucket_name = config['bucket_name']
     access_key_id = config['access_key_id']
-    secret_access_key = config['secret_access_key']
-    endpoint = config['endpoint']
+    secret_access_key = 'RAW('+config['secret_access_key']+')' # add RAW() to deal with special characters in key
+
+    split_endpoint = None
+    if 'endpoint' in config:
+        endpoint = config['endpoint']
+        # Ensure this is a valid, supported endpoint:
+        split_endpoint = _parse_endpoint(endpoint)
+
 
     file_name = "default.txt"
     if 'file_name' in config:
         file_name = config['file_name']
-
-    # Ensure this is a valid, supported endpoint:
-    split_endpoint = _parse_endpoint(endpoint)
 
     # Resolve region:
     region = 'us-east'
     if 'region' in config:
         region = config['region']
     else:
-        region = split_endpoint[1]
+        if split_endpoint:
+            region = split_endpoint[1]
 
     # If we are uploading a file either directly or by monitoring a directory,
     # multi-part must be enabled:
@@ -476,11 +488,16 @@ def cos_sink(config):
         config['upload_type'] = "multi-part"
 
     # Assemble URI:
-    uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
-          f'&secretKey={secret_access_key}' \
-          '&overrideEndpoint=true' \
-          f'&uriEndpointOverride={endpoint}' \
-          f'&region={region}'
+    if 'endpoint' not in config:
+        uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
+            f'&secretKey={secret_access_key}' \
+            f'&region={region}'
+    else:
+        uri = f'aws2-s3://{bucket_name}?accessKey={access_key_id}' \
+            f'&secretKey={secret_access_key}' \
+            '&overrideEndpoint=true' \
+            f'&uriEndpointOverride={endpoint}' \
+            f'&region={region}'
 
     # Final result is a list of spec and uri pairs: [(spec, uri)]
     spec_list = []
@@ -644,7 +661,6 @@ def construct_sink(config, endpoint):
         else:
             spec['uri'] = from_uri
         final_spec_list.append({'from': spec})
-    # print(yaml.dump(final_spec_list))
     return final_spec_list
 
 
