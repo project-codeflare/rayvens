@@ -24,6 +24,7 @@ image="quay.io/ibm/rayvens:$rayvens_version"
 service_account="rayvens"
 cpu="1"
 mem="2G"
+max_workers="2"
 project_dir=""
 project_requirements_file=""
 project_dependencies=""
@@ -45,15 +46,13 @@ while [ -n "$1" ]; do
         --ce) ce="1";;
         --cpu) shift; cpu=$1;;
         --mem) shift; mem=$1;;
+        --max-workers) shift; max_workers=$1;;
         --example) example="1";;
         --preload) preload="1";;
         --version) version="1";;
-        --install-project) install_project="1";;
         --project-dir) shift; project_dir=$1;;
-        -d|--project-dep) shift; project_dependencies="$project_dependencies $1";;
-        -p|--project-pip-dep) shift; project_pip_dependencies="$project_pip_dependencies $1";;
         --project-requirements) shift; project_requirements_file=$1;;
-        --requirements-in-project-dir) requirements_in_project_dir="1";;
+        --project-dep) shift; project_dependencies="$project_dependencies $1";;
 
         --dev)
             kind="1";
@@ -80,8 +79,9 @@ Usage: rayvens-setup.sh [options]
     -c --config <rayens.yaml>       Ray cluster configuration file to use/generate (defaults to "rayvens.yaml" in current working directory)
     -n --namespace <namespace>      Kubernetes namespace to target (defaults to "ray")
     --image <image>                 Rayvens container image name (defaults to "quay.io/ibm/rayvens")
-    --cpu <cpus>                    cpu quota for each Ray node (defaults to 1)
+    --cpu <cpu>                     cpu quota for each Ray node (defaults to 1)
     --mem <mem>                     memory quota for each Ray node (defaults to 2G)
+    --max-workers <max_workers>     the maximum number of workers the Ray cluster will have at any given time (defaults to 2)
     --skip                          reuse existing cluster configuration file (skip generation)
     --ce                            skip service account setup on IBM Cloud Code Engine and use built-in namespace writer account
     --registry                      setup or reuse an insecure container registry running on localhost:5000
@@ -93,12 +93,9 @@ Usage: rayvens-setup.sh [options]
     --preload                       preload main camel jars into maven repository
     --version                       shows the version of this script
 
-    --install-project               install project on cluster nodes, use --project-dir <absolute_dir_path>, --project-requirements <absolute_file_path> or --requirements-in-project-dir
-      --project-dir <absolute_dir_path>             directory of the user project to be pip installed on the cluster nodes
-      --project-requirements <absolute_file_path>   file containing python dependencies to be pip installed on the cluster nodes via requirements file
-      --requirements-in-project-dir                 when true, the requirements file in the project directory will be used, if missing the requirements file will be ignored
-      --project-dep <dep>                           system project dependency that will use "apt-get install -y <dep>"
-      --project-pip-dep <dep>                       python dependency to be pip installed using "pip install <dep>"
+    --project-dir <absolute_dir_path>             directory of the user project to be pip installed on the cluster nodes
+    --project-requirements <absolute_file_path>   requirements file containing python dependencies to be pip installed on the cluster nodes
+    --project-dep <dep>                           system project dependency that will use "apt-get install -y <dep>"
 
     --kind                          setup a development Kind cluster on localhost instead of deploying to current Kubernetes context
                                     (destroy existing Kind cluster if any, set Kubernetes context to Kind)
@@ -182,7 +179,7 @@ if [ -z "$skip" ]; then
 #
 
 cluster_name: rayvens-cluster
-max_workers: 2
+max_workers: $max_workers
 upscaling_speed: 1.0
 idle_timeout_minutes: 5
 provider:
@@ -249,7 +246,7 @@ head_node_type: head_node
 available_node_types:
     worker_node:
         min_workers: 0
-        max_workers: 2
+        max_workers: $max_workers
         node_config:
             apiVersion: v1
             kind: Pod
@@ -353,34 +350,36 @@ worker_start_ray_commands:
     - ulimit -n 65536; ray start --address=\$RAY_HEAD_IP:6379
 EOF
 
-    if [ -n "$install_project" ]; then
-        if [ -z "$project_dir" ]; then
-            echo "ERROR: project directory name has not been specified, use flag --project-dir <absolute_path_to_dir>"
-            exit 1
-        fi
-
-        if [ -z "$(dirname "${project_dir}")" ]; then
-            echo "ERROR: project directory specified: ${project_dir} but it is not an absolute path"
-            exit 1
-        fi
-
-        echo "--- mount project from directory $(dirname "${project_dir}")"
-        echo "$(dirname "${project_dir}")" ; echo "$(basename "${project_dir}")"
-        dir_name="$(basename "${project_dir}")"
-        requirements_file_name=""
-
-        if [ -z "${dir_name}" ]; then
-            echo "ERROR: project directory name missing from path: ${project_dir}"
-            exit 1
-        fi
+    if [ -n "$project_dir" ] ||  [ -n "$project_requirements_file" ]; then
 
         cat >> "$config" << EOF
 file_mounts:
-    {
-        "/home/ray/$dir_name": "$project_dir",
+{
 EOF
 
-        if [ ! -z "$project_requirements_file" ]; then
+        if [ -n "$project_dir" ]; then
+
+            if [ -z "$(dirname "${project_dir}")" ]; then
+                echo "ERROR: project directory specified: ${project_dir} but it is not an absolute path"
+                exit 1
+            fi
+
+            echo "--- mount project from directory $(dirname "${project_dir}")"
+            echo "$(dirname "${project_dir}")" ; echo "$(basename "${project_dir}")"
+            dir_name="$(basename "${project_dir}")"
+
+            if [ -z "${dir_name}" ]; then
+                echo "ERROR: project directory name missing from path: ${project_dir}"
+                exit 1
+            fi
+
+            cat >> "$config" << EOF
+    "/home/ray/$dir_name": "$project_dir",
+EOF
+        fi
+
+        if [ -n "$project_requirements_file" ]; then
+
             if [ -z "$(dirname "${project_requirements_file}")" ]; then
                 echo "ERROR: project requirements file specified: ${project_requirements_file} but it is not an absolute path"
                 exit 1
@@ -394,82 +393,72 @@ EOF
             fi
 
             cat >> "$config" << EOF
-        "/home/ray/$requirements_file_name": "$project_requirements_file"
+    "/home/ray/$requirements_file_name": "$project_requirements_file"
 EOF
-
         fi
+        
         cat >> "$config" << EOF
-    }
+}
+
 file_mounts_sync_continuously: false
 EOF
+
     fi
 
-    if [ -n "$install_project" ]; then
+    if [ -n "$project_dependencies" ] ||  [ -n "$requirements_file_name" ] || [ -n "$dir_name" ]; then
+
         cat >> "$config" << EOF
 head_setup_commands:
 EOF
 
         if [ -n "$project_dependencies" ]; then
+
             cat >> "$config" << EOF
     - sudo apt-get update
     - sudo apt-get -y install$project_dependencies
 EOF
         fi
 
-        if [ -n "$project_pip_dependencies" ]; then
-            cat >> "$config" << EOF
-    - pip install$project_pip_dependencies
-EOF
-        fi
+        if [ -n "$requirements_file_name" ]; then
 
-        if [ -n "$requirements_in_project_dir" ]; then
-            cat >> "$config" << EOF
-    - pip install -r /home/ray/$dir_name/requirements.txt
-EOF
-        fi
-
-        if [ ! -z "$requirements_file_name" ]; then
             cat >> "$config" << EOF
     - pip install -r /home/ray/$requirements_file_name
 EOF
         fi
 
-        cat >> "$config" << EOF
+        if [ -n "$dir_name" ]; then
+
+            cat >> "$config" << EOF
     - pip install /home/ray/$dir_name
 EOF
+        fi
 
         cat >> "$config" << EOF
 worker_setup_commands:
 EOF
 
         if [ -n "$project_dependencies" ]; then
+
             cat >> "$config" << EOF
     - sudo apt-get update
     - sudo apt-get -y install$project_dependencies
 EOF
         fi
 
-        if [ -n "$project_pip_dependencies" ]; then
-            cat >> "$config" << EOF
-    - pip install$project_pip_dependencies
-EOF
-        fi
+        if [ -n "$requirements_file_name" ]; then
 
-        if [ -n "$requirements_in_project_dir" ]; then
-            cat >> "$config" << EOF
-    - pip install -r /home/ray/$dir_name/requirements.txt
-EOF
-        fi
-
-        if [ ! -z "$requirements_file_name" ]; then
             cat >> "$config" << EOF
     - pip install -r /home/ray/$requirements_file_name
 EOF
         fi
 
-        cat >> "$config" << EOF
+        if [ -n "$dir_name" ]; then
+
+            cat >> "$config" << EOF
     - pip install /home/ray/$dir_name
 EOF
+        fi
+
     fi
 
 else
