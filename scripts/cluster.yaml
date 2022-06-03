@@ -115,7 +115,7 @@ available_node_types:
                             mountPath: /etc/podinfo
                       resources:
                           requests:
-                              cpu: 1000m
+                              cpu: 100m
                               memory: 2G
                           limits:
                               memory: 2G
@@ -165,7 +165,7 @@ available_node_types:
                             mountPath: /etc/podinfo
                       resources:
                           requests:
-                              cpu: 1000m
+                              cpu: 100m
                               memory: 2G
                           limits:
                               memory: 2G
