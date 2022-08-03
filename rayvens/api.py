@@ -31,7 +31,7 @@ from queue import Queue
 class Stream:
     def __init__(self,
                  name,
-                 actor_options=None,
+                 actor_options={},
                  operator=None,
                  source_config=None,
                  sink_config=None,
@@ -40,7 +40,7 @@ class Stream:
             raise RuntimeError(
                 "Rayvens has not been started. Start with 'rayvens.init()'.")
         self.name = name
-        self.actor = StreamActor.options(actor_options).remote(
+        self.actor = StreamActor.options(*actor_options).remote(
             name, operator=operator, batch_size=batch_size)
         if sink_config is not None:
             self.add_sink(sink_config)
