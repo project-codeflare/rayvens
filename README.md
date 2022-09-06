@@ -229,7 +229,7 @@ add the necessary dependencies to enable the running of Camel-K sources and
 sinks in local mode inside the container.
 The all-in-one Rayvens container image distributed on
 [quay.io](https://quay.io/repository/ibm/rayvens) adds Camel-K 1.5.1 to a base
-`rayproject/ray:1.12.1-py38` image. See [Dockerfile.release](Dockerfile.release)
+`rayproject/ray:1.13.0-py38` image. See [Dockerfile.release](Dockerfile.release)
 for specifics.
 
 ### Operator Mode Prerequisites
