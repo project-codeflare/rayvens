@@ -103,7 +103,7 @@ def run(integration_content,
     # Use appropriate Queue type(s).
     if mode.transport == 'http' and integration_type == 'source':
         if catalog_utils.integration_requires_file_queue(integration_content):
-            queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
+            queue = os.path.join(os.path.dirname(__file__), 'FileQueueName.java')
             command.append(queue)
 
             command.append("-d")
@@ -187,7 +187,7 @@ def local_run(integration_content,
     # Use appropriate Queue type(s).
     if mode.transport == 'http' and integration_type == 'source':
         if catalog_utils.integration_requires_file_queue(integration_content):
-            queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
+            queue = os.path.join(os.path.dirname(__file__), 'FileQueueName.java')
             command.append(queue)
 
             command.append("-d")
