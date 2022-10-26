@@ -106,6 +106,9 @@ def run(integration_content,
             queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
             command.append(queue)
 
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
+            
         if catalog_utils.integration_requires_file_queue_json(
                 integration_content):
             queue = os.path.join(os.path.dirname(__file__),
@@ -186,6 +189,9 @@ def local_run(integration_content,
         if catalog_utils.integration_requires_file_queue(integration_content):
             queue = os.path.join(os.path.dirname(__file__), 'FileQueue.java')
             command.append(queue)
+
+            command.append("-d")
+            command.append("mvn:com.googlecode.json-simple:json-simple:1.1.1")
 
         if catalog_utils.integration_requires_file_queue_json(
                 integration_content):
