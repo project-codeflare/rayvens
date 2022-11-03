@@ -62,12 +62,12 @@ public class FileQueueName extends RouteBuilder {
     BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
 
     @BindToRegistry
-    public Recv addToFileQueue() {
+    public Recv addToFileQueueName() {
         return new Recv(queue);
     }
 
     @BindToRegistry
-    public Send takeFromFileQueue() {
+    public Send takeFromFileQueueName() {
         return new Send(queue);
     }
 
