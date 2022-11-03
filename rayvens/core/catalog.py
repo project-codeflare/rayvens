@@ -165,7 +165,35 @@ def cos_source(config):
 
     return {'uri': uri, 'steps': []}
 
+# get event content w/o any meta data
+def file_source_raw(config):
+    if 'path' not in config:
+        raise TypeError('File source requires a path name.')
+    path = Path(config['path'])
+    if path.is_dir():
+        uri = f'file:{str(path)}?'
+    elif path.is_file():
+        uri = f'file:{str(path.parent)}?filename={path.name}&'
+    else:
+        raise RuntimeError('The given path may either be a directory or a file. The given path {} is neither.'.format(path))
 
+    use_amp_in_recursive = False
+
+    # Keep files after being processed. By default, files are deleted.
+    if 'keep_file' in config and config['keep_file']:
+        uri += 'noop=true'
+        use_amp_in_recursive = True
+
+    # Recursive traversal of the directory, default is false.
+    if 'recursive' in config and config['recursive']:
+        if use_amp_in_recursive:
+            uri += '&recursive=true'
+        else:
+            uri += 'recursive=true'
+
+    return {'uri': uri, 'steps': []}
+
+# get event + meta (name) in json format.
 def file_source(config):
     if 'path' not in config:
         raise TypeError('File source requires a path name.')
@@ -178,7 +206,7 @@ def file_source(config):
     elif path.is_file():
         uri = f'file:{str(path.parent)}?filename={path.name}&'
     else:
-        raise TypeError('The given path may either be a directory or a file. The given path {} is neither.'.format(path))
+        raise RuntimeError('The given path may either be a directory or a file. The given path {} is neither.'.format(path))
 
     use_amp_in_recursive = True
 
@@ -301,6 +329,7 @@ sources = {
     'telegram-source': telegram_source,
     'binance-source': binance_source,
     'cloud-object-storage-source': cos_source,
+    'file-source-raw': file_source_raw,
     'file-source': file_source,
     'file-watch-source': file_watch_source,
     'generic-source': generic_source,
@@ -337,9 +366,12 @@ def construct_source(config, endpoint, inverted=False):
     # Manage Queue access methods.
     take_from_queue = 'takeFromQueue'
     add_to_queue = 'addToQueue'
-    if config['kind'] == 'file-source':
+    if config['kind'] == 'file-source-raw':
         take_from_queue = 'takeFromFileQueue'
         add_to_queue = 'addToFileQueue'
+    if config['kind'] == 'file-source':
+        take_from_queue = 'takeFromFileQueueName'
+        add_to_queue = 'addToFileQueueName'
     elif config['kind'] == 'file-watch-source':
         take_from_queue = 'takeFromFileWatchQueue'
         add_to_queue = 'addToFileWatchQueue'
@@ -631,6 +663,7 @@ def cos_sink(config):
         regular_spec = {'steps': [{'to': uri}]}
     spec_list.append((regular_spec, None))
     return spec_list
+
 
 def file_sink(config):
     if 'path' not in config:
