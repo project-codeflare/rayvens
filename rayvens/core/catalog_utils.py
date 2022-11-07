@@ -41,8 +41,12 @@ def cos_source():
                 optional=['region', 'move_after_read', 'meta_event_only'])
 
 
-def file_source():
+def file_source_raw():
     return dict(required=['path'], optional=['keep_files', 'recursive'])
+
+
+def file_source():
+    return dict(required=['path'], optional=['keep_files', 'recursive', 'move_after_read'])
 
 
 def file_watch_source():
@@ -63,6 +67,7 @@ source_requirements = {
     'telegram-source': telegram_source,
     'binance-source': binance_source,
     'cloud-object-storage-source': cos_source,
+    'file-source-raw': file_source_raw,
     'file-source': file_source,
     'file-watch-source': file_watch_source,
     'generic-source': generic_source,
@@ -160,6 +165,7 @@ source_modeline_name = {
     'telegram-source': "telegram",
     'binance-source': "xchange.binance",
     'cloud-object-storage-source': "aws2-s3",
+    'file-source-raw': "file-raw",
     'file-source': "file",
     'file-watch-source': "file-watch"
 }
@@ -291,6 +297,11 @@ def integration_requires_file_queue(integration_content):
         return True
     return False
 
+def integration_requires_file_queue_name(integration_content):
+    configuration = yaml.dump(integration_content)
+    if 'bean: addToFileQueueName' in configuration:
+        return True
+    return False
 
 def integration_requires_file_queue_json(integration_content):
     configuration = yaml.dump(integration_content)

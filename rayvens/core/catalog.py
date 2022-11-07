@@ -165,25 +165,74 @@ def cos_source(config):
 
     return {'uri': uri, 'steps': []}
 
-
-def file_source(config):
+# get event content w/o any meta data
+def file_source_raw(config):
     if 'path' not in config:
         raise TypeError('File source requires a path name.')
     path = Path(config['path'])
     if path.is_dir():
         uri = f'file:{str(path)}?'
-    else:
+    elif path.is_file():
         uri = f'file:{str(path.parent)}?filename={path.name}&'
-
-    # Keep files after being processed, default is true.
-    if 'keep_files' not in config or not config['keep_files']:
-        uri += 'delete=true'
     else:
-        uri += 'delete=false'
+        raise RuntimeError('The given path may either be a directory or a file. The given path {} is neither.'.format(path))
+
+    use_amp_in_recursive = False
+
+    # Keep files after being processed. By default, files are deleted.
+    if 'keep_file' in config and config['keep_file']:
+        uri += 'noop=true'
+        use_amp_in_recursive = True
 
     # Recursive traversal of the directory, default is false.
     if 'recursive' in config and config['recursive']:
-        uri += '&recursive=true'
+        if use_amp_in_recursive:
+            uri += '&recursive=true'
+        else:
+            uri += 'recursive=true'
+
+    return {'uri': uri, 'steps': []}
+
+# get event + meta (name) in json format.
+def file_source(config):
+    if 'path' not in config:
+        raise TypeError('File source requires a path name.')
+    if all(['move_after_read' in config,'keep_file' in config and config['keep_file']]):
+        raise RuntimeError('Moving files will necessarily delete them from the source. move_after_read and keep_file=True are mutually exclusive.')
+        
+    path = Path(config['path'])
+    if path.is_dir():
+        uri = f'file:{str(path)}?'
+    elif path.is_file():
+        uri = f'file:{str(path.parent)}?filename={path.name}&'
+    else:
+        raise RuntimeError('The given path may either be a directory or a file. The given path {} is neither.'.format(path))
+
+    use_amp_in_recursive = True
+
+    # Move after reading files from directory.
+    if 'move_after_read' in config:
+        move_path = Path(config['move_after_read'])
+        if str(move_path) == str(path):
+            raise RuntimeError(f'Path {str(move_path)} and Path {str(path)} cannot be identical.')
+        if all([path.is_file(),str(move_path) == str(path.parent)]):
+            raise RuntimeError(f'Path {str(move_path)} and Path {str(path.parent)} cannot be identical.')
+        # by default, move_path will be created if it does not exist, hence, is_dir is not tested.
+        # therefore, move reauires care when using relative paths, especially when the source is a file.
+        uri += f'move={str(move_path)}'
+    else:
+        # Keep files after being processed. By default, files are deleted.
+        if 'keep_file' in config and config['keep_file']:
+            uri += 'noop=true'
+        else:
+            use_amp_in_recursive = False
+
+    # Recursive traversal of the directory, default is false.
+    if 'recursive' in config and config['recursive']:
+        if use_amp_in_recursive:
+            uri += '&recursive=true'
+        else:
+            uri += 'recursive=true'
 
     return {'uri': uri, 'steps': []}
 
@@ -280,6 +329,7 @@ sources = {
     'telegram-source': telegram_source,
     'binance-source': binance_source,
     'cloud-object-storage-source': cos_source,
+    'file-source-raw': file_source_raw,
     'file-source': file_source,
     'file-watch-source': file_watch_source,
     'generic-source': generic_source,
@@ -316,9 +366,12 @@ def construct_source(config, endpoint, inverted=False):
     # Manage Queue access methods.
     take_from_queue = 'takeFromQueue'
     add_to_queue = 'addToQueue'
-    if config['kind'] == 'file-source':
+    if config['kind'] == 'file-source-raw':
         take_from_queue = 'takeFromFileQueue'
         add_to_queue = 'addToFileQueue'
+    if config['kind'] == 'file-source':
+        take_from_queue = 'takeFromFileQueueName'
+        add_to_queue = 'addToFileQueueName'
     elif config['kind'] == 'file-watch-source':
         take_from_queue = 'takeFromFileWatchQueue'
         add_to_queue = 'addToFileWatchQueue'
@@ -612,6 +665,26 @@ def cos_sink(config):
     return spec_list
 
 
+def file_sink(config):
+    if 'path' not in config:
+        raise TypeError('File source requires a path name.')
+    path = Path(config['path'])
+    if path.is_dir():
+        uri = f'file:{str(path)}?'
+    elif path.is_file():
+        uri = f'file:{str(path.parent)}?filename={path.name}' # TODO: test this option
+    else:
+        raise RuntimeError('Path {} is neither a directory nor a file.'.format(config['path']))
+
+    final_spec = {
+        'steps': [{
+            'to': uri,
+        }]
+    }
+
+    return [(final_spec, None)]
+
+
 def test_sink(config):
     return [({'steps': [{'log': {'message': "\"${body}\""}}]}, None)]
 
@@ -635,6 +708,7 @@ sinks = {
     'kafka-sink': kafka_sink,
     'telegram-sink': telegram_sink,
     'cloud-object-storage-sink': cos_sink,
+    'file-sink': file_sink,
     'generic-sink': generic_sink,
     'test-sink': test_sink
 }
@@ -681,6 +755,7 @@ sink_input_restriction = {
     'kafka-sink': no_restriction,
     'telegram-sink': no_restriction,
     'cloud-object-storage-sink': cos_sink_restriction,
+    'file-sink': no_restriction,
     'generic-sink': no_restriction,
     'test-sink': no_restriction
 }
