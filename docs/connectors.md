@@ -63,12 +63,14 @@ Sources:
 - `telegram-source`
 - `binance-source`
 - `cloud-object-store-source`
+- `file-source`
 
 Sinks:
 - `slack-sink`
 - `kafka-sink`
 - `telegram-sink`
 - `cloud-object-store-sink`
+- `file-sink`
 
 In addition to the sources and sinks above, Rayvens also allows the user to specify any other source or sink supported by Apache Camel by using the following sources/sink kinds:
 - `generic-source`
@@ -133,6 +135,8 @@ This source manages the receiving of objects from AWS S3 or IBM Cloud Object Sto
 - `move_after_read` (optional) enables moving of any read file from bucket specified by `bucket_name` to new bucket that is the value of this field. If using the Cloud Object Storage, the new bucket has to be created ahead of time. The new bucket name is provided as the value of this field;
 - `meta_event_only` (optional) this option only allows for the filename to be propagated;
 
+Each file event is formated as a json that includes `body` and `filename` keys.
+
 This source will fetch and delete the files in the bucket unless the `move_after_read` option is enabled in which case the read files are moved to the bucket specified by the `move_after_read` field value.
 
 Example of the simplest configuration where the source consumes any files written to the bucket specified by the `bucket_name`:
@@ -174,6 +178,38 @@ json_event['body']
 
 ### `kind="file-source"`
 
+This source reads files from a file system directory when they become available. The event is triggered automatically whenever files show up in the source directory. Each file event is formated as a json that includes `body` and `filename` keys. The file event is returned by the source to be processed further by the application. This source has the following options:
+- `path` the path to the file being monitored;
+- `keep_files` (optional) by default the files are deleted i.e. the value is `False`;
+- `move_after_read` (optional) a directory to move processed files to. Mutually exclusive w.r.t. `keep_files=True`;
+- `recursive` (optional) by default files and not extracted from sub-directories i.e. the value is `False`;
+
+Example configuration for this source:
+```
+source_config = dict(kind='file-source',
+                     path='test_files',
+                     move_after_read='test_files_dest')
+```
+The returned result is a JSON message with the following structure:
+
+```
+{"filename": <filename_value>, "body": <body_value>}
+```
+Convert the event to JSON when handling the event:
+
+```
+import json
+json_event = json.loads(event)
+```
+and then access its field like so:
+```
+json_event['filename']
+json_event['body']
+```
+
+
+### `kind="file-source-raw"`
+
 This source reads a file from the file system when the file becomes available. The event is triggered automatically whenever the file becomes available. The file content is read to memory and returned by the source to be processed further by the application. This source has the following options:
 - `path` the path to the file being monitored;
 - `keep_files` (optional) by default the files are deleted i.e. the value is `False`;
@@ -181,7 +217,7 @@ This source reads a file from the file system when the file becomes available. T
 Example configuration for this source:
 ```
 source_config = dict(kind='file-source',
-                     path='test_files/test2.txt',
+                     path='test_files/test.txt',
                      keep_files=True)
 ```
 
@@ -297,6 +333,17 @@ stream << Path("test_files/test.txt")
 This will ensure that the input is treated as the path to a file on the target system. Unless overwritten by the `file_name` option the name of the uploaded file will be the original file name (in this case `test.txt`).
 
 When `from_file` or `from_directory` fields are used, the input will be a file system file which is uploaded in multi-part mode. Since the multi-part mode is the only one currently supported it will be selected by default. To adjust the part size consider using the `part_size` option.
+
+### `kind="file-sink"`
+
+This sink manages the uploading of objects to a file system directory. It supports the following fields:
+- `path` the path to the sink directory;
+
+Example configuration for this source:
+```
+source_config = dict(kind='file-sink',
+                     path='test_files')
+```
 
 ## Generic sources
 

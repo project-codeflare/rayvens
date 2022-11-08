@@ -32,28 +32,27 @@ if run_mode == 'operator':
     ray.init(address='auto')
 else:
     ray.init()
-rayvens.init(mode=run_mode)
+rayvens.init(mode=run_mode, release=True)
 
 # Create an object stream:
 stream = rayvens.Stream('file-process')
 
 # Configure the source:
-source_config = dict(kind='file-source',
-                     path='test_files/test2.txt',
-                     keep_files=True)
+source_config = dict(kind='file-source-raw',
+                     path='test_files/test.txt',
+                     keep_file=True)
 
 # Run the source:
 source = stream.add_source(source_config)
 
-
 def process_file(event):
-    print(f'received {len(event)} bytes')
-    print("Contents:")
-    print(event)
-
+    print(f'Received bytes: {len(event)}.')
+    print(f"Contents: {event}")
 
 # Log object sizes to the console:
 stream >> process_file
 
 # Run for a while.
 stream.disconnect_all(after_idle_for=2)
+
+ray.shutdown()
