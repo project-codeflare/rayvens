@@ -216,7 +216,7 @@ This source reads a file from the file system when the file becomes available. T
 
 Example configuration for this source:
 ```
-source_config = dict(kind='file-source',
+source_config = dict(kind='file-source-raw',
                      path='test_files/test.txt',
                      keep_files=True)
 ```
