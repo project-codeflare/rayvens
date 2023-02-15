@@ -31,10 +31,10 @@ script:
   - ./scripts/start-kind.sh
 
   # Test local container run mode
-  # - RAYVENS_TEST_MODE=local python ./tests/stream.py
-  # - RAYVENS_TEST_MODE=local python ./tests/source.py
+  - RAYVENS_TEST_MODE=local python ./tests/stream.py
+  - RAYVENS_TEST_MODE=local python ./tests/source.py
   - RAYVENS_TEST_MODE=local RAYVENS_TRANSPORT=kafka python ./tests/source.py
-  # - ray submit ./scripts/cluster.yaml ./tests/stream.py
+  - ray submit ./scripts/cluster.yaml ./tests/stream.py
   - ray submit ./scripts/cluster.yaml ./tests/source.py
   - RAYVENS_TEST_MODE=local python ./tests/kafka_transport.py
   - ray submit ./scripts/cluster.yaml ./tests/kafka_transport.py local
@@ -42,15 +42,15 @@ script:
   - ray submit ./scripts/cluster.yaml ./tests/kafka_scaling_transport.py local
 
   # Test operator mode
-  # - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
+  - ray submit ./scripts/cluster.yaml ./tests/source_operator.py
   - RAYVENS_TEST_MODE=local python ./tests/sink.py
   - ray submit ./scripts/cluster.yaml ./tests/sink.py
-  # - RAYVENS_TEST_MODE=local python ./tests/kafka.py
-  # - ray submit ./scripts/cluster.yaml ./tests/kafka.py
-  # - RAYVENS_TEST_MODE=local python ./tests/generic_sink.py
-  # - ray submit ./scripts/cluster.yaml ./tests/generic_sink.py
-  # - RAYVENS_TEST_MODE=local python ./tests/generic_source.py
-  # - ray submit ./scripts/cluster.yaml ./tests/generic_source.py
+  - RAYVENS_TEST_MODE=local python ./tests/kafka.py
+  - ray submit ./scripts/cluster.yaml ./tests/kafka.py
+  - RAYVENS_TEST_MODE=local python ./tests/generic_sink.py
+  - ray submit ./scripts/cluster.yaml ./tests/generic_sink.py
+  - RAYVENS_TEST_MODE=local python ./tests/generic_source.py
+  - ray submit ./scripts/cluster.yaml ./tests/generic_source.py
   - ray submit ./scripts/cluster.yaml ./tests/kafka_transport.py operator
   - ray submit ./scripts/cluster.yaml ./tests/kafka_scaling_transport.py operator
 

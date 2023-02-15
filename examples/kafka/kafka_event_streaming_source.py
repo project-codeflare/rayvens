@@ -56,7 +56,7 @@ stream = rayvens.Stream('http')
 # Log all events from stream-attached sources.
 stream >> (lambda event: print('LOG:', event))
 
-# Event source config.
+# Event source configuration.
 source_config = dict(
     kind='http-source',
     url='https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL',
